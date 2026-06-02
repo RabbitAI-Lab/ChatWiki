@@ -177,7 +177,7 @@ export default function WorkspaceDetail({
           Chat
           <span
             role="button"
-            onClick={(e) => { e.stopPropagation(); openFloatingChat(); }}
+            onClick={(e) => { e.stopPropagation(); openFloatingChat(undefined, workspaceMeta.id); }}
             className="ml-0.5 w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-blue-500 transition-opacity"
           >
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

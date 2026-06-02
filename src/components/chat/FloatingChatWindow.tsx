@@ -64,7 +64,7 @@ function clamp(val: number, min: number, max: number) {
 }
 
 export default function FloatingChatWindow() {
-  const { isOpen, isMinimized, close, minimize, projectId, windowKey, mentionFile, setMentionFile } = useFloatingChat();
+  const { isOpen, isMinimized, close, minimize, projectId, workspaceId, windowKey, mentionFile, setMentionFile } = useFloatingChat();
   const containerRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<ChatWorkspaceRef>(null);
 
@@ -384,6 +384,7 @@ export default function FloatingChatWindow() {
           embedded={false}
           floating={true}
           projectId={projectId}
+          workspaceId={workspaceId}
           mentionFile={mentionFile}
           onMentionConsumed={() => setMentionFile(null)}
         />

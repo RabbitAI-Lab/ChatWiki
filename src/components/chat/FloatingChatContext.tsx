@@ -6,8 +6,9 @@ interface FloatingChatContextValue {
   isOpen: boolean;
   isMinimized: boolean;
   projectId: string | undefined;
+  workspaceId: string | undefined;
   windowKey: number;
-  open: (projectId?: string) => void;
+  open: (projectId?: string, workspaceId?: string) => void;
   close: () => void;
   minimize: () => void;
   mentionFile: string | null;
@@ -32,10 +33,11 @@ export function FloatingChatProviderInner({ children }: FloatingChatProviderInne
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
+  const [workspaceId, setWorkspaceId] = useState<string | undefined>(undefined);
   const [windowKey, setWindowKey] = useState(0);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
-  const open = useCallback((newProjectId?: string) => {
+  const open = useCallback((newProjectId?: string, newWorkspaceId?: string) => {
     if (isMinimized) {
       // Restore from minimized — keep existing session
       setIsMinimized(false);
@@ -44,6 +46,7 @@ export function FloatingChatProviderInner({ children }: FloatingChatProviderInne
     if (isOpen) return;
     // New floating chat session
     setProjectId(newProjectId);
+    setWorkspaceId(newWorkspaceId);
     setWindowKey((k) => k + 1);
     setIsOpen(true);
   }, [isOpen, isMinimized]);
@@ -52,6 +55,7 @@ export function FloatingChatProviderInner({ children }: FloatingChatProviderInne
     setIsOpen(false);
     setIsMinimized(false);
     setProjectId(undefined);
+    setWorkspaceId(undefined);
   }, []);
 
   const minimize = useCallback(() => {
@@ -59,7 +63,7 @@ export function FloatingChatProviderInner({ children }: FloatingChatProviderInne
   }, []);
 
   return (
-    <FloatingChatContext.Provider value={{ isOpen, isMinimized, projectId, windowKey, open, close, minimize, mentionFile, setMentionFile }}>
+    <FloatingChatContext.Provider value={{ isOpen, isMinimized, projectId, workspaceId, windowKey, open, close, minimize, mentionFile, setMentionFile }}>
       {children}
     </FloatingChatContext.Provider>
   );
