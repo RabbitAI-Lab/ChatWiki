@@ -44,6 +44,7 @@ export const chats = sqliteTable("chats", {
   modelId: integer("model_id"),
   templateId: integer("template_id"),
   projectId: text("project_id"),
+  workspaceId: text("workspace_id"),  // nullable，记录从哪个 workspace 发起
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

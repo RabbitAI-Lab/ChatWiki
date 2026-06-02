@@ -21,7 +21,7 @@ export async function PATCH(
 ) {
   const { chatId } = await params;
   const body = await req.json();
-  const { title, modelId, templateId, projectId } = body;
+  const { title, modelId, templateId, projectId, workspaceId } = body;
 
   const updates: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
@@ -30,6 +30,7 @@ export async function PATCH(
   if (modelId !== undefined) updates.modelId = modelId;
   if (templateId !== undefined) updates.templateId = templateId;
   if (projectId !== undefined) updates.projectId = projectId;
+  if (workspaceId !== undefined) updates.workspaceId = workspaceId;
 
   db.update(chats).set(updates).where(eq(chats.id, parseInt(chatId))).run();
 

@@ -11,6 +11,7 @@ import {
   SaveOutlined,
   ClearOutlined,
   FolderOutlined,
+  AppstoreOutlined,
   ProfileOutlined,
   ArrowLeftOutlined,
   RedoOutlined,
@@ -57,6 +58,7 @@ interface ChatWorkspaceProps {
   onChatCreated?: (chatId: number) => void;
   floating?: boolean;
   showProjectSelector?: boolean;
+  workspaceId?: string;
 }
 
 export interface ChatWorkspaceRef {
@@ -217,6 +219,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
   onChatCreated,
   floating = false,
   showProjectSelector = false,
+  workspaceId,
 }, ref) {
   const router = useRouter();
   const [effectiveChatId, setEffectiveChatId] = useState<number | null>(chatId ?? null);
@@ -230,10 +233,14 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
   const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<{ id: number; provider: string; modelName: string; isDefault: number }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]);
   const [templates, setTemplates] = useState<{ id: number; name: string; agentPrompt?: string; content?: string }[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<number | undefined>(initialModelId);
   const [selectedProject, setSelectedProject] = useState<string | undefined>(
     initialProjectId ?? undefined
+  );
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string | undefined>(
+    (!initialProjectId && workspaceId) ? workspaceId : undefined
   );
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(initialTemplateId);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -259,12 +266,24 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
   };
 
   const handleProjectChange = (id: string | undefined) => {
+    if (id) setSelectedWorkspace(undefined);
     setSelectedProject(id);
     if (!effectiveChatId) return;
     fetch(`/api/chats/${effectiveChatId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: id ?? null }),
+      body: JSON.stringify({ projectId: id ?? null, workspaceId: null }),
+    });
+  };
+
+  const handleWorkspaceChange = (id: string | undefined) => {
+    if (id) setSelectedProject(undefined);
+    setSelectedWorkspace(id);
+    if (!effectiveChatId) return;
+    fetch(`/api/chats/${effectiveChatId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId: id ?? null, projectId: null }),
     });
   };
 
@@ -305,6 +324,11 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
     fetch("/api/fs/projects?type=personal&accountId=default")
       .then((r) => r.json())
       .then((data) => setProjects(Array.isArray(data) ? data : []));
+    fetch("/api/fs/workspaces?type=personal&accountId=default")
+      .then((r) => r.json())
+      .then((data) => setWorkspaces(
+        Array.isArray(data) ? data.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })) : []
+      ));
     fetch("/api/templates")
       .then((r) => r.json())
       .then((data) => {
@@ -444,6 +468,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
             modelId: selectedModelId,
             templateId: selectedTemplateId,
             projectId: selectedProject,
+            workspaceId: selectedWorkspace ?? workspaceId,
           }),
         });
         if (!chatRes.ok) {
@@ -701,6 +726,8 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
         setInputValue("");
       } else if (selectedProject) {
         router.push(`/chat/new?project=${encodeURIComponent(selectedProject)}`);
+      } else if (selectedWorkspace) {
+        router.push(`/workspace/personal/default/${selectedWorkspace}`);
       } else {
         router.push("/chat/new");
       }
@@ -718,7 +745,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
     handleCopyLink,
     handleRegenerateLink,
     handleCancelShare,
-  }), [floating, selectedProject, effectiveChatId, shareOpen, shareToken, shareLoading]);
+  }), [floating, selectedProject, selectedWorkspace, effectiveChatId, shareOpen, shareToken, shareLoading]);
 
   const loadChat = async (targetChatId: number) => {
     try {
@@ -734,15 +761,45 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
       if (chat.title) setEffectiveChatTitle(chat.title);
       if (chat.modelId) setSelectedModelId(chat.modelId);
       if (chat.templateId) setSelectedTemplateId(chat.templateId);
+      if (chat.projectId) {
+        setSelectedProject(chat.projectId);
+        setSelectedWorkspace(undefined);
+      } else if (chat.workspaceId) {
+        setSelectedWorkspace(chat.workspaceId);
+        setSelectedProject(undefined);
+      }
     } catch {
       // silently fail
     }
   };
 
-  const handleHistorySelect = (chatId: number) => {
+  const handleHistorySelect = async (chatId: number) => {
     if (onSwitchToChat) {
       onSwitchToChat(chatId);
-    } else if (floating) {
+      return;
+    }
+
+    // Check if the chat is workspace-only, then redirect to workspace page
+    try {
+      const chatRes = await fetch(`/api/chats/${chatId}`);
+      if (chatRes.ok) {
+        const chatData = await chatRes.json();
+        if (chatData.workspaceId && !chatData.projectId) {
+          if (floating) {
+            loadChat(chatId);
+          } else if (embedded) {
+            window.location.href = `/workspace/personal/default/${chatData.workspaceId}?chatId=${chatId}`;
+          } else {
+            router.push(`/workspace/personal/default/${chatData.workspaceId}?chatId=${chatId}`);
+          }
+          return;
+        }
+      }
+    } catch {
+      // fallback to default
+    }
+
+    if (floating) {
       loadChat(chatId);
     } else if (embedded) {
       window.location.href = `/chat/${chatId}`;
@@ -1108,6 +1165,8 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
                   setInputValue("");
                 } else if (selectedProject) {
                   router.push(`/chat/new?project=${encodeURIComponent(selectedProject)}`);
+                } else if (selectedWorkspace) {
+                  router.push(`/workspace/personal/default/${selectedWorkspace}`);
                 } else {
                   router.push("/chat/new");
                 }
@@ -1288,29 +1347,53 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
                         styles={switchStyles}
                       />
                     </Dropdown>
-                    {((!embedded) || showProjectSelector) && projects.length > 0 && (
+                    {((!embedded) || showProjectSelector) && (projects.length > 0 || workspaces.length > 0) && (
                       <Dropdown
                         getPopupContainer={floating ? () => document.getElementById('floating-chat-window') || document.body : undefined}
                         menu={{
                           items: [
-                            ...(selectedProject ? [{ key: '__clear_project__', label: '✕ 清除选择' }] : []),
-                            ...projects.map((p) => ({ key: p.id, label: p.name })),
+                            ...((selectedProject || selectedWorkspace)
+                              ? [{ key: '__clear__', label: '✕ 清除选择' }]
+                              : []),
+                            ...(projects.length > 0
+                              ? [{ type: 'group' as const, key: 'project-group', label: 'Project', children:
+                                  projects.map((p) => ({ key: `project:${p.id}`, label: p.name }))
+                              }]
+                              : []),
+                            ...(workspaces.length > 0
+                              ? [{ type: 'group' as const, key: 'workspace-group', label: 'Workspace', children:
+                                  workspaces.map((w) => ({ key: `workspace:${w.id}`, label: w.name }))
+                              }]
+                              : []),
                           ],
                           onClick: ({ key }) => {
-                            if (key === '__clear_project__') {
+                            if (key === '__clear__') {
                               handleProjectChange(undefined);
-                            } else {
-                              handleProjectChange(key);
+                              setSelectedWorkspace(undefined);
+                            } else if (key.startsWith('project:')) {
+                              handleProjectChange(key.slice('project:'.length));
+                            } else if (key.startsWith('workspace:')) {
+                              handleWorkspaceChange(key.slice('workspace:'.length));
                             }
                           },
-                          selectedKeys: selectedProject ? [selectedProject] : [],
+                          selectedKeys: selectedProject
+                            ? [`project:${selectedProject}`]
+                            : selectedWorkspace
+                              ? [`workspace:${selectedWorkspace}`]
+                              : [],
                         }}
                       >
                         <Sender.Switch
-                          value={!!selectedProject}
-                          icon={<FolderOutlined />}
-                          checkedChildren={projects.find((p) => p.id === selectedProject)?.name}
-                          unCheckedChildren="项目"
+                          value={!!(selectedProject || selectedWorkspace)}
+                          icon={selectedWorkspace ? <AppstoreOutlined /> : <FolderOutlined />}
+                          checkedChildren={
+                            selectedProject
+                              ? projects.find((p) => p.id === selectedProject)?.name
+                              : selectedWorkspace
+                                ? workspaces.find((w) => w.id === selectedWorkspace)?.name
+                                : undefined
+                          }
+                          unCheckedChildren="项目/空间"
                           styles={switchStyles}
                         />
                       </Dropdown>

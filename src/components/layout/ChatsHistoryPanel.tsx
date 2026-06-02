@@ -10,6 +10,8 @@ interface Chat {
   id: number;
   title: string;
   updatedAt: string;
+  projectId?: string | null;
+  workspaceId?: string | null;
 }
 
 interface ChatsHistoryPanelProps {
@@ -136,7 +138,14 @@ export default function ChatsHistoryPanel({ chats }: ChatsHistoryPanelProps) {
                 return (
                   <div
                     key={chat.id}
-                    onClick={() => router.push(chatPath)}
+                    onClick={() => {
+                      // workspace-only 的 chat 跳转到 workspace 详情页
+                      if (chat.workspaceId && !chat.projectId) {
+                        router.push(`/workspace/personal/default/${chat.workspaceId}?chatId=${chat.id}`);
+                      } else {
+                        router.push(chatPath);
+                      }
+                    }}
                     className={cn(
                       "group relative flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-lg transition-colors text-left cursor-pointer",
                       isActive

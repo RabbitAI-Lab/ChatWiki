@@ -1,16 +1,19 @@
 import { readWorkspaceMeta, listWorkspaceProjects } from "@/lib/fs";
 import { db } from "@/db";
 import { chats, documentActivities } from "@/db/schema";
-import { gte, desc, inArray, and, isNotNull } from "drizzle-orm";
+import { gte, desc, eq, and, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import WorkspaceDetail from "@/components/workspace/WorkspaceDetail";
 
 export default async function WorkspacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ path: string[] }>;
+  searchParams: Promise<{ chatId?: string }>;
 }) {
   const { path: rawPath } = await params;
+  const { chatId: chatIdParam } = await searchParams;
   const urlPath = rawPath.map(decodeURIComponent);
 
   // urlPath = ["personal", "default", "{workspaceId}"]
@@ -34,32 +37,27 @@ export default async function WorkspacePage({
 
   const projectIds = linkedProjects.map((p) => p.id);
 
-  // 预取最近 20 天的聊天（聚合 workspace 下所有 linked projects）
-  // 注意: projectId 列也是 text, workspaceId 同样可存, 但这里只查 project
+  // 预取最近 20 天的聊天（只查从该 workspace 发起的聊天）
   const twentyDaysAgo = new Date(
     Date.now() - 20 * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const recentChats =
-    projectIds.length === 0
-      ? []
-      : db
-          .select({
-            id: chats.id,
-            title: chats.title,
-            updatedAt: chats.updatedAt,
-            projectId: chats.projectId,
-          })
-          .from(chats)
-          .where(
-            and(
-              isNotNull(chats.projectId),
-              inArray(chats.projectId, projectIds),
-              gte(chats.updatedAt, twentyDaysAgo),
-            ),
-          )
-          .orderBy(desc(chats.updatedAt))
-          .all();
+  const recentChats = db
+    .select({
+      id: chats.id,
+      title: chats.title,
+      updatedAt: chats.updatedAt,
+      projectId: chats.projectId,
+    })
+    .from(chats)
+    .where(
+      and(
+        eq(chats.workspaceId, workspaceId),
+        gte(chats.updatedAt, twentyDaysAgo),
+      ),
+    )
+    .orderBy(desc(chats.updatedAt))
+    .all();
 
   // 预取最近 20 天的文档活动（聚合 workspace 下所有 linked projects）
   const recentDocuments =
@@ -86,6 +84,7 @@ export default async function WorkspacePage({
       recentDocuments={recentDocuments}
       accountType={accountType}
       accountId={accountId}
+      initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
     />
   );
 }

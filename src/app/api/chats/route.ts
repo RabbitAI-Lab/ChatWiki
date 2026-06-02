@@ -9,12 +9,16 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const pageSize = Math.max(1, Math.min(100, Number(url.searchParams.get("pageSize") ?? "20")));
   const projectId = url.searchParams.get("projectId");
+  const workspaceId = url.searchParams.get("workspaceId");
   const since = url.searchParams.get("since");
   const offset = (page - 1) * pageSize;
 
   const conditions: ReturnType<typeof eq | typeof isNull | typeof gte>[] = [];
   if (projectId) {
     conditions.push(projectId === "__none__" ? isNull(chats.projectId) : eq(chats.projectId, projectId));
+  }
+  if (workspaceId) {
+    conditions.push(workspaceId === "__none__" ? isNull(chats.workspaceId) : eq(chats.workspaceId, workspaceId));
   }
   if (since) {
     conditions.push(gte(chats.updatedAt, since));
@@ -35,6 +39,7 @@ export async function GET(req: NextRequest) {
       modelId: chats.modelId,
       templateId: chats.templateId,
       projectId: chats.projectId,
+      workspaceId: chats.workspaceId,
       createdAt: chats.createdAt,
       updatedAt: chats.updatedAt,
       modelName: modelConfigs.name,
@@ -61,7 +66,7 @@ export async function DELETE() {
 // POST /api/chats
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { title, modelId, templateId, projectId } = body;
+  const { title, modelId, templateId, projectId, workspaceId } = body;
 
   const now = new Date().toISOString();
   const result = db.insert(chats).values({
@@ -69,6 +74,7 @@ export async function POST(req: NextRequest) {
     modelId: modelId ?? undefined,
     templateId: templateId ?? undefined,
     projectId: projectId ?? undefined,
+    workspaceId: workspaceId ?? undefined,
     createdAt: now,
     updatedAt: now,
   }).run();

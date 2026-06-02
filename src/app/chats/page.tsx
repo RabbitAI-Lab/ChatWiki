@@ -8,6 +8,7 @@ interface Chat {
   id: number;
   title: string;
   projectId: string | null;
+  workspaceId: string | null;
   modelName: string | null;
   templateName: string | null;
   createdAt: string;
@@ -31,6 +32,7 @@ export default function ChatsPageClient() {
   const router = useRouter();
   const [data, setData] = useState<ChatsData | null>(null);
   const [projectMap, setProjectMap] = useState<Map<string, string>>(new Map());
+  const [workspaceMap, setWorkspaceMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -44,6 +46,13 @@ export default function ChatsPageClient() {
         const map = new Map<string, string>();
         for (const p of projects) map.set(p.id, p.name);
         setProjectMap(map);
+      });
+    fetch("/api/fs/workspaces?type=personal&accountId=default")
+      .then((res) => res.json())
+      .then((workspaces: ProjectMeta[]) => {
+        const map = new Map<string, string>();
+        for (const w of workspaces) map.set(w.id, w.name);
+        setWorkspaceMap(map);
       });
   }, []);
 
@@ -136,6 +145,9 @@ export default function ChatsPageClient() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-56">
                     Project
                   </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                    Workspace
+                  </th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
                     Model
                   </th>
@@ -155,16 +167,25 @@ export default function ChatsPageClient() {
                 {data.chats.map((chat) => (
                   <tr
                     key={chat.id}
-                    onClick={() => router.push(`/chat/${chat.id}`)}
+                    onClick={() => {
+                      if (chat.workspaceId && !chat.projectId) {
+                        router.push(`/workspace/personal/default/${chat.workspaceId}?chatId=${chat.id}`);
+                      } else {
+                        router.push(`/chat/${chat.id}`);
+                      }
+                    }}
                     className="hover:bg-blue-50 cursor-pointer transition-colors"
                   >
                     <td className="py-3 px-4">
-                      <span className="text-sm text-blue-600 hover:text-blue-800">
+                      <span className="text-sm text-gray-800">
                         {chat.title}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
                       {chat.projectId ? (projectMap.get(chat.projectId) || chat.projectId) : <span className="text-gray-300">-</span>}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-500">
+                      {chat.workspaceId ? (workspaceMap.get(chat.workspaceId) || chat.workspaceId) : <span className="text-gray-300">-</span>}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
                       {chat.modelName || <span className="text-gray-300">-</span>}

@@ -9,6 +9,7 @@ interface Chat {
   id: number;
   title: string;
   projectId: string | null;
+  workspaceId: string | null;
   updatedAt: string;
 }
 
