@@ -9,16 +9,55 @@ const WAL_PATH = DB_PATH + "-wal";
 const SHM_PATH = DB_PATH + "-shm";
 const MIGRATIONS_DIR = path.join(process.cwd(), "drizzle");
 
-// ── Run all migrations ──
+// ── Migration tracking ──
+const MIGRATIONS_TABLE = "_migrations";
+
+function ensureMigrationsTable(db: Database.Database) {
+  db.exec(`CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
+}
+
+/**
+ * If the _migrations table didn't exist before this call, it means we are upgrading
+ * an existing database that was created by running all migrations blindly.
+ * In that case, mark ALL existing migration files as already applied.
+ */
+function bootstrapMigrationTracking(db: Database.Database): boolean {
+  const tableExists = (db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(MIGRATIONS_TABLE)) != null;
+  ensureMigrationsTable(db);
+  if (tableExists) return false; // already bootstrapped
+  // First time: mark all existing migration files as applied
+  const files = fs.readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith(".sql")).sort();
+  const now = new Date().toISOString();
+  const insert = db.prepare(`INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (name, applied_at) VALUES (?, ?)`);
+  for (const file of files) {
+    insert.run(file, now);
+  }
+  console.log(`[db] Bootstrapped migration tracking: marked ${files.length} existing migrations as applied.`);
+  return true;
+}
+
+function getAppliedMigrations(db: Database.Database): Set<string> {
+  const rows = db.prepare(`SELECT name FROM ${MIGRATIONS_TABLE}`).all() as Array<{ name: string }>;
+  return new Set(rows.map((r) => r.name));
+}
+
+function recordMigration(db: Database.Database, name: string) {
+  const now = new Date().toISOString();
+  db.prepare(`INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (name, applied_at) VALUES (?, ?)`).run(name, now);
+}
+
+// ── Run all migrations (fresh DB only) ──
 function runMigrations(db: Database.Database) {
   const files = fs.readdirSync(MIGRATIONS_DIR)
     .filter(f => f.endsWith(".sql"))
     .sort();
   
-  console.log(`[db] Running ${files.length} migrations...`);
+  console.log(`[db] Running ${files.length} migrations on fresh database...`);
+  ensureMigrationsTable(db);
   for (const file of files) {
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
     db.exec(sql);
+    recordMigration(db, file);
     console.log(`[db]   ✓ ${file}`);
   }
 }
@@ -47,30 +86,40 @@ function initDatabase(): Database.Database {
   const db = new Database(DB_PATH);
 
   if (tryApplyPragmas(db) && checkIntegrity(db)) {
-    // Ensure new migrations are applied to existing databases
-    // Run each migration file individually so that one failure doesn't block others
+    // Only run NEW migrations that haven't been applied yet
     try {
+      bootstrapMigrationTracking(db);
+      const applied = getAppliedMigrations(db);
       const migrationFiles = fs.readdirSync(MIGRATIONS_DIR)
         .filter(f => f.endsWith(".sql"))
-        .sort();
-      for (const file of migrationFiles) {
-        try {
-          const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
-          // Split by semicolons and run each statement individually
-          const statements = sql.split(";").map(s => s.trim()).filter(s => s.length > 0);
-          for (const stmt of statements) {
-            try {
-              db.exec(stmt);
-            } catch {
-              // Individual statement may fail if table/index already exists — that's ok
+        .sort()
+        .filter(f => !applied.has(f));
+
+      if (migrationFiles.length > 0) {
+        console.log(`[db] Applying ${migrationFiles.length} new migrations...`);
+        for (const file of migrationFiles) {
+          try {
+            const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
+            // Use db.exec for the full file — drizzle migration breakpoints use --> statement-breakpoint
+            // which we split by the semicolons between statements
+            const statements = sql.split(";").map(s => s.trim()).filter(s => s.length > 0);
+            for (const stmt of statements) {
+              try {
+                db.exec(stmt);
+              } catch {
+                // Individual statement may fail if already applied — that's ok
+              }
             }
+            recordMigration(db, file);
+            console.log(`[db]   ✓ ${file}`);
+          } catch {
+            // File read error — skip
           }
-        } catch {
-          // File read error — skip
         }
+      } else {
+        console.log("[db] All migrations already applied.");
       }
     } catch { /* directory read error */ }
-    console.log("[db] Integrity check passed.");
     return db;
   }
 

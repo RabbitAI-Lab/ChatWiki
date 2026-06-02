@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { chats } from "@/db/schema";
+import { chats, modelConfigs, templates } from "@/db/schema";
 import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 
 // GET /api/chats?page=1&pageSize=20&projectId=xxx&since=ISO_DATE
@@ -29,8 +29,20 @@ export async function GET(req: NextRequest) {
   const total = totalResult?.count ?? 0;
 
   const rows = db
-    .select()
+    .select({
+      id: chats.id,
+      title: chats.title,
+      modelId: chats.modelId,
+      templateId: chats.templateId,
+      projectId: chats.projectId,
+      createdAt: chats.createdAt,
+      updatedAt: chats.updatedAt,
+      modelName: modelConfigs.name,
+      templateName: templates.name,
+    })
     .from(chats)
+    .leftJoin(modelConfigs, eq(chats.modelId, modelConfigs.id))
+    .leftJoin(templates, eq(chats.templateId, templates.id))
     .where(whereCondition)
     .orderBy(desc(chats.updatedAt))
     .limit(pageSize)

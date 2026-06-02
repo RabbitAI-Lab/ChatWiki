@@ -8,6 +8,8 @@ interface Chat {
   id: number;
   title: string;
   projectId: string | null;
+  modelName: string | null;
+  templateName: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -134,6 +136,12 @@ export default function ChatsPageClient() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-56">
                     Project
                   </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
+                    Model
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
+                    Template
+                  </th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-44">
                     Created
                   </th>
@@ -157,6 +165,12 @@ export default function ChatsPageClient() {
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
                       {chat.projectId ? (projectMap.get(chat.projectId) || chat.projectId) : <span className="text-gray-300">-</span>}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-500">
+                      {chat.modelName || <span className="text-gray-300">-</span>}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-500">
+                      {chat.templateName || <span className="text-gray-300">-</span>}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
                       {formatDate(chat.createdAt)}

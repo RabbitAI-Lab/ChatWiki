@@ -421,7 +421,8 @@ export default function NewChatWorkspace() {
       setActiveChatId(chatId);
       setActiveChatTitle(chatData.title || "新Chat");
       setActiveChatMessages(
-        (msgData.messages || []).map((m: { id: number; role: "user" | "assistant"; content: string }) => ({
+        (Array.isArray(msgData) ? msgData : msgData.messages || []).map(
+          (m: { id: number; role: "user" | "assistant"; content: string }) => ({
           id: m.id,
           role: m.role,
           content: m.content,

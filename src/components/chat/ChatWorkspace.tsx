@@ -483,17 +483,23 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
     }
 
     // 3. Save user message to DB
-    const userRes = await fetch(`/api/chats/${currentChatId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "user", content: trimmed }),
-    });
+    try {
+      const userRes = await fetch(`/api/chats/${currentChatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "user", content: trimmed }),
+      });
 
-    if (userRes.ok) {
-      const saved = await userRes.json();
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempUserMsg.id ? { ...m, id: saved.id } : m))
-      );
+      if (userRes.ok) {
+        const saved = await userRes.json();
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempUserMsg.id ? { ...m, id: saved.id } : m))
+        );
+      } else {
+        console.error("[ChatWorkspace] Failed to save user message:", userRes.status, await userRes.text().catch(() => ""));
+      }
+    } catch (err) {
+      console.error("[ChatWorkspace] Error saving user message:", err);
     }
 
     // 4. Add AI placeholder message (loading bubble)
