@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { modelConfigs } from "@/db/schema";
 import { PROTOCOLS } from "@/lib/model-constants";
+import { parseExtraEnv, serializeExtraEnv } from "@/lib/model-env";
 import { eq } from "drizzle-orm";
 
 // GET /api/models/[id]
@@ -27,7 +28,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { provider, name, baseUrl, apiKey, modelName, protocol, isDefault } = body;
+  const { provider, name, baseUrl, apiKey, modelName, protocol, isDefault, extraEnvJson } = body;
 
   const updateData: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
@@ -47,6 +48,12 @@ export async function PATCH(
       );
     }
     updateData.protocol = protocol;
+  }
+
+  if (extraEnvJson !== undefined) {
+    // 客户端按表单状态重新生成 extraEnvJson 后再传过来
+    // 二次规范化（去空 key、确保 string value）保证 DB 存的是合法 JSON
+    updateData.extraEnvJson = serializeExtraEnv(parseExtraEnv(extraEnvJson));
   }
 
   if (isDefault !== undefined) {

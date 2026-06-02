@@ -20,6 +20,7 @@ interface TemplateData {
   content: string;
   icon: string | null;
   agentPrompt: string | null;
+  isSystem: number;  // 0=用户创建, 1=系统模板
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +38,7 @@ const promptToolbar = [
 
 export default function TemplateEditor({ template }: TemplateEditorProps) {
   const router = useRouter();
+  const isSystem = template.isSystem === 1;  // 系统模板只读
   const [name, setName] = useState(template.name);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(template.name);
@@ -111,7 +113,7 @@ export default function TemplateEditor({ template }: TemplateEditorProps) {
             返回列表
           </button>
           <div className="w-px h-5 bg-gray-200" />
-          {editingName ? (
+          {editingName && !isSystem ? (
             <input
               autoFocus
               value={nameInput}
@@ -127,52 +129,68 @@ export default function TemplateEditor({ template }: TemplateEditorProps) {
               className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none min-w-0"
             />
           ) : (
-            <button
+            <span
+              className={`text-sm font-semibold text-gray-800 truncate ${!isSystem ? "hover:text-blue-600 cursor-pointer" : ""}`}
               onClick={() => {
-                setNameInput(name);
-                setEditingName(true);
+                if (!isSystem) {
+                  setNameInput(name);
+                  setEditingName(true);
+                }
               }}
-              className="text-sm font-semibold text-gray-800 hover:text-blue-600 transition-colors truncate cursor-text"
             >
               {template.icon && <span className="mr-1">{template.icon}</span>}
               {name}
-              <svg
-                className="inline-block w-3 h-3 ml-1.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
+              {!isSystem && (
+                <svg
+                  className="inline-block w-3 h-3 ml-1.5 text-gray-300"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              )}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xs text-gray-400">
-            {saving ? (
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-                保存中...
+          {isSystem ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-100 rounded-lg">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              只读模式
+            </span>
+          ) : (
+            <>
+              <span className="text-xs text-gray-400">
+                {saving ? (
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                    保存中...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
+                    已保存
+                  </span>
+                )}
               </span>
-            ) : (
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
-                已保存
-              </span>
-            )}
-          </span>
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-            删除
-          </button>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                删除
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -194,7 +212,7 @@ export default function TemplateEditor({ template }: TemplateEditorProps) {
             </button>
           ))}
           {activeTab === "prompt" && (
-            <span className="ml-auto pr-4 text-[10px] text-gray-400">作为 System Prompt 注入到对话上下文</span>
+            <span className="ml-auto pr-4 text-[10px] text-gray-400">Injected into chat context as System Prompt</span>
           )}
         </div>
 
@@ -204,19 +222,19 @@ export default function TemplateEditor({ template }: TemplateEditorProps) {
             <CherryEditor
               editorId="template-content-editor"
               initialValue={content}
-              onChange={handleContentChange}
-              onSave={handleContentSave}
-              defaultModel="editOnly"
+              onChange={isSystem ? undefined : handleContentChange}
+              onSave={isSystem ? undefined : handleContentSave}
+              defaultModel={isSystem ? "previewOnly" : "editOnly"}
             />
           )}
           {activeTab === "prompt" && (
             <CherryEditor
               editorId="template-prompt-editor"
               initialValue={agentPrompt}
-              onChange={handlePromptChange}
-              onSave={handlePromptSave}
-              defaultModel="editOnly"
-              toolbarItems={promptToolbar}
+              onChange={isSystem ? undefined : handlePromptChange}
+              onSave={isSystem ? undefined : handlePromptSave}
+              defaultModel={isSystem ? "previewOnly" : "editOnly"}
+              toolbarItems={isSystem ? undefined : promptToolbar}
             />
           )}
         </div>

@@ -25,7 +25,7 @@ export async function POST(
 ) {
   const { chatId } = await params;
   const body = await req.json();
-  const { role, content } = body;
+  const { role, content, thinking, thinkingSignature } = body;
 
   if (!role || !content) {
     return NextResponse.json({ error: "role and content are required" }, { status: 400 });
@@ -35,6 +35,9 @@ export async function POST(
     chatId: parseInt(chatId),
     role,
     content,
+    // Extended Thinking 字段（可选，仅 assistant 会有值）
+    thinking: thinking ?? null,
+    thinkingSignature: thinkingSignature ?? null,
     createdAt: new Date().toISOString(),
   }).run();
 
@@ -44,5 +47,11 @@ export async function POST(
     .where(eq(chats.id, parseInt(chatId)))
     .run();
 
-  return NextResponse.json({ id: result.lastInsertRowid, role, content });
+  return NextResponse.json({
+    id: result.lastInsertRowid,
+    role,
+    content,
+    thinking: thinking ?? null,
+    thinkingSignature: thinkingSignature ?? null,
+  });
 }

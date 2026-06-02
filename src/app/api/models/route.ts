@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { modelConfigs } from "@/db/schema";
 import { PROTOCOLS } from "@/lib/model-constants";
+import {
+  parseExtraEnv,
+  serializeExtraEnv,
+  defaultExtraEnvForCreate,
+} from "@/lib/model-env";
 
 // GET /api/models
 export async function GET() {
@@ -12,7 +17,7 @@ export async function GET() {
 // POST /api/models
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { provider, name, baseUrl, apiKey, modelName, protocol } = body;
+  const { provider, name, baseUrl, apiKey, modelName, protocol, extraEnvJson } = body;
 
   if (!provider || !name || !baseUrl || !apiKey || !modelName) {
     return NextResponse.json(
@@ -30,6 +35,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // 规范化 extraEnvJson：缺失则填国产默认；提供则二次规范化（去空 key、确保 string value）
+  let resolvedExtraEnvJson: string;
+  if (extraEnvJson === undefined || extraEnvJson === null || extraEnvJson === "") {
+    resolvedExtraEnvJson = JSON.stringify(defaultExtraEnvForCreate());
+  } else {
+    resolvedExtraEnvJson = serializeExtraEnv(parseExtraEnv(extraEnvJson));
+  }
+
   const now = new Date().toISOString();
   const result = db
     .insert(modelConfigs)
@@ -40,6 +53,7 @@ export async function POST(req: NextRequest) {
       baseUrl: baseUrl.replace(/\/+$/, ""),
       apiKey,
       modelName,
+      extraEnvJson: resolvedExtraEnvJson,
       createdAt: now,
       updatedAt: now,
     })

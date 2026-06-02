@@ -2,6 +2,7 @@ import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Query, Options, McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { createClientToolsMcpServer, CLIENT_TOOL_PREFIX } from "./client-tools";
+import { parseExtraEnv } from "./model-env";
 import { db } from "@/db";
 import { modelConfigs, mcpConfig } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -17,6 +18,7 @@ type ModelConfigRow = {
   baseUrl: string;
   apiKey: string;
   modelName: string;
+  extraEnvJson: string;
 };
 
 function resolveModelConfig(modelId: number): ModelConfigRow {
@@ -60,7 +62,7 @@ function readMcpServers(): Record<string, McpServerConfig> | undefined {
 
 export async function* streamModelResponse(
   modelId: number,
-  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   options?: {
     systemPrompt?: string;
     cwd?: string;
@@ -71,16 +73,24 @@ export async function* streamModelResponse(
 
   // Format conversation as prompt text
   const promptParts: string[] = [];
-  if (options?.systemPrompt) {
+  // 优先从 messages 中提取 system 消息
+  const hasSystemMessage = messages.length > 0 && messages[0].role === "system";
+  if (hasSystemMessage) {
+    promptParts.push(`[System Instructions]: ${messages[0].content}\n\n`);
+  } else if (options?.systemPrompt) {
     promptParts.push(`[System Instructions]: ${options.systemPrompt}\n\n`);
   }
-  for (const msg of messages) {
+  const chatMessages = hasSystemMessage ? messages.slice(1) : messages;
+  for (const msg of chatMessages) {
     const label = msg.role === "user" ? "用户" : "助手";
     promptParts.push(`[${label}]: ${msg.content}`);
   }
   const prompt = promptParts.join("\n\n");
 
   const cwd = options?.cwd || process.cwd();
+
+  // 解析用户配置的 extra env（来自 model_configs.extra_env_json）
+  const userExtraEnv = parseExtraEnv(config.extraEnvJson);
 
   const sdkOptions: Options = {
     includePartialMessages: true,
@@ -169,6 +179,10 @@ export async function* streamModelResponse(
     },
     env: {
       ...process.env,
+      // 用户配置的环境变量（来自 model_configs.extra_env_json）
+      // 注意：硬编码项在下方 spread 之后赋值，避免被用户覆盖
+      ...userExtraEnv,
+      // 系统级硬编码（覆盖优先级最高）
       ANTHROPIC_BASE_URL: config.baseUrl,
       ANTHROPIC_API_KEY: config.apiKey,
       ANTHROPIC_MODEL: config.modelName,
@@ -197,7 +211,11 @@ export async function* streamModelResponse(
     ...projectMcpServers,
     chatwiki_client: clientToolsServer,
   };
-  sdkOptions.allowedTools = ["mcp__chatwiki_client__*"];
+  sdkOptions.allowedTools = [
+    "mcp__chatwiki_client__*",
+    "Read", "Write", "Edit",
+    "Glob", "Grep", "WebFetch",
+  ];
 
   // 服务端日志：打印 Agent SDK 调用参数
   console.log("[AgentSDK] ========== 调用开始 ==========");
@@ -216,9 +234,16 @@ export async function* streamModelResponse(
   console.log("[AgentSDK] mcpServers:", Object.keys(sdkOptions.mcpServers).join(", "));
   console.log("[AgentSDK] env ANTHROPIC_BASE_URL:", config.baseUrl);
   console.log("[AgentSDK] env ANTHROPIC_MODEL:", config.modelName);
+  console.log("[AgentSDK] extra env count:", Object.keys(userExtraEnv).length);
+  console.log(
+    "[AgentSDK] extra env keys:",
+    Object.keys(userExtraEnv).join(", ") || "(none)"
+  );
   console.log("[AgentSDK] ==========================================");
 
-  let accumulated = "";
+  let accumulatedText = "";
+  let accumulatedThinking = "";
+  let lastThinkingSignature: string | undefined;
   let q: Query;
 
   try {
@@ -236,19 +261,35 @@ export async function* streamModelResponse(
     for await (const message of q) {
       if (message.type === "stream_event") {
         const event = message.event;
-        if (
-          event.type === "content_block_delta" &&
-          "delta" in event &&
-          event.delta &&
-          "type" in event.delta &&
-          event.delta.type === "text_delta" &&
-          "text" in event.delta
-        ) {
-          const text = event.delta.text;
-          accumulated += text;
-          yield { type: "text_delta", text };
-        } else {
+        // 1) Extended Thinking 块起始：content_block_start 中 block.type === "thinking"
+        if (event.type === "content_block_start") {
+          const block = (event as { content_block?: { type?: string } }).content_block;
+          if (block?.type === "thinking") {
+            yield { type: "thinking_start" };
+          }
+          continue;
+        }
+        // 2) 仅处理 content_block_delta，其他 stream_event 忽略
+        if (event.type !== "content_block_delta") {
           console.log("[AgentSDK] unhandled stream_event type:", event.type);
+          continue;
+        }
+        const delta = "delta" in event ? (event as { delta?: { type?: string; text?: string; thinking?: string; signature?: string } }).delta : undefined;
+        if (!delta) continue;
+        if (delta.type === "text_delta" && typeof delta.text === "string") {
+          // 常规正文增量
+          accumulatedText += delta.text;
+          yield { type: "text_delta", text: delta.text };
+        } else if (delta.type === "thinking_delta" && typeof delta.thinking === "string") {
+          // Extended Thinking 增量
+          accumulatedThinking += delta.thinking;
+          yield { type: "thinking_delta", text: delta.thinking };
+        } else if (delta.type === "signature_delta" && typeof delta.signature === "string") {
+          // Extended Thinking 签名（多轮续接时需要回传）
+          lastThinkingSignature = delta.signature;
+          yield { type: "thinking_signature", signature: delta.signature };
+        } else {
+          console.log("[AgentSDK] unhandled content_block_delta type:", delta.type);
         }
       } else if (message.type === "result") {
         console.log("[AgentSDK] result message, error:", ("error" in message && message.error) || "(none)");
@@ -262,12 +303,24 @@ export async function* streamModelResponse(
         }
         // Use accumulated text, or fall back to result text if available
         const resultText =
-          accumulated ||
+          accumulatedText ||
           ("result" in message && typeof message.result === "string"
             ? message.result
-            : accumulated);
-        console.log("[AgentSDK] response length:", resultText.length);
-        yield { type: "done", fullText: resultText };
+            : accumulatedText);
+        console.log(
+          "[AgentSDK] response length:",
+          resultText.length,
+          "thinking length:",
+          accumulatedThinking.length,
+          "has signature:",
+          !!lastThinkingSignature
+        );
+        yield {
+          type: "done",
+          fullText: resultText,
+          thinking: accumulatedThinking || undefined,
+          thinkingSignature: lastThinkingSignature,
+        };
       } else if (message.type === "assistant") {
         // 检测客户端 tool 调用（tool_use blocks in assistant message）
         const assistantMsg = message as { type: "assistant"; message: { content: Array<{ type: string; name?: string; id?: string; input?: Record<string, unknown> }> } };
@@ -288,9 +341,19 @@ export async function* streamModelResponse(
     }
 
     // If we never got a result message but accumulated text, yield done
-    if (accumulated) {
-      console.log("[AgentSDK] stream ended without result, accumulated:", accumulated.length);
-      yield { type: "done", fullText: accumulated };
+    if (accumulatedText) {
+      console.log(
+        "[AgentSDK] stream ended without result, accumulated:",
+        accumulatedText.length,
+        "thinking:",
+        accumulatedThinking.length
+      );
+      yield {
+        type: "done",
+        fullText: accumulatedText,
+        thinking: accumulatedThinking || undefined,
+        thinkingSignature: lastThinkingSignature,
+      };
     }
   } catch (err) {
     console.error("[AgentSDK] stream error:", err instanceof Error ? err.message : String(err));

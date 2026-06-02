@@ -210,8 +210,8 @@ export default function ProjectsPanel() {
               className={cn(
                 "relative flex items-center gap-2 w-full px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer select-none",
                 isDragging && "opacity-40",
-                !isDragging && isActive && "bg-blue-50 text-blue-700 font-medium",
-                !isDragging && !isActive && "text-blue-600 hover:bg-blue-50",
+                !isDragging && isActive && "bg-gray-100 text-gray-900 font-medium",
+                !isDragging && !isActive && "text-gray-900 hover:bg-gray-100",
               )}
               onClick={() => router.push(projectPath)}
             >

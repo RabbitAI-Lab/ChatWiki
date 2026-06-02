@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import {
   readProjectMeta,
@@ -8,12 +9,15 @@ import {
   type ProjectMeta,
   type ProjectSkills,
 } from "@/lib/fs";
+import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 export const dynamic = "force-dynamic";
 
 const CLAUDE_CLI = "/Users/xujialiang/.local/bin/claude";
 const ECC_MARKETPLACE_PATH = path.join(process.cwd(), "vendor", "ECC-1.10.0");
 const ECC_VERSION = "1.10.0";
+const HUASHU_SOURCE_PATH = path.join(process.cwd(), "vendor", "huashu-3f410cf");
+const HUASHU_VERSION = "3f410cf";
 const COMMAND_TIMEOUT = 120_000;
 
 // GET /api/fs/project-skills - 获取项目 Skills 状态
@@ -35,9 +39,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    skills: meta.skills || { ecc: { enabled: false } },
-  });
+  const skills = meta.skills
+    ? {
+        ecc: {
+          enabled: false,
+          ...meta.skills.ecc,
+          version: meta.skills.ecc?.version || ECC_VERSION,
+        },
+        huashu: {
+          enabled: false,
+          ...meta.skills.huashu,
+          version: meta.skills.huashu?.version || HUASHU_VERSION,
+        },
+      }
+    : {
+        ecc: { enabled: false, version: ECC_VERSION },
+        huashu: { enabled: false, version: HUASHU_VERSION },
+      };
+
+  return NextResponse.json({ skills });
 }
 
 // PUT /api/fs/project-skills - 启用/禁用 Skill
@@ -45,7 +65,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
   const { dirSegments, skillId, enabled } = body as {
     dirSegments: string[];
-    skillId: "ecc";
+    skillId: "ecc" | "huashu";
     enabled: boolean;
   };
 
@@ -64,22 +84,31 @@ export async function PUT(req: NextRequest) {
   const projectDir = path.join(getDataRoot(), ...dirSegments);
 
   try {
-    if (enabled) {
-      // 启用 ECC：先添加 marketplace，再安装 plugin
-      execSync(
-        `"${CLAUDE_CLI}" plugins marketplace add --scope project "${ECC_MARKETPLACE_PATH}"`,
-        { cwd: projectDir, timeout: COMMAND_TIMEOUT, stdio: "pipe" }
-      );
-      execSync(
-        `"${CLAUDE_CLI}" plugins install --scope project everything-claude-code@everything-claude-code`,
-        { cwd: projectDir, timeout: COMMAND_TIMEOUT, stdio: "pipe" }
-      );
-    } else {
-      // 禁用 ECC：卸载 plugin
-      execSync(
-        `"${CLAUDE_CLI}" plugins uninstall everything-claude-code@everything-claude-code`,
-        { cwd: projectDir, timeout: COMMAND_TIMEOUT, stdio: "pipe" }
-      );
+    if (skillId === "ecc") {
+      if (enabled) {
+        execSync(
+          `"${CLAUDE_CLI}" plugins marketplace add --scope project "${ECC_MARKETPLACE_PATH}"`,
+          { cwd: projectDir, timeout: COMMAND_TIMEOUT, stdio: "pipe" }
+        );
+        execSync(
+          `"${CLAUDE_CLI}" plugins install --scope project everything-claude-code@everything-claude-code`,
+          { cwd: projectDir, timeout: COMMAND_TIMEOUT, stdio: "pipe" }
+        );
+      } else {
+        execSync(
+          `"${CLAUDE_CLI}" plugins uninstall everything-claude-code@everything-claude-code`,
+          { cwd: projectDir, timeout: COMMAND_TIMEOUT, stdio: "pipe" }
+        );
+      }
+    } else if (skillId === "huashu") {
+      const skillsDir = path.join(projectDir, ".claude", "skills");
+      const targetPath = path.join(skillsDir, "huashu-3f410cf");
+      if (enabled) {
+        fs.mkdirSync(skillsDir, { recursive: true });
+        fs.cpSync(HUASHU_SOURCE_PATH, targetPath, { recursive: true });
+      } else {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+      }
     }
   } catch (err: unknown) {
     const message =
@@ -94,11 +123,12 @@ export async function PUT(req: NextRequest) {
 
   // CLI 命令执行成功，更新状态
   if (!meta.skills) meta.skills = {};
+  const version = skillId === "ecc" ? ECC_VERSION : HUASHU_VERSION;
   if (enabled) {
     meta.skills[skillId] = {
       enabled: true,
       installedAt: new Date().toISOString(),
-      version: ECC_VERSION,
+      version,
     };
   } else {
     meta.skills[skillId] = {
@@ -108,6 +138,13 @@ export async function PUT(req: NextRequest) {
     };
   }
   writeProjectMeta(meta, dirSegments);
+
+  logOperation({
+    projectId: extractProjectId(dirSegments),
+    category: "skills",
+    action: enabled ? "enable" : "disable",
+    detail: `${enabled ? "启用" : "禁用"}了 Skill: ${skillId}`,
+  });
 
   return NextResponse.json({ skills: meta.skills });
 }

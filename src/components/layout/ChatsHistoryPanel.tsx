@@ -36,15 +36,15 @@ function formatGroupLabel(key: string): string {
   const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "今天";
-  if (diffDays === 1) return "昨天";
-  if (diffDays === 2) return "前天";
-  // Within this year, show "M月D日"
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays === 2) return "2 days ago";
+  // Within this year, show "M/D"
   if (d.getFullYear() === now.getFullYear()) {
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
+    return `${d.getMonth() + 1}/${d.getDate()}`;
   }
   // Other years
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function groupChats(chats: Chat[]): ChatGroup[] {
@@ -75,7 +75,7 @@ function groupChats(chats: Chat[]): ChatGroup[] {
 
   // First group: recent 7 days
   if (recentChats.length > 0) {
-    groups.push({ label: "近一周", chats: recentChats });
+    groups.push({ label: "Last 7 Days", chats: recentChats });
   }
 
   // Then by date descending
@@ -122,7 +122,7 @@ export default function ChatsHistoryPanel({ chats }: ChatsHistoryPanelProps) {
     <CollapsibleGroup title="Chats History" defaultOpen={true}>
       <div className="space-y-1">
         {groups.length === 0 && (
-          <p className="px-3 py-2 text-sm text-gray-400">暂无聊天记录</p>
+          <p className="px-3 py-2 text-sm text-gray-400 text-center">No chat history</p>
         )}
         {groups.map((group) => (
           <div key={group.label}>

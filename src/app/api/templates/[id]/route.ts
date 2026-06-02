@@ -23,6 +23,13 @@ export async function PATCH(
   const body = await req.json();
   const { name, description, content, icon, agentPrompt } = body;
 
+  // 检查是否为系统模板
+  const existing = db.select().from(templates).where(eq(templates.id, parseInt(id))).get();
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (existing.isSystem === 1) {
+    return NextResponse.json({ error: "系统模板不可修改" }, { status: 403 });
+  }
+
   const updateData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (name !== undefined) updateData.name = name;
   if (description !== undefined) updateData.description = description;
@@ -40,6 +47,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  // 检查是否为系统模板
+  const existing = db.select().from(templates).where(eq(templates.id, parseInt(id))).get();
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (existing.isSystem === 1) {
+    return NextResponse.json({ error: "系统模板不可删除" }, { status: 403 });
+  }
+
   db.delete(templates).where(eq(templates.id, parseInt(id))).run();
   return NextResponse.json({ success: true });
 }

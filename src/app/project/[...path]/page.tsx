@@ -1,6 +1,6 @@
 import { listTree, readDocument, readProjectMeta, stripTreePrefix, TreeNode } from "@/lib/fs";
 import { db } from "@/db";
-import { chats, accounts } from "@/db/schema";
+import { chats, accounts, documentActivities } from "@/db/schema";
 import { gte, desc, eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import ProjectWorkspace from "@/components/project/ProjectWorkspace";
@@ -70,6 +70,18 @@ export default async function ProjectPage({
     .orderBy(desc(chats.updatedAt))
     .all();
 
+  // Fetch recent document activities for this project (last 20 days)
+  const recentDocuments = db
+    .select()
+    .from(documentActivities)
+    .where(and(
+      eq(documentActivities.projectId, projectId),
+      gte(documentActivities.createdAt, twentyDaysAgo)
+    ))
+    .orderBy(desc(documentActivities.createdAt))
+    .limit(20)
+    .all();
+
   return (
     <ProjectWorkspace
       projectName={projectName}
@@ -81,6 +93,7 @@ export default async function ProjectPage({
       projectMeta={projectMeta}
       accountInfo={accountInfo}
       recentChats={recentChats}
+      recentDocuments={recentDocuments}
     />
   );
 }

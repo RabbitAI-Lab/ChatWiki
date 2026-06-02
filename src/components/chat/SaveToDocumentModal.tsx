@@ -32,6 +32,19 @@ export default function SaveToDocumentModal({
   const [overwriteTarget, setOverwriteTarget] = useState<TreeNode | null>(null);
   const [filename, setFilename] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+
+  const toggleDirExpand = (path: string) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
 
   // Fetch tree when modal opens and projectId is set
   useEffect(() => {
@@ -113,53 +126,105 @@ export default function SaveToDocumentModal({
   };
 
   const renderTree = (nodes: TreeNode[], level: number = 0): React.ReactNode => {
-    return nodes.map((node) => (
-      <div key={node.path}>
-        {node.type === "directory" ? (
-          <div>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => handleDirClick(node)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleDirClick(node); } }}
-              className={`flex items-center gap-1.5 w-full px-2 py-1 text-xs transition-colors cursor-pointer select-none ${
-                selectedDir === node.path
-                  ? "bg-blue-50 text-blue-700 font-medium"
-                  : "text-gray-500 hover:bg-gray-50"
-              }`}
-              style={{ paddingLeft: `${8 + level * 14}px` }}
-            >
-              <svg className="w-3.5 h-3.5 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
-              </svg>
-              <span className="truncate">{node.name}</span>
+    return nodes.map((node) => {
+      const isExpanded = expandedPaths.has(node.path);
+      return (
+        <div key={node.path}>
+          {node.type === "directory" ? (
+            <div>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => handleDirClick(node)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleDirClick(node);
+                  }
+                }}
+                className={`flex items-center gap-1.5 w-full px-2 py-1 text-xs transition-colors cursor-pointer select-none ${
+                  selectedDir === node.path
+                    ? "bg-blue-50 text-blue-700 font-medium"
+                    : "text-gray-500 hover:bg-gray-50"
+                }`}
+                style={{ paddingLeft: `${8 + level * 14}px` }}
+              >
+                {/* Chevron: 折叠 = chevron-right, 展开 = rotate-90 → chevron-down */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDirExpand(node.path);
+                  }}
+                  className="shrink-0 p-0.5 -ml-1.5 text-gray-400 hover:text-gray-600"
+                  aria-label={isExpanded ? "Collapse" : "Expand"}
+                  tabIndex={-1}
+                >
+                  <svg
+                    className={`w-3 h-3 transition-transform duration-150 ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+                <svg
+                  className="w-3.5 h-3.5 shrink-0 text-amber-400"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                </svg>
+                <span className="truncate">{node.name}</span>
+              </div>
+              {isExpanded &&
+                node.children &&
+                node.children.length > 0 &&
+                renderTree(node.children, level + 1)}
             </div>
-            {node.children && node.children.length > 0 && renderTree(node.children, level + 1)}
-          </div>
-        ) : (
-          <div>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => handleFileClick(node)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleFileClick(node); } }}
-              className={`flex items-center gap-1.5 w-full px-2 py-1 text-xs transition-colors cursor-pointer select-none ${
-                overwriteTarget?.path === node.path
-                  ? "bg-blue-50 text-blue-700 font-medium"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-              style={{ paddingLeft: `${8 + level * 14}px` }}
-            >
-              <svg className="w-3.5 h-3.5 shrink-0 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <span className="truncate flex-1">{node.name}</span>
+          ) : (
+            <div>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => handleFileClick(node)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleFileClick(node);
+                  }
+                }}
+                className={`flex items-center gap-1.5 w-full px-2 py-1 text-xs transition-colors cursor-pointer select-none ${
+                  overwriteTarget?.path === node.path
+                    ? "bg-blue-50 text-blue-700 font-medium"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+                style={{ paddingLeft: `${8 + level * 14}px` }}
+              >
+                <svg
+                  className="w-3.5 h-3.5 shrink-0 text-blue-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span className="truncate flex-1">{node.name}</span>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    ));
+          )}
+        </div>
+      );
+    });
   };
 
   const canSave = !loading && !saving && (!!overwriteTarget || filename.trim().length > 0);
@@ -233,7 +298,7 @@ export default function SaveToDocumentModal({
             </div>
           ) : tree.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <span className="text-xs text-gray-400">暂无文档</span>
+              <span className="text-xs text-gray-400">No documents</span>
             </div>
           ) : (
             <div className="py-1">{renderTree(tree)}</div>

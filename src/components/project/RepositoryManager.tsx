@@ -19,13 +19,13 @@ interface SyncingState {
 const REPO_TYPE_OPTIONS = [
   { value: "github", label: "GitHub" },
   { value: "gitlab", label: "GitLab" },
-  { value: "other", label: "其他" },
+  { value: "other", label: "Other" },
 ];
 
 const CRED_TYPE_OPTIONS = [
-  { value: "none", label: "公开无认证" },
+  { value: "none", label: "Public (No Auth)" },
   { value: "token", label: "Token" },
-  { value: "username_password", label: "用户名密码" },
+  { value: "username_password", label: "Username/Password" },
 ];
 
 const TYPE_COLORS: Record<string, string> = {
@@ -37,7 +37,7 @@ const TYPE_COLORS: Record<string, string> = {
 const TYPE_LABELS: Record<string, string> = {
   github: "GitHub",
   gitlab: "GitLab",
-  other: "其他",
+  other: "Other",
 };
 
 export default function RepositoryManager({
@@ -109,7 +109,7 @@ export default function RepositoryManager({
   };
 
   const handleDelete = async (repoId: string) => {
-    if (!confirm("确定要删除此代码库吗？")) return;
+    if (!confirm("Are you sure you want to delete this repository?")) return;
 
     const res = await fetch("/api/fs/project-repositories", {
       method: "DELETE",
@@ -162,7 +162,7 @@ export default function RepositoryManager({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          已绑定 {repositories.length} 个代码库
+          {repositories.length} repositories bound
         </p>
         {!showAddForm && (
           <button
@@ -173,7 +173,7 @@ export default function RepositoryManager({
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            添加代码库
+            Add Repository
           </button>
         )}
       </div>
@@ -207,7 +207,7 @@ export default function RepositoryManager({
                 onClick={() => handleSync(repo)}
                 disabled={syncingRepos[repo.id]}
                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
-                title={repo.syncStatus === "not_cloned" ? "克隆" : "拉取"}
+                title={repo.syncStatus === "not_cloned" ? "Clone" : "Pull"}
               >
                 {syncingRepos[repo.id] ? (
                   <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -221,13 +221,13 @@ export default function RepositoryManager({
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                 )}
-                <span>{repo.syncStatus === "not_cloned" ? "克隆" : "同步"}</span>
+                <span>{repo.syncStatus === "not_cloned" ? "Clone" : "Sync"}</span>
               </button>
               {/* 删除按钮 */}
               <button
                 onClick={() => handleDelete(repo.id)}
                 className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
-                title="删除"
+                title="Delete"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -243,7 +243,7 @@ export default function RepositoryManager({
       {showAddForm && (
         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
           <div className="flex items-center justify-between mb-1">
-            <h4 className="text-sm font-medium text-gray-700">添加代码库</h4>
+            <h4 className="text-sm font-medium text-gray-700">Add Repository</h4>
             <button
               onClick={() => { setShowAddForm(false); resetForm(); }}
               className="text-gray-400 hover:text-gray-600"
@@ -257,16 +257,16 @@ export default function RepositoryManager({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">名称</label>
+              <label className="block text-xs text-gray-500 mb-1">Name</label>
               <Input
                 size="small"
-                placeholder="如：frontend"
+                placeholder="e.g. frontend"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">类型</label>
+              <label className="block text-xs text-gray-500 mb-1">Type</label>
               <Select
                 size="small"
                 className="w-full"
@@ -288,7 +288,7 @@ export default function RepositoryManager({
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">认证方式</label>
+            <label className="block text-xs text-gray-500 mb-1">Authentication</label>
             <Select
               size="small"
               className="w-full"
@@ -300,7 +300,7 @@ export default function RepositoryManager({
 
           {formCredType === "none" ? (
             <div className="text-xs text-gray-400 py-2">
-              公开仓库无需认证凭证，可直接克隆访问
+              Public repository requires no credentials, can be cloned directly
             </div>
           ) : formCredType === "token" ? (
             <div>
@@ -315,7 +315,7 @@ export default function RepositoryManager({
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">用户名</label>
+                <label className="block text-xs text-gray-500 mb-1">Username</label>
                 <Input
                   size="small"
                   placeholder="username"
@@ -324,7 +324,7 @@ export default function RepositoryManager({
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">密码</label>
+                <label className="block text-xs text-gray-500 mb-1">Password</label>
                 <Input.Password
                   size="small"
                   placeholder="password"
@@ -337,7 +337,7 @@ export default function RepositoryManager({
 
           <div className="flex justify-end gap-2 pt-1">
             <Button size="small" onClick={() => { setShowAddForm(false); resetForm(); }}>
-              取消
+              Cancel
             </Button>
             <Button
               size="small"
@@ -346,7 +346,7 @@ export default function RepositoryManager({
               disabled={!formName.trim() || !formUrl.trim()}
               onClick={handleAdd}
             >
-              添加
+              Add
             </Button>
           </div>
         </div>
@@ -357,7 +357,7 @@ export default function RepositoryManager({
           <svg className="w-10 h-10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
           </svg>
-          <p className="text-sm">暂未绑定代码库</p>
+          <p className="text-sm">No repositories bound</p>
         </div>
       )}
     </div>

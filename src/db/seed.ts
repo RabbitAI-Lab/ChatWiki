@@ -1,7 +1,7 @@
 import { db } from "./index";
 import { accounts, templates } from "./schema";
 
-async function seed() {
+export async function seed() {
   console.log("[seed] Seeding database...");
 
   // 插入默认账号
@@ -178,7 +178,7 @@ async function seed() {
 
     for (const t of templateData) {
       const now = new Date().toISOString();
-      db.insert(templates).values({ ...t, createdAt: now, updatedAt: now }).run();
+      db.insert(templates).values({ ...t, isSystem: 1, createdAt: now, updatedAt: now }).run();
     }
     console.log(`[seed] ${templateData.length} templates created.`);
   } else {
@@ -187,5 +187,3 @@ async function seed() {
 
   console.log("[seed] Done.");
 }
-
-seed().catch(console.error);

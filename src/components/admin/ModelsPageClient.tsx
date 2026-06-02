@@ -11,7 +11,10 @@ import {
   Modal,
   Tag,
   Typography,
+  Switch,
   App,
+  Row,
+  Col,
 } from "antd";
 import {
   PlusOutlined,
@@ -24,6 +27,7 @@ import {
   CloudServerOutlined,
   StarOutlined,
   StarFilled,
+  MinusCircleOutlined,
 } from "@ant-design/icons";
 import {
   PROVIDERS,
@@ -34,6 +38,12 @@ import {
   getProviderDefaults,
   isPresetProvider,
 } from "@/lib/model-constants";
+import {
+  parseExtraEnv,
+  serializeExtraEnv,
+  PREDEFINED_ENV_KEYS,
+  DEFAULT_THINKING_VALUE,
+} from "@/lib/model-env";
 
 const { Text, Paragraph } = Typography;
 
@@ -45,6 +55,7 @@ interface ModelConfig {
   baseUrl: string;
   apiKey: string;
   modelName: string;
+  extraEnvJson: string;
   createdAt: string;
   updatedAt: string;
   isDefault: number;
@@ -54,12 +65,60 @@ const CUSTOM_PROVIDER_KEY = "__custom__";
 
 const PROVIDER_SELECT_OPTIONS = [
   ...PROVIDERS.map((p) => ({ value: p, label: p })),
-  { value: CUSTOM_PROVIDER_KEY, label: "自定义..." },
+  { value: CUSTOM_PROVIDER_KEY, label: "Custom..." },
 ];
 
 function maskApiKey(key: string): string {
   if (key.length <= 8) return "****";
   return key.slice(0, 3) + "****" + key.slice(-4);
+}
+
+/** 从表单字段拼装 extra env 对象（Switch 关闭 / Input 清空 -> 不写入对应 key） */
+function collectExtraEnvFromForm(
+  disableAdaptive: boolean | undefined,
+  defaultThinking: string | undefined,
+  customEnvList:
+    | Array<{ key?: string; value?: string }>
+    | undefined
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (disableAdaptive) {
+    out[PREDEFINED_ENV_KEYS.DISABLE_ADAPTIVE] = "1";
+  }
+  const thinking = (defaultThinking || "").trim();
+  if (thinking) {
+    out[PREDEFINED_ENV_KEYS.DEFAULT_THINKING] = thinking;
+  }
+  if (Array.isArray(customEnvList)) {
+    for (const item of customEnvList) {
+      const k = (item?.key || "").trim();
+      const v = (item?.value || "").trim();
+      if (k && v) {
+        out[k] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/** 从 extraEnvJson 拆出表单三个字段的初值 */
+function splitExtraEnvToForm(extraEnvJson: string) {
+  const envMap = parseExtraEnv(extraEnvJson);
+  const customEnvList: Array<{ key: string; value: string }> = [];
+  for (const [k, v] of Object.entries(envMap)) {
+    if (
+      k === PREDEFINED_ENV_KEYS.DISABLE_ADAPTIVE ||
+      k === PREDEFINED_ENV_KEYS.DEFAULT_THINKING
+    ) {
+      continue;
+    }
+    customEnvList.push({ key: k, value: v });
+  }
+  return {
+    disableAdaptive: envMap[PREDEFINED_ENV_KEYS.DISABLE_ADAPTIVE] === "1",
+    defaultThinking: envMap[PREDEFINED_ENV_KEYS.DEFAULT_THINKING] ?? "",
+    customEnvList,
+  };
 }
 
 interface Props {
@@ -74,7 +133,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   const [showApiKeyMap, setShowApiKeyMap] = useState<Record<number, boolean>>(
     {}
   );
-  // 自定义厂商输入状态
+  // Custom provider input state
   const [createCustomProvider, setCreateCustomProvider] = useState("");
   const [editCustomProvider, setEditCustomProvider] = useState("");
   const [createForm] = Form.useForm();
@@ -82,7 +141,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   const { modal, message } = App.useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 追踪用户是否手动编辑过字段，避免自动填充覆盖
+  // Track user manually edited fields to avoid auto-fill override
   const createUserEditedRef = useRef<Set<string>>(new Set());
   const editUserEditedRef = useRef<Set<string>>(new Set());
 
@@ -92,7 +151,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     setModels(data);
   }, []);
 
-  /** 获取表单中实际的 provider 值（处理自定义厂商） */
+  /** Get actual provider value from form (handle custom provider) */
   const getRealProvider = useCallback(
     (
       formProvider: string,
@@ -106,7 +165,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     []
   );
 
-  /** 厂商下拉选择变化 */
+  /** Provider dropdown change */
   const handleProviderSelect = useCallback(
     (
       value: string,
@@ -121,7 +180,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         form.setFieldValue("name", "");
         return;
       }
-      // 选择预设厂商，清空自定义输入
+      // Select preset provider, clear custom input
       setCustomProvider("");
       const protocol = form.getFieldValue("protocol");
       if (!protocol) return;
@@ -142,7 +201,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     []
   );
 
-  /** 协议变化时自动填充 */
+  /** Auto-fill on protocol change */
   const handleProtocolChange = useCallback(
     (
       protocol: string,
@@ -170,7 +229,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     [getRealProvider]
   );
 
-  /** 标记字段为用户手动编辑 */
+  /** Mark field as user edited */
   const markUserEdited = useCallback(
     (field: string, userEditedRef: React.MutableRefObject<Set<string>>) => {
       userEditedRef.current.add(field);
@@ -181,14 +240,21 @@ export default function ModelsPageClient({ initialModels }: Props) {
   const handleCreate = useCallback(async () => {
     try {
       const values = await createForm.validateFields();
-      // 替换自定义厂商值
+      // Replace custom provider value
       if (values.provider === CUSTOM_PROVIDER_KEY) {
         if (!createCustomProvider.trim()) {
-          message.error("请输入自定义厂商名称");
+          message.error("Please enter custom provider name");
           return;
         }
         values.provider = createCustomProvider.trim();
       }
+      // 合并环境变量：Switch / Input / Form.List -> extraEnvJson
+      values.extraEnvJson = serializeExtraEnv(
+        collectExtraEnvFromForm(values.disableAdaptive, values.defaultThinking, values.customEnvList)
+      );
+      delete values.disableAdaptive;
+      delete values.defaultThinking;
+      delete values.customEnvList;
       await fetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -213,7 +279,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         body: JSON.stringify({ isDefault: newDefault }),
       }).then(() => {
         refreshList();
-        message.success(newDefault ? `已将 "${model.name}" 设为默认模型` : `已取消 "${model.name}" 的默认模型`);
+        message.success(newDefault ? `"${model.name}" set as default model` : `"${model.name}" removed as default model`);
       });
     },
     [refreshList, message]
@@ -221,15 +287,15 @@ export default function ModelsPageClient({ initialModels }: Props) {
 
   const handleDelete = useCallback(
     (id: number, name: string, isDefault?: number) => {
-      let content = `确认删除 "${name}"?`;
+      let content = `Confirm delete "${name}"?`;
       if (isDefault) {
-        content += "\n\n注意：该模型为默认模型，删除后新建聊天将不会自动选择模型。";
+        content += "\n\nNote: This model is the default model. After deletion, new chats will not automatically select a model.";
       }
       modal.confirm({
-        title: "确认删除",
+        title: "Confirm Delete",
         content,
-        okText: "删除",
-        cancelText: "取消",
+        okText: "Delete",
+        cancelText: "Cancel",
         okButtonProps: { danger: true },
         onOk: async () => {
           await fetch(`/api/models/${id}`, { method: "DELETE" });
@@ -244,6 +310,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     (model: ModelConfig) => {
       setEditingModel(model);
       const isPreset = isPresetProvider(model.provider);
+      const envFields = splitExtraEnvToForm(model.extraEnvJson || "{}");
       editForm.setFieldsValue({
         provider: isPreset ? model.provider : CUSTOM_PROVIDER_KEY,
         protocol: model.protocol || "openai",
@@ -251,6 +318,9 @@ export default function ModelsPageClient({ initialModels }: Props) {
         baseUrl: model.baseUrl,
         apiKey: model.apiKey,
         modelName: model.modelName,
+        disableAdaptive: envFields.disableAdaptive,
+        defaultThinking: envFields.defaultThinking,
+        customEnvList: envFields.customEnvList,
       });
       setEditCustomProvider(isPreset ? "" : model.provider);
       editUserEditedRef.current.clear();
@@ -263,10 +333,10 @@ export default function ModelsPageClient({ initialModels }: Props) {
     if (!editingModel) return;
     try {
       const values = await editForm.validateFields();
-      // 替换自定义厂商值
+      // Replace custom provider value
       if (values.provider === CUSTOM_PROVIDER_KEY) {
         if (!editCustomProvider.trim()) {
-          message.error("请输入自定义厂商名称");
+          message.error("Please enter custom provider name");
           return;
         }
         values.provider = editCustomProvider.trim();
@@ -278,6 +348,10 @@ export default function ModelsPageClient({ initialModels }: Props) {
       if (values.baseUrl) body.baseUrl = values.baseUrl;
       if (values.modelName) body.modelName = values.modelName;
       if (values.apiKey) body.apiKey = values.apiKey;
+      // Edit 模式总是按当前表单状态重新生成 extraEnvJson（声明式）
+      body.extraEnvJson = serializeExtraEnv(
+        collectExtraEnvFromForm(values.disableAdaptive, values.defaultThinking, values.customEnvList)
+      );
 
       await fetch(`/api/models/${editingModel.id}`, {
         method: "PATCH",
@@ -300,10 +374,10 @@ export default function ModelsPageClient({ initialModels }: Props) {
     setShowApiKeyMap((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  // 导出：将所有模型配置下载为 JSON 文件
+  // Export: download all model configs as JSON file
   const handleExport = useCallback(() => {
     if (models.length === 0) {
-      message.warning("暂无模型配置可导出");
+      message.warning("No model configurations to export");
       return;
     }
     const exportData = models.map(
@@ -321,10 +395,10 @@ export default function ModelsPageClient({ initialModels }: Props) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    message.success(`已导出 ${models.length} 条模型配置`);
+    message.success(`Exported ${models.length} model configurations`);
   }, [models, message]);
 
-  // 导入：读取 JSON 文件并批量创建
+  // Import: read JSON file and batch create
   const handleImport = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -334,7 +408,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // 重置 input 以便重复选择同一文件
+      // Reset input to allow selecting same file again
       e.target.value = "";
 
       try {
@@ -351,7 +425,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         } else if (data.models && Array.isArray(data.models)) {
           importList = data.models;
         } else {
-          message.error("无效的文件格式");
+          message.error("Invalid file format");
           return;
         }
 
@@ -372,15 +446,15 @@ export default function ModelsPageClient({ initialModels }: Props) {
           );
 
         if (validItems.length === 0) {
-          message.error("文件中没有有效的模型配置");
+          message.error("No valid model configurations in file");
           return;
         }
 
         modal.confirm({
-          title: "确认导入",
-          content: `检测到 ${validItems.length} 条有效模型配置，是否导入？`,
-          okText: "导入",
-          cancelText: "取消",
+          title: "Confirm Import",
+          content: `Detected ${validItems.length} valid model configurations. Import?`,
+          okText: "Import",
+          cancelText: "Cancel",
           onOk: async () => {
             let successCount = 0;
             for (const item of validItems) {
@@ -396,50 +470,170 @@ export default function ModelsPageClient({ initialModels }: Props) {
               }
             }
             await refreshList();
-            message.success(`成功导入 ${successCount} 条模型配置`);
+            message.success(`Successfully imported ${successCount} model configurations`);
           },
         });
       } catch {
-        message.error("文件解析失败，请检查 JSON 格式");
+        message.error("File parsing failed, please check JSON format");
       }
     },
     [modal, message, refreshList]
   );
 
-  /** 渲染厂商选择字段（Select + 自定义输入框） */
-  const renderProviderField = (
+  /** Render the provider select field (single Form.Item) */
+  const renderProviderItem = (
     form: ReturnType<typeof Form.useForm>[0],
-    customProvider: string,
     setCustomProvider: (v: string) => void,
     userEditedRef: React.MutableRefObject<Set<string>>
   ) => (
-    <>
+    <Form.Item
+      label="Provider"
+      name="provider"
+      rules={[{ required: true, message: "Please select provider" }]}
+    >
+      <Select
+        options={PROVIDER_SELECT_OPTIONS}
+        placeholder="Select provider"
+        onChange={(value) =>
+          handleProviderSelect(value, form, setCustomProvider, userEditedRef)
+        }
+      />
+    </Form.Item>
+  );
+
+  /** Render the custom provider name field (single Form.Item, full-width) */
+  const renderCustomProviderItem = (
+    form: ReturnType<typeof Form.useForm>[0],
+    customProvider: string,
+    setCustomProvider: (v: string) => void
+  ) => {
+    if (form.getFieldValue("provider") !== CUSTOM_PROVIDER_KEY) return null;
+    return (
       <Form.Item
-        label="厂商"
-        name="provider"
-        rules={[{ required: true, message: "请选择厂商" }]}
+        label="Custom Provider Name"
+        required
+        rules={[{ required: true, message: "Please enter custom provider name" }]}
       >
-        <Select
-          options={PROVIDER_SELECT_OPTIONS}
-          placeholder="请选择厂商"
-          onChange={(value) =>
-            handleProviderSelect(value, form, setCustomProvider, userEditedRef)
-          }
+        <Input
+          value={customProvider}
+          onChange={(e) => setCustomProvider(e.target.value)}
+          placeholder="e.g. Ollama, SiliconFlow..."
         />
       </Form.Item>
-      {form.getFieldValue("provider") === CUSTOM_PROVIDER_KEY && (
-        <Form.Item
-          label="自定义厂商名称"
-          required
-          rules={[{ required: true, message: "请输入自定义厂商名称" }]}
-        >
-          <Input
-            value={customProvider}
-            onChange={(e) => setCustomProvider(e.target.value)}
-            placeholder="如：Ollama、硅基流动..."
-          />
-        </Form.Item>
-      )}
+    );
+  };
+
+  /** Render environment variable configuration section (Switch + Input + Form.List) */
+  const renderEnvSection = () => (
+    <>
+      <div
+        style={{
+          marginTop: 4,
+          marginBottom: 16,
+          fontSize: 16,
+          fontWeight: 600,
+          lineHeight: 1.5,
+          color: "rgba(0, 0, 0, 0.88)",
+        }}
+      >
+        Environment Variables
+      </div>
+      <Form.Item
+        label={
+          <span>
+            Disable Adaptive
+            <Text type="secondary" className="text-xs ml-1">
+              ({PREDEFINED_ENV_KEYS.DISABLE_ADAPTIVE})
+            </Text>
+          </span>
+        }
+        name="disableAdaptive"
+        valuePropName="checked"
+        tooltip="Recommended for domestic models. Sets CLAUDE_CODE_DISABLE_ADAPTIVE=1 when on."
+        style={{ marginBottom: 10 }}
+      >
+        <Switch />
+      </Form.Item>
+      <Form.Item
+        label={
+          <span>
+            Default Thinking
+            <Text type="secondary" className="text-xs ml-1">
+              ({PREDEFINED_ENV_KEYS.DEFAULT_THINKING})
+            </Text>
+          </span>
+        }
+        name="defaultThinking"
+        tooltip="JSON string passed to Claude Code SDK to enable extended thinking (budgetTokens: 4096 by default)."
+        style={{ marginBottom: 10 }}
+      >
+        <Input
+          allowClear
+          placeholder={DEFAULT_THINKING_VALUE}
+        />
+      </Form.Item>
+      <Form.Item
+        label={
+          <span>
+            Custom Env
+            <Text type="secondary" className="text-xs ml-1">
+              (hard-coded system envs always win)
+            </Text>
+          </span>
+        }
+        style={{ marginBottom: 8 }}
+      >
+        <Form.List name="customEnvList">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map(({ key, name: fieldName, ...restField }) => (
+                <Space
+                  key={key}
+                  align="baseline"
+                  size={4}
+                  style={{ display: "flex", marginBottom: 4 }}
+                >
+                  <Form.Item
+                    {...restField}
+                    name={[fieldName, "key"]}
+                    rules={[
+                      { required: true, message: "Missing key" },
+                      {
+                        pattern: /^[A-Za-z_][A-Za-z0-9_]*$/,
+                        message: "Invalid env var name",
+                      },
+                    ]}
+                    style={{ marginBottom: 0, width: 160 }}
+                  >
+                    <Input placeholder="KEY" />
+                  </Form.Item>
+                  <Form.Item
+                    {...restField}
+                    name={[fieldName, "value"]}
+                    rules={[{ required: true, message: "Missing value" }]}
+                    style={{ marginBottom: 0, flex: 1, minWidth: 120 }}
+                  >
+                    <Input placeholder="value" allowClear />
+                  </Form.Item>
+                  <MinusCircleOutlined
+                    onClick={() => remove(fieldName)}
+                    style={{ color: "#ff4d4f", fontSize: 14, cursor: "pointer" }}
+                  />
+                </Space>
+              ))}
+              <Button
+                type="dashed"
+                onClick={() => add({ key: "", value: "" })}
+                block
+                size="small"
+                icon={<PlusOutlined />}
+              >
+                Add env
+              </Button>
+            </>
+          )}
+        </Form.List>
+      </Form.Item>
     </>
   );
 
@@ -448,17 +642,17 @@ export default function ModelsPageClient({ initialModels }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">模型配置</h1>
+          <h1 className="text-lg font-semibold text-gray-800">Model Config</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            管理 AI 模型的 API 连接配置
+            Manage AI model API connection configurations
           </p>
         </div>
         <Space>
           <Button icon={<ExportOutlined />} onClick={handleExport}>
-            导出
+            Export
           </Button>
           <Button icon={<ImportOutlined />} onClick={handleImport}>
-            导入
+            Import
           </Button>
           <Button
             type="primary"
@@ -466,24 +660,28 @@ export default function ModelsPageClient({ initialModels }: Props) {
             onClick={() => {
               createUserEditedRef.current.clear();
               setCreateCustomProvider("");
-              // 设置初始默认值
+              // 先重置所有字段（避免上次表单残留）
+              createForm.resetFields();
+              // Set initial defaults
               const defaults = getProviderDefaults("GLM", "openai");
-              if (defaults) {
-                createForm.setFieldsValue({
-                  provider: "GLM",
-                  protocol: "openai",
-                  name: `GLM-${defaults.modelName}`,
-                  baseUrl: defaults.baseUrl,
-                  modelName: defaults.modelName,
-                });
-              }
+              createForm.setFieldsValue({
+                provider: "GLM",
+                protocol: "openai",
+                name: defaults ? `GLM-${defaults.modelName}` : undefined,
+                baseUrl: defaults?.baseUrl,
+                modelName: defaults?.modelName,
+                // 国产模型默认开启两个预定义 env
+                disableAdaptive: true,
+                defaultThinking: DEFAULT_THINKING_VALUE,
+                customEnvList: [],
+              });
               setCreateOpen(true);
             }}
           >
-            添加模型
+            Add Model
           </Button>
         </Space>
-        {/* 隐藏的文件输入 */}
+        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -498,11 +696,17 @@ export default function ModelsPageClient({ initialModels }: Props) {
         {models.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[60%] text-gray-400">
             <CloudServerOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-            <p className="text-sm">暂无模型配置，点击上方按钮添加</p>
+            <p className="text-sm">No model configurations, click the button above to add</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {models.map((model) => (
+            {models.map((model) => {
+              const envMap = parseExtraEnv(model.extraEnvJson);
+              const envCount = Object.keys(envMap).length;
+              const hasPreset =
+                envMap[PREDEFINED_ENV_KEYS.DISABLE_ADAPTIVE] === "1" ||
+                typeof envMap[PREDEFINED_ENV_KEYS.DEFAULT_THINKING] === "string";
+              return (
               <Card
                 key={model.id}
                 size="small"
@@ -543,7 +747,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
                       {PROTOCOL_LABELS[model.protocol || "openai"] ||
                         model.protocol}
                     </Tag>
-                    {model.isDefault ? <Tag color="gold">默认</Tag> : null}
+                    {model.isDefault ? <Tag color="gold">Default</Tag> : null}
                     <Text strong>{model.name}</Text>
                   </Space>
                 </div>
@@ -600,9 +804,29 @@ export default function ModelsPageClient({ initialModels }: Props) {
                       />
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Text
+                      type="secondary"
+                      className="text-xs w-16 shrink-0"
+                    >
+                      Env
+                    </Text>
+                    <div className="flex items-center gap-1 flex-1 flex-wrap">
+                      <Tag color={envCount > 0 ? "blue" : "default"} className="!m-0">
+                        {envCount} {envCount === 1 ? "var" : "vars"}
+                      </Tag>
+                      {hasPreset ? <Tag color="purple" className="!m-0">Preset ON</Tag> : null}
+                      {!hasPreset && envCount === 0 ? (
+                        <Text type="secondary" className="text-xs">
+                          (no env vars)
+                        </Text>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -610,7 +834,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
       {/* Create Modal */}
       {createOpen && (
       <Modal
-        title="新增模型配置"
+        title="New Model Config"
         open={createOpen}
         onOk={handleCreate}
         onCancel={() => {
@@ -619,54 +843,96 @@ export default function ModelsPageClient({ initialModels }: Props) {
           setCreateCustomProvider("");
           createUserEditedRef.current.clear();
         }}
-        okText="创建"
-        cancelText="取消"
+        okText="Create"
+        cancelText="Cancel"
+        width={600}
+        centered
+        destroyOnHidden
+        styles={{
+          body: {
+            maxHeight: "calc(100vh - 200px)",
+            overflowY: "auto",
+            paddingRight: 4,
+          },
+        }}
       >
         <Form
           form={createForm}
           layout="vertical"
-          initialValues={{ provider: "GLM", protocol: "openai" }}
+          initialValues={{
+            provider: "GLM",
+            protocol: "openai",
+            disableAdaptive: true,
+            defaultThinking: DEFAULT_THINKING_VALUE,
+            customEnvList: [],
+          }}
           className="mt-4"
         >
-          {renderProviderField(
+          <Row gutter={16}>
+            <Col span={12}>
+              {renderProviderItem(
+                createForm,
+                setCreateCustomProvider,
+                createUserEditedRef
+              )}
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Protocol"
+                name="protocol"
+                rules={[{ required: true, message: "Please select protocol" }]}
+              >
+                <Select
+                  onChange={(value) =>
+                    handleProtocolChange(
+                      value,
+                      createForm,
+                      createCustomProvider,
+                      createUserEditedRef
+                    )
+                  }
+                >
+                  {PROTOCOLS.map((p) => (
+                    <Select.Option key={p} value={p}>
+                      {PROTOCOL_LABELS[p]}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          {renderCustomProviderItem(
             createForm,
             createCustomProvider,
-            setCreateCustomProvider,
-            createUserEditedRef
+            setCreateCustomProvider
           )}
-          <Form.Item
-            label="协议"
-            name="protocol"
-            rules={[{ required: true, message: "请选择协议" }]}
-          >
-            <Select
-              onChange={(value) =>
-                handleProtocolChange(
-                  value,
-                  createForm,
-                  createCustomProvider,
-                  createUserEditedRef
-                )
-              }
-            >
-              {PROTOCOLS.map((p) => (
-                <Select.Option key={p} value={p}>
-                  {PROTOCOL_LABELS[p]}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            label="配置名称"
-            name="name"
-            rules={[{ required: true, message: "请输入配置名称" }]}
-          >
-            <Input placeholder="如：我的GLM-4" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Config Name"
+                name="name"
+                rules={[{ required: true, message: "Please enter config name" }]}
+              >
+                <Input placeholder="e.g. My GLM-4" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Model Name"
+                name="modelName"
+                rules={[{ required: true, message: "Please enter Model Name" }]}
+              >
+                <Input
+                  placeholder="e.g. glm-5.1"
+                  onChange={() => markUserEdited("modelName", createUserEditedRef)}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item
             label="Base URL"
             name="baseUrl"
-            rules={[{ required: true, message: "请输入 Base URL" }]}
+            rules={[{ required: true, message: "Please enter Base URL" }]}
           >
             <Input
               placeholder="https://open.bigmodel.cn/api/coding/paas/v4"
@@ -674,22 +940,13 @@ export default function ModelsPageClient({ initialModels }: Props) {
             />
           </Form.Item>
           <Form.Item
-            label="Model Name"
-            name="modelName"
-            rules={[{ required: true, message: "请输入 Model Name" }]}
-          >
-            <Input
-              placeholder="如：glm-5.1"
-              onChange={() => markUserEdited("modelName", createUserEditedRef)}
-            />
-          </Form.Item>
-          <Form.Item
             label="API Key"
             name="apiKey"
-            rules={[{ required: true, message: "请输入 API Key" }]}
+            rules={[{ required: true, message: "Please enter API Key" }]}
           >
-            <Input.Password placeholder="输入 API Key" />
+            <Input.Password placeholder="Enter API Key" />
           </Form.Item>
+          {renderEnvSection()}
         </Form>
       </Modal>
       )}
@@ -697,7 +954,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
       {/* Edit Modal */}
       {editOpen && (
       <Modal
-        title="编辑模型配置"
+        title="Edit Model Config"
         open={editOpen}
         onOk={handleSaveEdit}
         onCancel={() => {
@@ -707,53 +964,89 @@ export default function ModelsPageClient({ initialModels }: Props) {
           setEditCustomProvider("");
           editUserEditedRef.current.clear();
         }}
-        okText="保存"
-        cancelText="取消"
+        okText="Save"
+        cancelText="Cancel"
+        width={600}
+        centered
+        destroyOnHidden
+        styles={{
+          body: {
+            maxHeight: "calc(100vh - 200px)",
+            overflowY: "auto",
+            paddingRight: 4,
+          },
+        }}
       >
         <Form
           form={editForm}
           layout="vertical"
           className="mt-4"
         >
-          {renderProviderField(
+          <Row gutter={16}>
+            <Col span={12}>
+              {renderProviderItem(
+                editForm,
+                setEditCustomProvider,
+                editUserEditedRef
+              )}
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Protocol"
+                name="protocol"
+                rules={[{ required: true, message: "Please select protocol" }]}
+              >
+                <Select
+                  onChange={(value) =>
+                    handleProtocolChange(
+                      value,
+                      editForm,
+                      editCustomProvider,
+                      editUserEditedRef
+                    )
+                  }
+                >
+                  {PROTOCOLS.map((p) => (
+                    <Select.Option key={p} value={p}>
+                      {PROTOCOL_LABELS[p]}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          {renderCustomProviderItem(
             editForm,
             editCustomProvider,
-            setEditCustomProvider,
-            editUserEditedRef
+            setEditCustomProvider
           )}
-          <Form.Item
-            label="协议"
-            name="protocol"
-            rules={[{ required: true, message: "请选择协议" }]}
-          >
-            <Select
-              onChange={(value) =>
-                handleProtocolChange(
-                  value,
-                  editForm,
-                  editCustomProvider,
-                  editUserEditedRef
-                )
-              }
-            >
-              {PROTOCOLS.map((p) => (
-                <Select.Option key={p} value={p}>
-                  {PROTOCOL_LABELS[p]}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            label="配置名称"
-            name="name"
-            rules={[{ required: true, message: "请输入配置名称" }]}
-          >
-            <Input placeholder="如：我的GLM-4" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Config Name"
+                name="name"
+                rules={[{ required: true, message: "Please enter config name" }]}
+              >
+                <Input placeholder="e.g. My GLM-4" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Model Name"
+                name="modelName"
+                rules={[{ required: true, message: "Please enter Model Name" }]}
+              >
+                <Input
+                  placeholder="e.g. glm-5.1"
+                  onChange={() => markUserEdited("modelName", editUserEditedRef)}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item
             label="Base URL"
             name="baseUrl"
-            rules={[{ required: true, message: "请输入 Base URL" }]}
+            rules={[{ required: true, message: "Please enter Base URL" }]}
           >
             <Input
               placeholder="https://open.bigmodel.cn/api/coding/paas/v4"
@@ -761,22 +1054,13 @@ export default function ModelsPageClient({ initialModels }: Props) {
             />
           </Form.Item>
           <Form.Item
-            label="Model Name"
-            name="modelName"
-            rules={[{ required: true, message: "请输入 Model Name" }]}
-          >
-            <Input
-              placeholder="如：glm-5.1"
-              onChange={() => markUserEdited("modelName", editUserEditedRef)}
-            />
-          </Form.Item>
-          <Form.Item
             label="API Key"
             name="apiKey"
-            rules={[{ required: true, message: "请输入 API Key" }]}
+            rules={[{ required: true, message: "Please enter API Key" }]}
           >
-            <Input.Password placeholder="输入 API Key" />
+            <Input.Password placeholder="Enter API Key" />
           </Form.Item>
+          {renderEnvSection()}
         </Form>
       </Modal>
       )}

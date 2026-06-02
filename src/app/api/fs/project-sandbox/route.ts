@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readProjectMeta, writeProjectMeta, type ProjectMeta, type SandboxStatus } from "@/lib/fs";
+import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,13 @@ export async function POST(req: NextRequest) {
   meta.sandbox = sandbox;
   writeProjectMeta(meta, dirSegments);
 
+  logOperation({
+    projectId: extractProjectId(dirSegments),
+    category: "sandbox",
+    action: "create",
+    detail: "申请了沙盒环境",
+  });
+
   return NextResponse.json({ sandbox: meta.sandbox });
 }
 
@@ -64,6 +72,13 @@ export async function PUT(req: NextRequest) {
 
   meta.sandbox = sandbox;
   writeProjectMeta(meta, dirSegments);
+
+  logOperation({
+    projectId: extractProjectId(dirSegments),
+    category: "sandbox",
+    action: "delete",
+    detail: "释放了沙盒环境",
+  });
 
   return NextResponse.json({ sandbox: meta.sandbox });
 }

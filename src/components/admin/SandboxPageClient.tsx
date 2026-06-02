@@ -27,7 +27,7 @@ export default function SandboxPageClient({ initialConfig }: Props) {
 
   const handleSave = async () => {
     if (!sandboxUrl.trim()) {
-      message.error("沙盒 URL 不能为空");
+      message.error("Sandbox URL cannot be empty");
       return;
     }
 
@@ -41,14 +41,14 @@ export default function SandboxPageClient({ initialConfig }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        message.error(data.error || "保存失败");
+        message.error(data.error || "Save failed");
         return;
       }
 
       setUpdatedAt(data.updatedAt);
-      message.success("保存成功");
+      message.success("Saved successfully");
     } catch {
-      message.error("保存失败，请检查网络连接");
+      message.error("Save failed, please check network connection");
     } finally {
       setIsSaving(false);
     }
@@ -59,9 +59,9 @@ export default function SandboxPageClient({ initialConfig }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">沙盒配置</h1>
+          <h1 className="text-lg font-semibold text-gray-800">Sandbox Config</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            配置 RabbitAI-Lab OpenSandbox 服务地址
+            Configure RabbitAI-Lab OpenSandbox service URL
           </p>
         </div>
         <Space>
@@ -71,7 +71,7 @@ export default function SandboxPageClient({ initialConfig }: Props) {
             loading={isSaving}
             onClick={handleSave}
           >
-            保存
+            Save
           </Button>
         </Space>
       </div>
@@ -81,7 +81,7 @@ export default function SandboxPageClient({ initialConfig }: Props) {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="mb-3">
             <Text type="secondary" className="text-xs">
-              配置 OpenSandbox 服务的连接地址，用于沙盒环境运行代码。
+              Configure OpenSandbox service connection URL for running code in sandbox environment.
             </Text>
           </div>
 
@@ -100,7 +100,7 @@ export default function SandboxPageClient({ initialConfig }: Props) {
           {updatedAt && (
             <div className="mt-4">
               <Text type="secondary" className="text-xs">
-                上次保存：{new Date(updatedAt).toLocaleString("zh-CN")}
+                Last saved: {new Date(updatedAt).toLocaleString()}
               </Text>
             </div>
           )}

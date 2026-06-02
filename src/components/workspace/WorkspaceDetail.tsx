@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Modal } from "antd";
 
 interface WorkspaceMeta {
   id: string;
@@ -36,8 +37,10 @@ export default function WorkspaceDetail({
 }: WorkspaceDetailProps) {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectMeta[]>(initialProjects);
-  const [showAddProject, setShowAddProject] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [availableProjects, setAvailableProjects] = useState<ProjectMeta[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [showDeleteZone, setShowDeleteZone] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
@@ -57,21 +60,38 @@ export default function WorkspaceDetail({
     const linkedIds = new Set(projects.map((p) => p.id));
     const available = allProjects.filter((p) => !linkedIds.has(p.id));
     setAvailableProjects(available);
-    setShowAddProject(true);
+    setSelectedIds(new Set());
+    setAddModalOpen(true);
   };
 
-  const handleAddProject = async (projectId: string) => {
-    await fetch("/api/fs/workspaces/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: accountType,
-        accountId,
-        workspace: workspaceMeta.id,
-        projectId,
-      }),
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
     });
-    setShowAddProject(false);
+  };
+
+  const handleBatchAdd = async () => {
+    setAdding(true);
+    for (const projectId of selectedIds) {
+      await fetch("/api/fs/workspaces/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: accountType,
+          accountId,
+          workspace: workspaceMeta.id,
+          projectId,
+        }),
+      });
+    }
+    setAdding(false);
+    setAddModalOpen(false);
     refreshProjects();
   };
 
@@ -124,11 +144,11 @@ export default function WorkspaceDetail({
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-800">{workspaceMeta.name}</h2>
-              <p className="text-sm text-gray-500">{workspaceMeta.description || "暂无描述"}</p>
+              <p className="text-sm text-gray-500">{workspaceMeta.description || "No description"}</p>
             </div>
           </div>
           <div className="text-xs text-gray-400">
-            创建于 {formatDate(workspaceMeta.createdAt)}
+            Created {formatDate(workspaceMeta.createdAt)}
           </div>
         </div>
 
@@ -142,58 +162,74 @@ export default function WorkspaceDetail({
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            添加已有项目
+            Add Existing Project
           </button>
         </div>
 
         {/* Add project modal */}
-        {showAddProject && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-gray-700">选择要添加的项目</h3>
-              <button
-                onClick={() => setShowAddProject(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            {availableProjects.length === 0 ? (
-              <p className="text-sm text-gray-400 py-2">没有可添加的项目</p>
-            ) : (
-              <div className="space-y-1">
-                {availableProjects.map((p) => (
-                  <button
+        <Modal
+          title="Add Existing Project"
+          open={addModalOpen}
+          onCancel={() => setAddModalOpen(false)}
+          onOk={handleBatchAdd}
+          okText="Add"
+          cancelText="Cancel"
+          okButtonProps={{ disabled: selectedIds.size === 0 }}
+          confirmLoading={adding}
+          destroyOnHidden
+          width={520}
+        >
+          {availableProjects.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-400">No projects to add</div>
+          ) : (
+            <div className="max-h-[50vh] overflow-y-auto space-y-1">
+              {availableProjects.map((p) => {
+                const checked = selectedIds.has(p.id);
+                return (
+                  <div
                     key={p.id}
-                    onClick={() => handleAddProject(p.id)}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-left"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleSelect(p.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSelect(p.id); } }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors select-none ${
+                      checked ? "bg-blue-50" : "hover:bg-gray-50"
+                    }`}
                   >
-                    <svg className="w-3.5 h-3.5 shrink-0 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <span className="truncate">{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                      checked ? "bg-blue-600 border-blue-600" : "border-gray-300"
+                    }`}>
+                      {checked && (
+                        <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <svg className="w-3.5 h-3.5 shrink-0 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span className="text-sm truncate">{p.name}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Modal>
 
         {/* Projects list */}
         <div>
           <h3 className="text-sm font-medium text-gray-700 mb-3">
-            项目列表 ({projects.length})
+            Projects ({projects.length})
           </h3>
           {projects.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
-              <p className="text-sm text-gray-400">暂无关联项目</p>
-              <p className="text-xs text-gray-300 mt-1">点击上方按钮添加项目</p>
+              <p className="text-sm text-gray-400">No linked projects</p>
+              <p className="text-xs text-gray-300 mt-1">Click the button above to add projects</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -220,7 +256,7 @@ export default function WorkspaceDetail({
                     <button
                       onClick={() => setConfirmRemoveId(confirmRemoveId === project.id ? null : project.id)}
                       className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                      title="移除关联"
+                      title="Remove link"
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="18" y1="6" x2="6" y2="18" />
@@ -229,15 +265,15 @@ export default function WorkspaceDetail({
                     </button>
                     {confirmRemoveId === project.id && (
                       <span className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 flex items-center gap-2 text-xs whitespace-nowrap z-50">
-                        <span className="text-gray-500">移除关联?</span>
+                        <span className="text-gray-500">Remove link?</span>
                         <button
                           onClick={() => handleRemoveProject(project.id)}
                           className="px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
-                        >移除</button>
+                        >Remove</button>
                         <button
                           onClick={() => setConfirmRemoveId(null)}
                           className="px-1.5 py-0.5 text-gray-500 hover:text-gray-700"
-                        >取消</button>
+                        >Cancel</button>
                       </span>
                     )}
                   </span>
@@ -254,32 +290,32 @@ export default function WorkspaceDetail({
               onClick={() => setShowDeleteZone(true)}
               className="text-sm text-red-400 hover:text-red-600 transition-colors"
             >
-              删除此工作区
+              Delete this workspace
             </button>
           ) : !deleteStep2 ? (
             <div className="p-4 bg-red-50 rounded-lg border border-red-200">
               <p className="text-sm text-red-700 mb-3">
-                确定要删除工作区 <span className="font-semibold">{workspaceMeta.name}</span> 吗？此操作不可撤销。
+                Are you sure you want to delete workspace <span className="font-semibold">{workspaceMeta.name}</span>? This action cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setDeleteStep2(true)}
                   className="px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
                 >
-                  继续删除
+                  Continue Delete
                 </button>
                 <button
                   onClick={() => { setShowDeleteZone(false); setDeleteConfirmName(""); setDeleteStep2(false); }}
                   className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 rounded-lg transition-colors"
                 >
-                  取消
+                  Cancel
                 </button>
               </div>
             </div>
           ) : (
             <div className="p-4 bg-red-50 rounded-lg border border-red-200">
               <p className="text-sm text-red-700 mb-3">
-                请输入工作区名称 <span className="font-semibold font-mono bg-red-100 px-1.5 py-0.5 rounded">{workspaceMeta.name}</span> 以确认删除：
+                Enter workspace name <span className="font-semibold font-mono bg-red-100 px-1.5 py-0.5 rounded">{workspaceMeta.name}</span> to confirm deletion:
               </p>
               <input
                 autoFocus
@@ -298,13 +334,13 @@ export default function WorkspaceDetail({
                   disabled={!nameMatches}
                   className="px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
-                  确认删除
+                  Confirm Delete
                 </button>
                 <button
                   onClick={() => { setShowDeleteZone(false); setDeleteConfirmName(""); setDeleteStep2(false); }}
                   className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 rounded-lg transition-colors"
                 >
-                  取消
+                  Cancel
                 </button>
               </div>
             </div>

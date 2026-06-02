@@ -5,6 +5,7 @@ import {
   removeMember,
   updateMember,
 } from "@/lib/fs";
+import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 // GET /api/fs/project-members?dirSegments=personal,default,projects,{id}
 export async function GET(req: NextRequest) {
@@ -30,6 +31,12 @@ export async function POST(req: NextRequest) {
   }
   try {
     const members = addMember(dirSegments, member);
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "member",
+      action: "create",
+      detail: `添加了成员 ${member.accountName}`,
+    });
     return NextResponse.json(members);
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 404 });
@@ -48,6 +55,12 @@ export async function PATCH(req: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "member",
+      action: "update",
+      detail: `更新了成员 ${updated.accountName}`,
+    });
     return NextResponse.json(updated);
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 404 });
@@ -62,7 +75,15 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "dirSegments and memberId are required" }, { status: 400 });
   }
   try {
+    const meta = readProjectMeta(dirSegments);
+    const memberName = meta?.members?.find((m) => m.id === memberId)?.accountName || memberId;
     removeMember(dirSegments, memberId);
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "member",
+      action: "delete",
+      detail: `移除了成员 ${memberName}`,
+    });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 404 });

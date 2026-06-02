@@ -5,6 +5,7 @@ import {
   removeRepository,
   updateRepository,
 } from "@/lib/fs";
+import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 // GET /api/fs/project-repositories?dirSegments=personal,default,projects,{id}
 export async function GET(req: NextRequest) {
@@ -30,6 +31,12 @@ export async function POST(req: NextRequest) {
   }
   try {
     const repositories = addRepository(dirSegments, repository);
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "repository",
+      action: "create",
+      detail: `添加了代码库 ${repository.name}`,
+    });
     return NextResponse.json(repositories);
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 404 });
@@ -48,6 +55,12 @@ export async function PATCH(req: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: "Repository not found" }, { status: 404 });
     }
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "repository",
+      action: "update",
+      detail: `更新了代码库 ${updated.name}`,
+    });
     return NextResponse.json(updated);
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 404 });
@@ -62,7 +75,15 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "dirSegments and repoId are required" }, { status: 400 });
   }
   try {
+    const meta = readProjectMeta(dirSegments);
+    const repoName = meta?.repositories?.find((r) => r.id === repoId)?.name || repoId;
     removeRepository(dirSegments, repoId);
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "repository",
+      action: "delete",
+      detail: `删除了代码库 ${repoName}`,
+    });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     return NextResponse.json({ error: (e as Error).message }, { status: 404 });

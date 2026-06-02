@@ -10,6 +10,21 @@ import {
 } from "@/lib/fs";
 import { parsePath } from "../utils";
 
+/**
+ * 校验路径是否在 docs 目录下。
+ * 期望格式：{type}/{accountId}/projects/{projectId}/docs/...
+ * 返回错误信息，如果合法则返回 null。
+ */
+function requireDocsPath(segments: string[]): string | null {
+  if (segments.length < 5) {
+    return `Path must be under the docs directory (format: {type}/{accountId}/projects/{projectId}/docs/...). Got: ${segments.join("/")}`;
+  }
+  if (segments[4] !== "docs") {
+    return `File operations are only allowed under the docs directory. The 5th path segment must be "docs", got: "${segments[4]}"`;
+  }
+  return null;
+}
+
 export function registerFileTools(server: McpServer) {
   server.registerTool(
     "read_file",
@@ -26,6 +41,10 @@ export function registerFileTools(server: McpServer) {
     },
     async ({ path }) => {
       const segments = parsePath(path);
+      const invalid = requireDocsPath(segments);
+      if (invalid) {
+        return { content: [{ type: "text", text: invalid }], isError: true };
+      }
       const content = readDocument(...segments);
       if (content === null) {
         return {
@@ -41,14 +60,22 @@ export function registerFileTools(server: McpServer) {
     "write_file",
     {
       description:
-        "创建或写入文件（Markdown 文档）。如果文件已存在则覆盖，父目录不存在则自动创建。",
+        "创建或写入文件（Markdown 文档）。如果文件已存在则覆盖，父目录不存在则自动创建。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
       inputSchema: z.object({
-        path: z.string().describe("文件路径"),
+        path: z
+          .string()
+          .describe(
+            "文件路径，如 personal/default/projects/{projectId}/docs/doc-name"
+          ),
         content: z.string().describe("文件内容（Markdown）"),
       }),
     },
     async ({ path, content }) => {
       const segments = parsePath(path);
+      const invalid = requireDocsPath(segments);
+      if (invalid) {
+        return { content: [{ type: "text", text: invalid }], isError: true };
+      }
       writeDocument(content, ...segments);
       return {
         content: [{ type: "text", text: `File written: ${path}` }],
@@ -59,13 +86,22 @@ export function registerFileTools(server: McpServer) {
   server.registerTool(
     "delete_file",
     {
-      description: "删除文件",
+      description:
+        "删除文件。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
       inputSchema: z.object({
-        path: z.string().describe("文件路径"),
+        path: z
+          .string()
+          .describe(
+            "文件路径，如 personal/default/projects/{projectId}/docs/doc-name"
+          ),
       }),
     },
     async ({ path }) => {
       const segments = parsePath(path);
+      const invalid = requireDocsPath(segments);
+      if (invalid) {
+        return { content: [{ type: "text", text: invalid }], isError: true };
+      }
       deleteDocument(...segments);
       return {
         content: [{ type: "text", text: `File deleted: ${path}` }],
@@ -76,14 +112,23 @@ export function registerFileTools(server: McpServer) {
   server.registerTool(
     "rename_file",
     {
-      description: "重命名文件（修改文件标题）",
+      description:
+        "重命名文件（修改文件标题）。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
       inputSchema: z.object({
-        path: z.string().describe("文件当前路径"),
+        path: z
+          .string()
+          .describe(
+            "文件当前路径，如 personal/default/projects/{projectId}/docs/doc-name"
+          ),
         newTitle: z.string().describe("新的文件标题（不含扩展名）"),
       }),
     },
     async ({ path, newTitle }) => {
       const segments = parsePath(path);
+      const invalid = requireDocsPath(segments);
+      if (invalid) {
+        return { content: [{ type: "text", text: invalid }], isError: true };
+      }
       renameDocument(newTitle, ...segments);
       return {
         content: [{ type: "text", text: `File renamed to: ${newTitle}` }],
@@ -94,13 +139,22 @@ export function registerFileTools(server: McpServer) {
   server.registerTool(
     "list_files",
     {
-      description: "列出目录下的所有 .md 文件",
+      description:
+        "列出目录下的所有 .md 文件。路径格式如：personal/default/projects/{projectId}/docs",
       inputSchema: z.object({
-        path: z.string().describe("目录路径"),
+        path: z
+          .string()
+          .describe(
+            "目录路径，如 personal/default/projects/{projectId}/docs"
+          ),
       }),
     },
     async ({ path }) => {
       const segments = parsePath(path);
+      const invalid = requireDocsPath(segments);
+      if (invalid) {
+        return { content: [{ type: "text", text: invalid }], isError: true };
+      }
       const files = listDocuments(...segments);
       return {
         content: [
@@ -123,6 +177,10 @@ export function registerFileTools(server: McpServer) {
     },
     async ({ path }) => {
       const segments = parsePath(path);
+      const invalid = requireDocsPath(segments);
+      if (invalid) {
+        return { content: [{ type: "text", text: invalid }], isError: true };
+      }
       const tree = listTree(segments);
       return {
         content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],

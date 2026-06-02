@@ -4,6 +4,9 @@ import type { ChatCompletionRequest } from "@/lib/types";
 import { ModelError } from "@/lib/types";
 import path from "node:path";
 import { getDataRoot } from "@/lib/fs";
+import { db } from "@/db";
+import { systemPrompts } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +28,35 @@ export async function POST(req: NextRequest) {
     cwd = path.join(getDataRoot(), "personal", "default", "projects", projectId);
   }
 
-  // Inject cwd info into systemPrompt so the model knows its working directory
-  let effectiveSystemPrompt = systemPrompt;
+  // Inject cwd info into the system message
   if (cwd) {
-    const cwdInfo = `[System Context] 你的当前工作目录(cwd)是: ${cwd}。所有文件操作都应限制在此目录内。`;
-    effectiveSystemPrompt = effectiveSystemPrompt
-      ? `${cwdInfo}\n\n${effectiveSystemPrompt}`
-      : cwdInfo;
+    const cwdSection = `\n\n---\n\n## 运行环境\n\n- 工作目录(cwd): ${cwd}\n- 所有文件操作都应限制在此目录内。`;
+    if (messages[0]?.role === "system") {
+      messages[0] = { ...messages[0], content: messages[0].content + cwdSection };
+    } else {
+      messages.unshift({
+        role: "system",
+        content: `## 运行环境\n\n- 工作目录(cwd): ${cwd}\n- 所有文件操作都应限制在此目录内。`,
+      });
+    }
+  }
+
+  // Inject global system prompts
+  const activePrompts = db.select().from(systemPrompts)
+    .where(eq(systemPrompts.enabled, 1))
+    .orderBy(systemPrompts.sortOrder)
+    .all();
+
+  if (activePrompts.length > 0) {
+    const globalSection = activePrompts.map(p => p.content).join("\n\n---\n\n");
+    if (messages[0]?.role === "system") {
+      messages[0] = { ...messages[0], content: globalSection + "\n\n" + messages[0].content };
+    } else {
+      messages.unshift({
+        role: "system",
+        content: globalSection,
+      });
+    }
   }
 
   const encoder = new TextEncoder();
@@ -40,7 +65,6 @@ export async function POST(req: NextRequest) {
     async pull(controller) {
       try {
         const generator = streamModelResponse(modelId, messages, {
-          systemPrompt: effectiveSystemPrompt,
           cwd,
           projectId,
         });

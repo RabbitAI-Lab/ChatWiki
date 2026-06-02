@@ -16,12 +16,12 @@ interface Props {
 }
 
 function validatePath(value: string): string | null {
-  if (value.trim() === "") return null; // 允许清空恢复默认
+  if (value.trim() === "") return null; // Allow clearing to restore default
   if (!value.startsWith("/")) {
-    return "存储路径必须是绝对路径，以 / 开头";
+    return "Storage path must be an absolute path starting with /";
   }
   if (value.startsWith("/.") || value.includes("/..")) {
-    return "存储路径不能包含 . 或 .. 目录片段";
+    return "Storage path cannot contain . or .. directory segments";
   }
   return null;
 }
@@ -53,18 +53,18 @@ export default function StoragePageClient({ initialConfig }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        message.error(data.error || "保存失败");
+        message.error(data.error || "Save failed");
         return;
       }
 
       setUpdatedAt(data.updatedAt);
       message.success(
         storagePath.trim()
-          ? "保存成功，文件存储路径已更新"
-          : "保存成功，已恢复默认存储路径"
+          ? "Saved successfully, file storage path updated"
+          : "Saved successfully, restored default storage path"
       );
     } catch {
-      message.error("保存失败，请检查网络连接");
+      message.error("Save failed, please check network connection");
     } finally {
       setIsSaving(false);
     }
@@ -75,9 +75,9 @@ export default function StoragePageClient({ initialConfig }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">文件存储</h1>
+          <h1 className="text-lg font-semibold text-gray-800">File Storage</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            配置文件存储的数据目录，所有项目文档将存储到该目录下
+            Configure file storage data directory, all project documents will be stored in this directory
           </p>
         </div>
         <Space>
@@ -87,7 +87,7 @@ export default function StoragePageClient({ initialConfig }: Props) {
             loading={isSaving}
             onClick={handleSave}
           >
-            保存
+            Save
           </Button>
         </Space>
       </div>
@@ -97,14 +97,14 @@ export default function StoragePageClient({ initialConfig }: Props) {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="mb-3">
             <Text type="secondary" className="text-xs">
-              配置文件存储的根目录。留空则使用默认路径（项目目录下的 data 文件夹）。
-              路径必须是绝对路径，以 / 开头。
+              Configure the root directory for file storage. Leave empty to use the default path (data folder under project directory).
+              Path must be an absolute path starting with /.
             </Text>
           </div>
 
           <div className="mb-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              存储目录
+              Storage Directory
             </label>
             <Input
               value={storagePath}
@@ -124,7 +124,7 @@ export default function StoragePageClient({ initialConfig }: Props) {
             <Alert
               className="max-w-xl mt-3"
               type="info"
-              title="当前使用默认存储路径：项目目录下的 data 文件夹"
+              title="Currently using default storage path: data folder under project directory"
               showIcon
             />
           )}
@@ -132,7 +132,7 @@ export default function StoragePageClient({ initialConfig }: Props) {
           {updatedAt && (
             <div className="mt-4">
               <Text type="secondary" className="text-xs">
-                上次保存：{new Date(updatedAt).toLocaleString("zh-CN")}
+                Last saved: {new Date(updatedAt).toLocaleString()}
               </Text>
             </div>
           )}

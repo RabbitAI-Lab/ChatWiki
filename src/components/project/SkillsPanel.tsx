@@ -9,10 +9,13 @@ interface SkillsPanelProps {
 
 export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
   const [eccEnabled, setEccEnabled] = useState(false);
   const [eccVersion, setEccVersion] = useState<string | null>(null);
   const [eccError, setEccError] = useState<string | null>(null);
+  const [huashuEnabled, setHuashuEnabled] = useState(false);
+  const [huashuVersion, setHuashuVersion] = useState<string | null>(null);
+  const [huashuError, setHuashuError] = useState<string | null>(null);
   const { message } = App.useApp();
 
   const dirSegments = projectPath.split(",");
@@ -26,6 +29,9 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
           const ecc = data.skills?.ecc;
           setEccEnabled(ecc?.enabled ?? false);
           setEccVersion(ecc?.version ?? null);
+          const huashu = data.skills?.huashu;
+          setHuashuEnabled(huashu?.enabled ?? false);
+          setHuashuVersion(huashu?.version ?? null);
         }
       })
       .finally(() => {
@@ -36,35 +42,46 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
     };
   }, [dirSegments]);
 
-  const handleToggle = async (checked: boolean) => {
-    setSaving(true);
-    setEccError(null);
+  const handleToggle = async (skillId: "ecc" | "huashu", checked: boolean) => {
+    setSaving(skillId);
+    if (skillId === "ecc") setEccError(null);
+    else setHuashuError(null);
     try {
       const res = await fetch("/api/fs/project-skills", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dirSegments,
-          skillId: "ecc",
+          skillId,
           enabled: checked,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        const ecc = data.skills?.ecc;
-        setEccEnabled(ecc?.enabled ?? false);
-        setEccVersion(ecc?.version ?? null);
-        message.success(checked ? "ECC 已启用" : "ECC 已卸载");
+        if (skillId === "ecc") {
+          const ecc = data.skills?.ecc;
+          setEccEnabled(ecc?.enabled ?? false);
+          setEccVersion(ecc?.version ?? null);
+        } else {
+          const huashu = data.skills?.huashu;
+          setHuashuEnabled(huashu?.enabled ?? false);
+          setHuashuVersion(huashu?.version ?? null);
+        }
+        message.success(checked ? `${skillId === "ecc" ? "ECC" : "Huashu Design"} enabled` : `${skillId === "ecc" ? "ECC" : "Huashu Design"} disabled`);
       } else {
         const data = await res.json();
-        setEccError(data.details || data.error || "操作失败");
-        message.error(data.error || "操作失败");
+        const errorMsg = data.details || data.error || "Operation failed";
+        if (skillId === "ecc") setEccError(errorMsg);
+        else setHuashuError(errorMsg);
+        message.error(data.error || "Operation failed");
       }
     } catch {
-      setEccError("网络错误");
-      message.error("网络错误");
+      const errorMsg = "Network error";
+      if (skillId === "ecc") setEccError(errorMsg);
+      else setHuashuError(errorMsg);
+      message.error("Network error");
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   };
 
@@ -101,7 +118,7 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
           <path d="M2 12l10 5 10-5" />
         </svg>
         <p className="text-sm text-blue-700">
-          Skills 是项目级的 AI 能力扩展。启用后，AI 对话中将获得对应增强能力。
+          Skills are project-level AI capability extensions. When enabled, AI chats will gain corresponding enhanced capabilities.
         </p>
       </div>
 
@@ -110,17 +127,36 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
         <Switch
           size="small"
           checked={eccEnabled}
-          loading={saving}
-          onChange={handleToggle}
+          loading={saving === "ecc"}
+          onChange={(checked) => handleToggle("ecc", checked)}
         />
         <span className="text-sm font-medium text-gray-700">ECC</span>
         <span
           className={`text-xs ${eccEnabled ? "text-green-600" : "text-gray-400"}`}
         >
-          {eccEnabled ? "已启用" : "未启用"}
+          {eccEnabled ? "Enabled" : "Disabled"}
         </span>
-        {eccEnabled && eccVersion && (
+        {eccVersion && (
           <span className="text-xs text-gray-400">v{eccVersion}</span>
+        )}
+      </div>
+
+      {/* Huashu Design 行 */}
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-200">
+        <Switch
+          size="small"
+          checked={huashuEnabled}
+          loading={saving === "huashu"}
+          onChange={(checked) => handleToggle("huashu", checked)}
+        />
+        <span className="text-sm font-medium text-gray-700">Huashu Design</span>
+        <span
+          className={`text-xs ${huashuEnabled ? "text-green-600" : "text-gray-400"}`}
+        >
+          {huashuEnabled ? "Enabled" : "Disabled"}
+        </span>
+        {huashuVersion && (
+          <span className="text-xs text-gray-400">v{huashuVersion}</span>
         )}
       </div>
 
@@ -139,6 +175,22 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <p className="text-sm text-red-700">{eccError}</p>
+        </div>
+      )}
+      {huashuError && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
+          <svg
+            className="w-4 h-4 text-red-500 shrink-0 mt-0.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p className="text-sm text-red-700">{huashuError}</p>
         </div>
       )}
     </div>

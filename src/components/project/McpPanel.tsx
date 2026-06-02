@@ -56,7 +56,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
 
   const handleToggle = async (checked: boolean) => {
     if (checked && !savedApiKey) {
-      message.warning("请先配置 API Key");
+      message.warning("Please configure API Key first");
       setKeyModalOpen(true);
       return;
     }
@@ -70,7 +70,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
       if (res.ok) {
         const data = await res.json();
         setEnabled(data.enabled);
-        message.success(checked ? "已启用" : "已禁用");
+        message.success(checked ? "Enabled" : "Disabled");
       }
     } finally {
       setSaving(false);
@@ -79,7 +79,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
 
   const handleSaveKey = async () => {
     if (!inputKey.trim()) {
-      message.error("请输入 API Key");
+      message.error("Please enter API Key");
       return;
     }
     setSaving(true);
@@ -96,7 +96,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
         setSavedApiKey(data.apiKey);
         setKeyModalOpen(false);
         setInputKey("");
-        message.success("API Key 已保存");
+        message.success("API Key saved");
       }
     } finally {
       setSaving(false);
@@ -119,7 +119,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
     try {
       const parsed = JSON.parse(jsonText);
       if (typeof parsed !== "object" || parsed === null) {
-        message.error("JSON 格式无效");
+        message.error("Invalid JSON format");
         return;
       }
       setSaving(true);
@@ -132,10 +132,10 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
       if (res.ok) {
         setJsonModalOpen(false);
         fetchConfig();
-        message.success("MCP 配置已保存");
+        message.success("MCP configuration saved");
       }
     } catch {
-      message.error("JSON 格式无效");
+      message.error("Invalid JSON format");
     } finally {
       setSaving(false);
     }
@@ -161,7 +161,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <p className="text-sm text-blue-700">
-          启用智谱 WebSearch MCP 后，AI 对话中可以进行网络搜索，获取最新的实时信息。
+          After enabling Zhipu WebSearch MCP, AI chats can perform web searches to get the latest real-time information.
         </p>
       </div>
 
@@ -173,14 +173,14 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
           loading={saving}
           onChange={handleToggle}
         />
-        <span className="text-sm font-medium text-gray-700">智谱 WebSearch</span>
+        <span className="text-sm font-medium text-gray-700">Zhipu WebSearch</span>
         <span className={`text-xs ${enabled ? "text-green-600" : "text-gray-400"}`}>
-          {enabled ? "已启用" : "未启用"}
+          {enabled ? "Enabled" : "Disabled"}
         </span>
         <div className="flex-1" />
         <EditOutlined
           className="text-gray-400 hover:text-blue-500 cursor-pointer text-base"
-          title="编辑 JSON"
+          title="Edit JSON"
           onClick={handleOpenJsonEditor}
         />
         <SafetyCertificateOutlined
@@ -195,16 +195,16 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
 
       {/* API Key 修改 Modal */}
       <Modal
-        title="修改 API Key"
+        title="Modify API Key"
         open={keyModalOpen}
         onOk={handleSaveKey}
         onCancel={() => { setKeyModalOpen(false); setInputKey(""); }}
-        okText="保存"
-        cancelText="取消"
+        okText="Save"
+        cancelText="Cancel"
         confirmLoading={saving}
       >
         <Input.Password
-          placeholder="输入智谱 API Key"
+          placeholder="Enter Zhipu API Key"
           value={inputKey}
           onChange={(e) => setInputKey(e.target.value)}
           autoFocus
@@ -213,12 +213,12 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
 
       {/* JSON 编辑 Modal */}
       <Modal
-        title="编辑 MCP 配置"
+        title="Edit MCP Configuration"
         open={jsonModalOpen}
         onOk={handleSaveJson}
         onCancel={() => setJsonModalOpen(false)}
-        okText="保存"
-        cancelText="取消"
+        okText="Save"
+        cancelText="Cancel"
         confirmLoading={saving}
         width={520}
       >

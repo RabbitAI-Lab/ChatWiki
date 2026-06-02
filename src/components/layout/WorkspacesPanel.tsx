@@ -16,7 +16,7 @@ interface WorkspaceMeta {
 }
 
 function computeDefaultName(existingWorkspaces: WorkspaceMeta[]): string {
-  const baseName = "新工作区";
+  const baseName = "New Workspace";
   const existingNames = new Set(existingWorkspaces.map((w) => w.name));
   if (!existingNames.has(baseName)) return baseName;
   let i = 1;
@@ -171,7 +171,7 @@ export default function WorkspacesPanel() {
         <button
           onClick={handleCreateWorkspace}
           className="ml-auto p-0.5 text-gray-400 hover:text-blue-600 transition-colors"
-          title="新建工作区"
+          title="New Workspace"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -223,8 +223,8 @@ export default function WorkspacesPanel() {
               className={cn(
                 "relative flex items-center gap-2 w-full px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer select-none",
                 isDragging && "opacity-40",
-                !isDragging && isActive && "bg-blue-50 text-blue-700 font-medium",
-                !isDragging && !isActive && "text-blue-600 hover:bg-blue-50",
+                !isDragging && isActive && "bg-gray-100 text-gray-900 font-medium",
+                !isDragging && !isActive && "text-gray-900 hover:bg-gray-100",
               )}
               onClick={() => router.push(workspacePath)}
             >

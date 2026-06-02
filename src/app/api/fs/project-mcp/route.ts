@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readProjectMcpConfig, writeProjectMcpConfig } from "@/lib/fs";
+import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,12 @@ export async function PUT(req: NextRequest) {
     const mcpServers = (saved?.mcpServers || {}) as Record<string, { url?: string }>;
     const entry = mcpServers[MCP_SERVER_KEY];
     const match = entry?.url?.match(/Authorization=(.+)$/);
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "mcp",
+      action: "update",
+      detail: "更新了 MCP 配置",
+    });
     return NextResponse.json({
       enabled: !!entry,
       apiKey: match ? match[1] : null,
@@ -70,6 +77,12 @@ export async function PUT(req: NextRequest) {
     mcpServers[MCP_SERVER_KEY] = { url: `${MCP_BASE_URL}${apiKey.trim()}` };
     apiKeys[MCP_SERVER_KEY] = apiKey.trim();
     writeProjectMcpConfig({ mcpServers, _apiKeys: apiKeys }, dirSegments);
+    logOperation({
+      projectId: extractProjectId(dirSegments),
+      category: "mcp",
+      action: "enable",
+      detail: "启用了 MCP 服务",
+    });
     return NextResponse.json({ enabled: true, apiKey: apiKey.trim() });
   }
 
@@ -79,5 +92,11 @@ export async function PUT(req: NextRequest) {
     apiKeys[MCP_SERVER_KEY] = apiKey.trim();
   }
   writeProjectMcpConfig({ mcpServers, _apiKeys: apiKeys }, dirSegments);
+  logOperation({
+    projectId: extractProjectId(dirSegments),
+    category: "mcp",
+    action: "disable",
+    detail: "禁用了 MCP 服务",
+  });
   return NextResponse.json({ enabled: false, apiKey: apiKeys[MCP_SERVER_KEY] || null });
 }

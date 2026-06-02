@@ -15,8 +15,11 @@ export async function GET(
     .from(sharedChats)
     .where(eq(sharedChats.chatId, parseInt(chatId)))
     .get();
-  if (!share) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ token: share.token, createdAt: share.createdAt });
+
+  if (!share) {
+    return NextResponse.json({ shared: false, token: null, createdAt: null });
+  }
+  return NextResponse.json({ shared: true, token: share.token, createdAt: share.createdAt });
 }
 
 // POST /api/chats/[chatId]/share — 创建分享

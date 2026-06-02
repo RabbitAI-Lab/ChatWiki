@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     content: content || "",
     icon: icon || null,
     agentPrompt: agentPrompt || "",
+    isSystem: 0,  // 用户创建的模板
     createdAt: now,
     updatedAt: now,
   }).run();

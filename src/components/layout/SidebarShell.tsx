@@ -8,44 +8,45 @@ const MIN_WIDTH = 190;
 const MAX_WIDTH = 280;
 const COLLAPSED_WIDTH = 52;
 
-interface SidebarShellProps {
-  children: ReactNode;
+function parseInitialWidth(value?: string): number {
+  if (!value) return MAX_WIDTH;
+  const w = parseInt(value, 10);
+  return !isNaN(w) && w >= MIN_WIDTH && w <= MAX_WIDTH ? w : MAX_WIDTH;
 }
 
-export default function SidebarShell({ children }: SidebarShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [width, setWidth] = useState(MAX_WIDTH);
+function parseInitialCollapsed(value?: string): boolean {
+  return value === "true";
+}
+
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${value};path=/;max-age=31536000;SameSite=Lax`;
+}
+
+interface SidebarShellProps {
+  children: ReactNode;
+  initialWidth?: string;
+  initialCollapsed?: string;
+}
+
+export default function SidebarShell({ children, initialWidth, initialCollapsed }: SidebarShellProps) {
+  const initWidth = parseInitialWidth(initialWidth);
+  const initCollapsed = parseInitialCollapsed(initialCollapsed);
+
+  const [collapsed, setCollapsed] = useState(initCollapsed);
+  const [width, setWidth] = useState(initWidth);
   const [isResizing, setIsResizing] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const widthRef = useRef(width);
+  const widthRef = useRef(initWidth);
 
-  // Load persisted state from localStorage after mount
+  // Persist state changes to localStorage + cookie
   useEffect(() => {
-    const savedCollapsed = localStorage.getItem("sidebar-collapsed");
-    const savedWidth = localStorage.getItem("sidebar-width");
-    if (savedCollapsed !== null) {
-      setCollapsed(savedCollapsed === "true");
-    }
-    if (savedWidth !== null) {
-      const w = parseInt(savedWidth, 10);
-      if (!isNaN(w) && w >= MIN_WIDTH && w <= MAX_WIDTH) {
-        setWidth(w);
-        widthRef.current = w;
-      }
-    }
-    setMounted(true);
-  }, []);
-
-  // Persist state changes
-  useEffect(() => {
-    if (!mounted) return;
     localStorage.setItem("sidebar-collapsed", String(collapsed));
-  }, [collapsed, mounted]);
+    setCookie("sidebar-collapsed", String(collapsed));
+  }, [collapsed]);
 
   useEffect(() => {
-    if (!mounted) return;
     localStorage.setItem("sidebar-width", String(width));
-  }, [width, mounted]);
+    setCookie("sidebar-width", String(width));
+  }, [width]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,7 +83,7 @@ export default function SidebarShell({ children }: SidebarShellProps) {
     <SidebarContext.Provider value={{ collapsed }}>
       <aside
         style={{ width: currentWidth }}
-        className={`h-full flex flex-col bg-white border-r border-gray-200 shrink-0 relative ${
+        className={`h-full flex flex-col bg-white border-r border-gray-200 shrink-0 relative overflow-hidden ${
           !isResizing ? "transition-[width] duration-200 ease-in-out" : ""
         }`}
       >
@@ -93,7 +94,7 @@ export default function SidebarShell({ children }: SidebarShellProps) {
           ) : (
             <div>
               <h1 className="text-lg font-bold text-gray-800">ChatWiki</h1>
-              <p className="text-xs text-gray-400 mt-0.5">文档管理与发布</p>
+              <p className="text-xs text-gray-400 mt-0.5">Document Management & Publishing</p>
             </div>
           )}
           {!collapsed && (

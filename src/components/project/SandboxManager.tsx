@@ -67,10 +67,10 @@ export default function SandboxManager({
 
   const handleRelease = () => {
     Modal.confirm({
-      title: "确认释放沙盒",
-      content: "释放后无法进行代码分析，确定要释放沙盒吗？",
-      okText: "确认释放",
-      cancelText: "取消",
+      title: "Confirm Release Sandbox",
+      content: "After release, code analysis will not be available. Are you sure you want to release the sandbox?",
+      okText: "Confirm Release",
+      cancelText: "Cancel",
       okButtonProps: { danger: true },
       onOk: doRelease,
     });
@@ -94,7 +94,7 @@ export default function SandboxManager({
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <p className="text-sm text-amber-700">
-          只有需要分析代码时才需要申请沙盒。沙盒提供安全的代码执行环境，用于运行和分析代码片段。
+          Sandbox is only needed when analyzing code. It provides a secure execution environment for running and analyzing code snippets.
         </p>
       </div>
 
@@ -107,16 +107,16 @@ export default function SandboxManager({
         />
         <div className="flex-1">
           <span className="text-sm font-medium text-gray-700">
-            {isEnabled ? "沙盒已申请" : "沙盒未申请"}
+            {isEnabled ? "Sandbox Requested" : "Sandbox Not Requested"}
           </span>
           {isEnabled && sandbox?.requestedAt && (
             <p className="text-xs text-gray-400">
-              申请时间：{new Date(sandbox.requestedAt).toLocaleString("zh-CN")}
+              Requested at: {new Date(sandbox.requestedAt).toLocaleString()}
             </p>
           )}
           {!isEnabled && sandbox?.releasedAt && (
             <p className="text-xs text-gray-400">
-              释放时间：{new Date(sandbox.releasedAt).toLocaleString("zh-CN")}
+              Released at: {new Date(sandbox.releasedAt).toLocaleString()}
             </p>
           )}
         </div>
@@ -157,7 +157,7 @@ export default function SandboxManager({
                 <path d="M12 5v14M5 12h14" />
               </svg>
             )}
-            申请沙盒
+            Request Sandbox
           </button>
         ) : (
           <button
@@ -192,7 +192,7 @@ export default function SandboxManager({
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             )}
-            释放沙盒
+            Release Sandbox
           </button>
         )}
       </div>

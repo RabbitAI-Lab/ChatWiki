@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { chats, chatMessages } from "@/db/schema";
+import { chats, chatMessages, documentActivities } from "@/db/schema";
 import { gte, desc, eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { listTree, readProjectMeta, stripTreePrefix, TreeNode, type ProjectMeta } from "@/lib/fs";
@@ -24,6 +24,7 @@ export default async function ChatPage({
   let projectName: string | undefined;
   let projectMeta: ProjectMeta | null = null;
   let recentChats: Array<{ id: number; title: string; updatedAt: string }> = [];
+  let recentDocuments: Array<typeof documentActivities.$inferSelect> = [];
 
   if (chat.projectId) {
     const projectPrefix = `personal/default/projects/${chat.projectId}/docs`;
@@ -40,6 +41,17 @@ export default async function ChatPage({
       .where(and(gte(chats.updatedAt, twentyDaysAgo), eq(chats.projectId, chat.projectId)))
       .orderBy(desc(chats.updatedAt))
       .all();
+
+    recentDocuments = db
+      .select()
+      .from(documentActivities)
+      .where(and(
+        eq(documentActivities.projectId, chat.projectId),
+        gte(documentActivities.createdAt, twentyDaysAgo)
+      ))
+      .orderBy(desc(documentActivities.createdAt))
+      .limit(20)
+      .all();
   }
 
   return (
@@ -54,6 +66,7 @@ export default async function ChatPage({
       projectName={projectName}
       projectMeta={projectMeta}
       recentChats={recentChats}
+      recentDocuments={recentDocuments}
     />
   );
 }

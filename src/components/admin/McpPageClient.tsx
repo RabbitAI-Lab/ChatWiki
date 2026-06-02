@@ -35,12 +35,12 @@ export default function McpPageClient({ initialConfig }: Props) {
     try {
       const parsed = JSON.parse(configJson);
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        message.error("当前 JSON 不是有效对象，请先修正");
+        message.error("Current JSON is not a valid object, please fix first");
         return;
       }
       parsed.chatwiki = { type: "http", url: "http://127.0.0.1:4001/mcp" };
       setConfigJson(JSON.stringify(parsed, null, 2));
-      message.success("已添加 ChatWiki MCP 服务器配置，点击保存生效");
+      message.success("ChatWiki MCP server config added, click Save to apply");
     } catch {
       setConfigJson(
         JSON.stringify(
@@ -49,17 +49,17 @@ export default function McpPageClient({ initialConfig }: Props) {
           2
         )
       );
-      message.success("已添加 ChatWiki MCP 服务器配置，点击保存生效");
+      message.success("ChatWiki MCP server config added, click Save to apply");
     }
   };
 
   const handleSave = async () => {
-    // 前端验证 JSON 格式
+    // Frontend JSON format validation
     let parsed: unknown;
     try {
       parsed = JSON.parse(configJson);
     } catch {
-      message.error("JSON 格式无效，请检查输入");
+      message.error("Invalid JSON format, please check input");
       return;
     }
 
@@ -68,7 +68,7 @@ export default function McpPageClient({ initialConfig }: Props) {
       parsed === null ||
       Array.isArray(parsed)
     ) {
-      message.error("JSON 必须是一个对象 {}");
+      message.error("JSON must be an object {}");
       return;
     }
 
@@ -82,14 +82,14 @@ export default function McpPageClient({ initialConfig }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        message.error(data.error || "保存失败");
+        message.error(data.error || "Save failed");
         return;
       }
 
       setUpdatedAt(data.updatedAt);
-      message.success("保存成功");
+      message.success("Saved successfully");
     } catch {
-      message.error("保存失败，请检查网络连接");
+      message.error("Save failed, please check network connection");
     } finally {
       setIsSaving(false);
     }
@@ -100,9 +100,9 @@ export default function McpPageClient({ initialConfig }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">MCP 配置</h1>
+          <h1 className="text-lg font-semibold text-gray-800">MCP Config</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            管理外部 MCP 服务器连接配置
+            Manage external MCP server connection configurations
           </p>
         </div>
         <Space>
@@ -118,7 +118,7 @@ export default function McpPageClient({ initialConfig }: Props) {
             loading={isSaving}
             onClick={handleSave}
           >
-            保存
+            Save
           </Button>
         </Space>
       </div>
@@ -126,10 +126,10 @@ export default function McpPageClient({ initialConfig }: Props) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          {/* 提示信息 */}
+          {/* Tips */}
           <div className="mb-3">
             <Text type="secondary" className="text-xs">
-              请填写 MCP 服务器配置 JSON，格式示例：
+              Enter MCP server configuration JSON, format example:
             </Text>
             <Paragraph className="!mb-0 !mt-1">
               <pre className="text-xs bg-gray-50 rounded p-2 overflow-x-auto font-mono text-gray-600">
@@ -137,25 +137,25 @@ export default function McpPageClient({ initialConfig }: Props) {
               </pre>
             </Paragraph>
             <Text type="secondary" className="text-xs">
-              支持的类型：stdio、sse、streamable-http。详情参考 MCP 协议文档。
+              Supported types: stdio, sse, streamable-http. See MCP protocol documentation for details.
             </Text>
           </div>
 
-          {/* JSON 编辑器 */}
+          {/* JSON Editor */}
           <Input.TextArea
             value={configJson}
             onChange={(e) => setConfigJson(e.target.value)}
             rows={20}
             className="font-mono text-sm"
-            placeholder="在此输入 MCP 服务器配置 JSON..."
+            placeholder="Enter MCP server configuration JSON here..."
             spellCheck={false}
           />
 
-          {/* 底部状态 */}
+          {/* Footer Status */}
           {updatedAt && (
             <div className="mt-2">
               <Text type="secondary" className="text-xs">
-                上次保存：{new Date(updatedAt).toLocaleString("zh-CN")}
+                Last saved: {new Date(updatedAt).toLocaleString()}
               </Text>
             </div>
           )}

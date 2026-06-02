@@ -11,6 +11,7 @@ interface Template {
   content: string;
   icon: string | null;
   agentPrompt: string | null;
+  isSystem: number;  // 0=用户创建, 1=系统模板
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +25,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
   const [loading, setLoading] = useState(false);
 
-  // 新建模板
+  // New Template
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", description: "", icon: "" });
   const [creating, setCreating] = useState(false);
@@ -77,7 +78,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          新建模板
+          New Template
         </button>
       </div>
 
@@ -85,10 +86,10 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
       <div className="flex-1 overflow-y-auto p-6">
         {loading && <Spinner />}
 
-        {/* 新建模板表单 */}
+        {/* New Template表单 */}
         {showCreate && (
           <div className="mb-6 p-4 bg-white rounded-xl border border-blue-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">新建模板</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">New Template</h3>
             <div className="space-y-3">
               <div className="flex gap-3">
                 <input
@@ -132,54 +133,113 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
           </div>
         )}
 
-        {/* 模板列表 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {templates.map((t) => (
-            <div
-              key={t.id}
-              onClick={() => router.push(`/templates/${t.id}`)}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer"
-            >
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xl shrink-0">{t.icon || "📄"}</span>
-                    <h3 className="text-sm font-semibold text-gray-800 truncate">{t.name}</h3>
-                  </div>
-                  <button
-                    onClick={(e) => handleDelete(e, t.id, t.name)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                    title="删除"
+        {/* 模板列表分组 */}
+        {/* 我创建的 */}
+        {(() => {
+          const userTemplates = templates.filter(t => t.isSystem === 0);
+          if (userTemplates.length === 0) return null;
+          return (
+            <div className="mb-8">
+              <h3 className="text-sm font-medium text-gray-500 mb-3">我创建的</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {userTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => router.push(`/templates/${t.id}`)}
+                    className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
-                </div>
-                {t.description && (
-                  <p className="text-xs text-gray-500 mb-3">{t.description}</p>
-                )}
-                <div className="flex items-center gap-2">
-                  {t.agentPrompt ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                      🤖 Agent Prompt 已配置
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
-                      未配置 Prompt
-                    </span>
-                  )}
-                </div>
-                {t.content && (
-                  <pre className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
-                    {t.content.slice(0, 150)}{t.content.length > 150 ? "..." : ""}
-                  </pre>
-                )}
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xl shrink-0">{t.icon || "📄"}</span>
+                          <h3 className="text-sm font-semibold text-gray-800 truncate">{t.name}</h3>
+                        </div>
+                        <button
+                          onClick={(e) => handleDelete(e, t.id, t.name)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                          title="删除"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </div>
+                      {t.description && (
+                        <p className="text-xs text-gray-500 mb-3">{t.description}</p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {t.agentPrompt ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                            🤖 Agent Prompt 已配置
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                            未配置 Prompt
+                          </span>
+                        )}
+                      </div>
+                      {t.content && (
+                        <pre className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
+                          {t.content.slice(0, 150)}{t.content.length > 150 ? "..." : ""}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })()}
+
+        {/* 系统模板 */}
+        {(() => {
+          const systemTemplates = templates.filter(t => t.isSystem === 1);
+          if (systemTemplates.length === 0) return null;
+          return (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-3">系统模板</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {systemTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => router.push(`/templates/${t.id}`)}
+                    className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xl shrink-0">{t.icon || "📄"}</span>
+                          <h3 className="text-sm font-semibold text-gray-800 truncate">{t.name}</h3>
+                        </div>
+                        {/* 系统模板无删除按钮 */}
+                      </div>
+                      {t.description && (
+                        <p className="text-xs text-gray-500 mb-3">{t.description}</p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {t.agentPrompt ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                            🤖 Agent Prompt 已配置
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                            未配置 Prompt
+                          </span>
+                        )}
+                      </div>
+                      {t.content && (
+                        <pre className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
+                          {t.content.slice(0, 150)}{t.content.length > 150 ? "..." : ""}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {templates.length === 0 && !loading && (
           <div className="text-center py-16">
@@ -187,7 +247,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <p className="text-sm text-gray-500">暂无模板，点击上方按钮创建</p>
+            <p className="text-sm text-gray-500">No templates, click the button above to create</p>
           </div>
         )}
       </div>

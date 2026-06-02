@@ -12,10 +12,20 @@ interface Chat {
   updatedAt: string;
 }
 
+interface ChatsResponse {
+  chats: Chat[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 interface ChatHistoryPopoverProps {
   currentChatId: number | null;
   onSelect: (chatId: number) => void;
 }
+
+const PAGE_SIZE = 20;
 
 export default function ChatHistoryPopover({
   currentChatId,
@@ -24,24 +34,49 @@ export default function ChatHistoryPopover({
   const [open, setOpen] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const fetchChats = useCallback(async () => {
-    setLoading(true);
+  const fetchChats = useCallback(async (pageNum: number, append: boolean = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     try {
-      const res = await fetch("/api/chats?pageSize=50");
+      const res = await fetch(`/api/chats?page=${pageNum}&pageSize=${PAGE_SIZE}`);
       if (res.ok) {
-        const data = await res.json();
-        setChats(data.chats || []);
+        const data: ChatsResponse = await res.json();
+        if (append) {
+          setChats((prev) => {
+            const existingIds = new Set(prev.map((c) => c.id));
+            const newChats = data.chats.filter((c) => !existingIds.has(c.id));
+            return [...prev, ...newChats];
+          });
+        } else {
+          setChats(data.chats || []);
+        }
+        setHasMore(pageNum < data.totalPages);
       }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
+  const loadMore = useCallback(() => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchChats(nextPage, true);
+  }, [page, fetchChats]);
+
   useEffect(() => {
     if (open) {
-      fetchChats();
+      setPage(1);
+      setChats([]);
+      fetchChats(1);
     }
   }, [open, fetchChats]);
 
@@ -70,6 +105,7 @@ export default function ChatHistoryPopover({
     <div ref={wrapperRef} style={{ position: "relative" }}>
       <Tooltip title="History">
         <Button
+          type="text"
           icon={<HistoryOutlined />}
           size="small"
           onClick={() => setOpen((v) => !v)}
@@ -98,30 +134,40 @@ export default function ChatHistoryPopover({
             </div>
           ) : chats.length === 0 ? (
             <Empty
-              description="暂无聊天记录"
+              description="No chat history"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           ) : (
-            <Conversations
-              items={items}
-              activeKey={currentChatId != null ? String(currentChatId) : undefined}
-              onActiveChange={handleActiveChange}
-              menu={(conversation) => ({
-                items: [
-                  {
-                    key: "delete",
-                    label: "删除",
-                    danger: true,
-                    onClick: async () => {
-                      await fetch(`/api/chats/${conversation.key}`, {
-                        method: "DELETE",
-                      });
-                      fetchChats();
+            <>
+              <Conversations
+                items={items}
+                activeKey={currentChatId != null ? String(currentChatId) : undefined}
+                onActiveChange={handleActiveChange}
+                menu={(conversation) => ({
+                  items: [
+                    {
+                      key: "delete",
+                      label: "Delete",
+                      danger: true,
+                      onClick: async () => {
+                        await fetch(`/api/chats/${conversation.key}`, {
+                          method: "DELETE",
+                        });
+                        setPage(1);
+                        fetchChats(1);
+                      },
                     },
-                  },
-                ],
-              })}
-            />
+                  ],
+                })}
+              />
+              {hasMore && (
+                <div style={{ textAlign: "center", padding: "8px 0", borderTop: "1px solid #f0f0f0" }}>
+                  <Button type="link" size="small" onClick={loadMore} loading={loadingMore}>
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

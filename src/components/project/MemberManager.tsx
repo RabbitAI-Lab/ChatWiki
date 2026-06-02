@@ -67,7 +67,7 @@ export default function MemberManager({
   };
 
   const handleDelete = async (memberId: string) => {
-    if (!confirm("确定要移除此成员吗？")) return;
+    if (!confirm("Are you sure you want to remove this member?")) return;
 
     const res = await fetch("/api/fs/project-members", {
       method: "DELETE",
@@ -119,7 +119,7 @@ export default function MemberManager({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          已有 {members.length} 位成员
+          {members.length} members
         </p>
         <button
           onClick={() => setShowAddForm(true)}
@@ -129,7 +129,7 @@ export default function MemberManager({
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          添加成员
+          Add Member
         </button>
       </div>
 
@@ -152,7 +152,7 @@ export default function MemberManager({
                       size="small"
                       value={editAccountName}
                       onChange={(e) => setEditAccountName(e.target.value)}
-                      placeholder="账号名称"
+                      placeholder="Account name"
                       onPressEnter={handleUpdate}
                     />
                     <Button
@@ -162,16 +162,16 @@ export default function MemberManager({
                       disabled={!editAccountName.trim()}
                       onClick={handleUpdate}
                     >
-                      保存
+                      Save
                     </Button>
                     <Button size="small" onClick={cancelEdit}>
-                      取消
+                      Cancel
                     </Button>
                   </div>
                 ) : (
                   <>
                     <span className="text-sm font-medium text-gray-700">{member.accountName}</span>
-                    <p className="text-xs text-gray-400">添加于 {formatDate(member.addedAt)}</p>
+                    <p className="text-xs text-gray-400">Added {formatDate(member.addedAt)}</p>
                   </>
                 )}
               </div>
@@ -180,7 +180,7 @@ export default function MemberManager({
                   <button
                     onClick={() => startEdit(member)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-blue-500 transition-all"
-                    title="编辑"
+                    title="Edit"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -190,7 +190,7 @@ export default function MemberManager({
                   <button
                     onClick={() => handleDelete(member.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
-                    title="删除"
+                    title="Delete"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <line x1="18" y1="6" x2="6" y2="18" />
@@ -206,18 +206,18 @@ export default function MemberManager({
 
       {/* Add member modal */}
       <Modal
-        title="添加成员"
+        title="Add Member"
         open={showAddForm}
         onOk={handleAdd}
-        okText="添加"
+        okText="Add"
         onCancel={() => { setShowAddForm(false); resetForm(); }}
-        cancelText="取消"
+        cancelText="Cancel"
         confirmLoading={submitting}
         okButtonProps={{ disabled: !formAccountName.trim() }}
       >
         <div className="py-2">
           <Input
-            placeholder="请输入账号名称"
+            placeholder="Enter account name"
             value={formAccountName}
             onChange={(e) => setFormAccountName(e.target.value)}
             onPressEnter={handleAdd}
@@ -231,7 +231,7 @@ export default function MemberManager({
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
             <circle cx="12" cy="7" r="4" />
           </svg>
-          <p className="text-sm">暂无成员</p>
+          <p className="text-sm">No members</p>
         </div>
       )}
     </div>

@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDocument, writeDocument, deleteDocument, renameDocument } from "@/lib/fs";
+import { readDocument, writeDocument, deleteDocument, renameDocument, buildPath } from "@/lib/fs";
+import fs from "fs";
+import { db } from "@/db";
+import { documentActivities } from "@/db/schema";
+
+function parseDocumentMeta(segments: string[]) {
+  // segments: ["personal", "default", "projects", "{projectId}", "docs", ...pathParts]
+  if (segments.length >= 6 && segments[3] && segments[4] === "docs") {
+    const projectId = segments[3];
+    const docSegments = segments.slice(5);
+    const documentPath = docSegments.join("/");
+    const documentTitle = docSegments[docSegments.length - 1]?.replace(/\.md$/, "") || "";
+    return { projectId, documentPath, documentTitle };
+  }
+  return null;
+}
 
 // GET /api/fs/document?path=personal/default/my-project/doc-title
 export async function GET(req: NextRequest) {
@@ -30,7 +45,22 @@ export async function POST(req: NextRequest) {
   }
 
   const segments = filePath.split("/").filter(Boolean);
-  writeDocument(content, ...segments);
+  const meta = parseDocumentMeta(segments);
+
+  if (meta) {
+    const existing = readDocument(...segments);
+    writeDocument(content, ...segments);
+    db.insert(documentActivities).values({
+      projectId: meta.projectId,
+      documentPath: meta.documentPath,
+      documentTitle: meta.documentTitle,
+      action: existing !== null ? "update" : "create",
+      createdAt: new Date().toISOString(),
+    }).run();
+  } else {
+    writeDocument(content, ...segments);
+  }
+
   return NextResponse.json({ success: true });
 }
 
@@ -44,7 +74,20 @@ export async function DELETE(req: NextRequest) {
   }
 
   const segments = filePath.split("/").filter(Boolean);
+  const meta = parseDocumentMeta(segments);
+
   deleteDocument(...segments);
+
+  if (meta) {
+    db.insert(documentActivities).values({
+      projectId: meta.projectId,
+      documentPath: meta.documentPath,
+      documentTitle: meta.documentTitle,
+      action: "delete",
+      createdAt: new Date().toISOString(),
+    }).run();
+  }
+
   return NextResponse.json({ success: true });
 }
 
@@ -58,6 +101,27 @@ export async function PATCH(req: NextRequest) {
   }
 
   const segments = filePath.split("/").filter(Boolean);
-  renameDocument(newTitle, ...segments);
+  const newPath = buildPath(...segments.slice(0, -1), newTitle);
+  if (fs.existsSync(newPath)) {
+    return NextResponse.json({ error: "A file with this name already exists" }, { status: 409 });
+  }
+
+  const meta = parseDocumentMeta(segments);
+
+  if (meta) {
+    const oldTitle = meta.documentTitle;
+    renameDocument(newTitle, ...segments);
+    db.insert(documentActivities).values({
+      projectId: meta.projectId,
+      documentPath: meta.documentPath.replace(/\/[^/]*$/, "/" + newTitle),
+      documentTitle: newTitle,
+      action: "rename",
+      oldTitle,
+      createdAt: new Date().toISOString(),
+    }).run();
+  } else {
+    renameDocument(newTitle, ...segments);
+  }
+
   return NextResponse.json({ success: true });
 }

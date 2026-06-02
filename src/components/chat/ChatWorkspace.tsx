@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useRouter } from "next/navigation";
 import { Bubble, Sender, Welcome, Prompts, XProvider, Actions } from "@ant-design/x";
 import { Button, Space, Avatar, Dropdown, Tooltip, Tag, Typography, Popover, Input, App } from "antd";
@@ -20,6 +20,8 @@ import {
   CopyOutlined,
   ReloadOutlined,
   StopOutlined,
+  ThunderboltOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import type { BubbleItemType } from "@ant-design/x";
 import ChatHistoryPopover from "./ChatHistoryPopover";
@@ -29,6 +31,12 @@ interface Message {
   id: number;
   role: "user" | "assistant";
   content: string;
+  // Extended Thinking 思考过程原文（持久化到 chat_messages.thinking）
+  thinking?: string | null;
+  // Extended Thinking 签名（持久化到 chat_messages.thinking_signature）
+  thinkingSignature?: string | null;
+  // 流式生成中实时增长的思考过程（生成结束后会清空，最终值写入 thinking）
+  streamingThinking?: string;
 }
 
 interface ChatWorkspaceProps {
@@ -39,12 +47,68 @@ interface ChatWorkspaceProps {
   initialTemplateId?: number;
   embedded?: boolean;
   projectId?: string;
+  projectName?: string;
+  openFileTabs?: Array<{ fileName: string; filePath: string }>;
   onBack?: () => void;
   onDocumentSaved?: () => void;
   mentionFile?: string | null;
   onMentionConsumed?: () => void;
   onToolCall?: (toolCall: { toolName: string; args: Record<string, unknown> }) => void;
   onSwitchToChat?: (chatId: number) => void;
+  onChatCreated?: (chatId: number) => void;
+  floating?: boolean;
+}
+
+export interface ChatWorkspaceRef {
+  handleNewChat: () => void;
+  handleClear: () => void;
+  handleHistorySelect: (chatId: number) => void;
+  handleShare: () => void;
+  effectiveChatId: number | null;
+  shareOpen: boolean;
+  setShareOpen: (open: boolean) => void;
+  shareToken: string | null;
+  shareLoading: boolean;
+  handleCopyLink: () => void;
+  handleRegenerateLink: () => void;
+  handleCancelShare: () => void;
+}
+
+function buildSystemMessage(options: {
+  agentPrompt?: string;
+  templateContent?: string;
+  projectId?: string;
+  projectName?: string;
+  openFileTabs?: Array<{ fileName: string; filePath: string }>;
+}): { role: "system"; content: string } | null {
+  const parts: string[] = [];
+
+  if (options.agentPrompt?.trim()) {
+    parts.push(`## Agent 指令\n\n${options.agentPrompt.trim()}`);
+  }
+  if (options.templateContent?.trim()) {
+    parts.push(`## 文档模板\n\n${options.templateContent.trim()}`);
+  }
+
+  const contextLines: string[] = [];
+  if (options.projectId) {
+    contextLines.push(`- 项目ID: ${options.projectId}`);
+  }
+  if (options.projectName) {
+    contextLines.push(`- 项目名称: ${options.projectName}`);
+  }
+  if (options.openFileTabs && options.openFileTabs.length > 0) {
+    contextLines.push(`- 已打开的文件:`);
+    for (const f of options.openFileTabs) {
+      contextLines.push(`  - ${f.fileName} (${f.filePath})`);
+    }
+  }
+  if (contextLines.length > 0) {
+    parts.push(`## 当前上下文\n\n${contextLines.join("\n")}`);
+  }
+
+  if (parts.length === 0) return null;
+  return { role: "system", content: parts.join("\n\n---\n\n") };
 }
 
 const roles = {
@@ -81,7 +145,74 @@ const switchStyles: Record<string, React.CSSProperties> = {
   icon: { fontSize: 12 },
 };
 
-export default function ChatWorkspace({
+/**
+ * Extended Thinking 折叠区。默认展开，可折叠。
+ * 在 assistant 气泡顶部展示思考过程原文。
+ */
+function ThinkingBlock({ text }: { text: string }) {
+  const [open, setOpen] = useState(true);
+  if (!text) return null;
+  return (
+    <div className="mb-2 rounded border border-amber-200 bg-amber-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 px-2 py-1 text-xs text-amber-700 w-full text-left hover:bg-amber-50 transition-colors"
+      >
+        <ThunderboltOutlined />
+        <span className="font-medium">思考过程</span>
+        <span className="text-amber-500">({text.length} 字)</span>
+        <DownOutlined
+          className={`ml-auto transition-transform ${open ? "" : "-rotate-90"}`}
+        />
+      </button>
+      {open && (
+        <div className="px-3 pb-2 pt-1 text-xs text-gray-700 whitespace-pre-wrap border-t border-amber-200/50">
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 消费 SSE 流并按 event/data 协议逐个回调。
+ * 抽出此 helper 用于消除 handleSend / handleRegenerate 之间的解析逻辑重复。
+ */
+async function consumeSseStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onEvent: (eventType: string, data: { type: string; [k: string]: unknown }) => void
+): Promise<void> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // 按 \n 切分，保留最后一段作为下一轮 buffer
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith("event: ")) {
+        const eventType = line.slice(7).trim();
+        const dataLine = lines[i + 1];
+        if (dataLine?.startsWith("data: ")) {
+          i++; // 跳过 data: 行
+          try {
+            onEvent(eventType, JSON.parse(dataLine.slice(6)));
+          } catch {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+  }
+}
+
+const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function ChatWorkspace({
   chatId,
   chatTitle,
   initialMessages,
@@ -89,15 +220,20 @@ export default function ChatWorkspace({
   initialTemplateId,
   embedded = false,
   projectId: initialProjectId,
+  projectName,
+  openFileTabs,
   onBack,
   onDocumentSaved,
   mentionFile,
   onMentionConsumed,
   onToolCall,
   onSwitchToChat,
-}: ChatWorkspaceProps) {
+  onChatCreated,
+  floating = false,
+}, ref) {
   const router = useRouter();
   const [effectiveChatId, setEffectiveChatId] = useState<number | null>(chatId ?? null);
+  const [effectiveChatTitle, setEffectiveChatTitle] = useState<string>(chatTitle);
   const creatingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [messages, setMessages] = useState<Message[]>(
@@ -107,7 +243,7 @@ export default function ChatWorkspace({
   const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<{ id: number; provider: string; modelName: string; isDefault: number }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
-  const [templates, setTemplates] = useState<{ id: number; name: string; agentPrompt?: string }[]>([]);
+  const [templates, setTemplates] = useState<{ id: number; name: string; agentPrompt?: string; content?: string }[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<number | undefined>(initialModelId);
   const [selectedProject, setSelectedProject] = useState<string | undefined>(
     initialProjectId ?? undefined
@@ -208,12 +344,9 @@ export default function ChatWorkspace({
       return;
     }
     fetch(`/api/chats/${effectiveChatId}/share`)
-      .then((r) => {
-        if (r.ok) return r.json();
-        return null;
-      })
+      .then((r) => r.json())
       .then((data) => {
-        setShareToken(data?.token ?? null);
+        setShareToken(data.token);
       });
   }, [effectiveChatId]);
 
@@ -335,9 +468,10 @@ export default function ChatWorkspace({
         const chat = await chatRes.json();
         currentChatId = chat.id;
         setEffectiveChatId(chat.id);
-        if (!embedded) {
+        onChatCreated?.(chat.id);
+        router.refresh();
+        if (!embedded && !floating) {
           window.history.replaceState(null, "", `/chat/${chat.id}`);
-          router.refresh();
         }
       } catch {
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
@@ -367,29 +501,43 @@ export default function ChatWorkspace({
       id: Date.now() + 1,
       role: "assistant",
       content: "",
+      streamingThinking: "",
     };
     setMessages((prev) => [...prev, tempAiMsg]);
 
     // 5. Stream AI response via SSE
     let aiContent = "";
+    // Extended Thinking 思考过程与签名（流式累加）
+    let aiThinking = "";
+    let aiSignature: string | undefined;
     try {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      const systemPrompt = selectedTemplateId
-        ? templates.find((t) => t.id === selectedTemplateId)?.agentPrompt
+      const selectedTemplate = selectedTemplateId
+        ? templates.find((t) => t.id === selectedTemplateId)
         : undefined;
+
+      const systemMsg = buildSystemMessage({
+        agentPrompt: selectedTemplate?.agentPrompt,
+        templateContent: selectedTemplate?.content,
+        projectId: selectedProject,
+        projectName,
+        openFileTabs,
+      });
+
+      const allMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        ...(systemMsg ? [systemMsg] : []),
+        ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        { role: "user" as const, content: fullContent },
+      ];
 
       const res = await fetch("/api/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           modelId: selectedModelId,
-          messages: [
-            ...messages.map((m) => ({ role: m.role, content: m.content })),
-            { role: "user" as const, content: fullContent },
-          ],
-          systemPrompt,
+          messages: allMessages,
           projectId: selectedProject,
         }),
         signal: abortController.signal,
@@ -404,79 +552,81 @@ export default function ChatWorkspace({
           )
         );
       } else {
-        // Parse SSE stream
+        // Parse SSE stream (走 consumeSseStream helper，新增 3 个 thinking 事件 case)
         const reader = res.body?.getReader();
-        if (!reader) {
+        if (reader) {
+          await consumeSseStream(reader, (eventType, data) => {
+            if (eventType === "delta" && data.type === "text_delta" && typeof data.text === "string") {
+              aiContent += data.text;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id ? { ...m, content: aiContent } : m
+                )
+              );
+            } else if (eventType === "thinking_start" && data.type === "thinking_start") {
+              // Extended Thinking 块开始，重置实时 buffer
+              aiThinking = "";
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id ? { ...m, streamingThinking: "" } : m
+                )
+              );
+            } else if (eventType === "thinking_delta" && data.type === "thinking_delta" && typeof data.text === "string") {
+              aiThinking += data.text;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id
+                    ? { ...m, streamingThinking: aiThinking }
+                    : m
+                )
+              );
+            } else if (eventType === "thinking_signature" && data.type === "thinking_signature" && typeof data.signature === "string") {
+              aiSignature = data.signature;
+            } else if (eventType === "error") {
+              aiContent = (data.error as string) || "模型调用出错";
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id ? { ...m, content: aiContent } : m
+                )
+              );
+            } else if (eventType === "done" && data.type === "done") {
+              if (!aiContent && typeof data.fullText === "string") {
+                aiContent = data.fullText;
+              }
+              // done 事件中 model-service 会回传全量 thinking + signature
+              // 优先用 event 中的值，回落到流式累加结果
+              const finalThinking =
+                (data.thinking as string | undefined) || (aiThinking || undefined);
+              const finalSignature =
+                (data.thinkingSignature as string | undefined) || aiSignature;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id
+                    ? {
+                        ...m,
+                        content: aiContent,
+                        thinking: finalThinking,
+                        thinkingSignature: finalSignature,
+                        streamingThinking: undefined,
+                      }
+                    : m
+                )
+              );
+            } else if (eventType === "tool_call" && data.type === "tool_call") {
+              console.log("[ChatWorkspace] tool_call:", data.toolName, data.args);
+              onToolCall?.({
+                toolName: data.toolName as string,
+                args: (data.args as Record<string, unknown>) ?? {},
+              });
+            }
+          });
+        } else {
           aiContent = "无法读取响应流";
           setMessages((prev) =>
             prev.map((m) =>
               m.id === tempAiMsg.id ? { ...m, content: aiContent } : m
             )
           );
-        } else {
-          const decoder = new TextDecoder();
-          let buffer = "";
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            // Parse SSE events from buffer
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
-              if (line.startsWith("event: ")) {
-                const eventType = line.slice(7).trim();
-                // Next line should be data:
-                const dataLine = lines[i + 1];
-                if (dataLine?.startsWith("data: ")) {
-                  i++; // Skip data line
-                  const dataStr = dataLine.slice(6);
-                  try {
-                    const data = JSON.parse(dataStr);
-                    if (eventType === "delta" && data.type === "text_delta") {
-                      aiContent += data.text;
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === tempAiMsg.id
-                            ? { ...m, content: aiContent }
-                            : m
-                        )
-                      );
-                    } else if (eventType === "error") {
-                      aiContent = data.error || "模型调用出错";
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === tempAiMsg.id
-                            ? { ...m, content: aiContent }
-                            : m
-                        )
-                      );
-                    } else if (eventType === "done" && data.type === "done") {
-                      if (!aiContent && data.fullText) {
-                        aiContent = data.fullText;
-                        setMessages((prev) =>
-                          prev.map((m) =>
-                            m.id === tempAiMsg.id
-                              ? { ...m, content: aiContent }
-                              : m
-                          )
-                        );
-                      }
-                    } else if (eventType === "tool_call" && data.type === "tool_call") {
-                      console.log("[ChatWorkspace] tool_call:", data.toolName, data.args);
-                      onToolCall?.({ toolName: data.toolName, args: data.args });
-                    }
-                  } catch {
-                    // Ignore parse errors
-                  }
-                }
-              }
-            }
-          }
         }
       }
     } catch (err) {
@@ -492,12 +642,21 @@ export default function ChatWorkspace({
       abortControllerRef.current = null;
     }
 
-    // 6. Save AI message to DB
+    // 6. Save AI message to DB（带 Extended Thinking 字段）
     if (aiContent) {
+      // 从 messages 中读取最新 thinking/signature（done 时已经更新进去）
+      const persisted = messages.find((m) => m.id === tempAiMsg.id);
+      const finalThinking = persisted?.thinking ?? (aiThinking || null);
+      const finalSignature = persisted?.thinkingSignature ?? aiSignature ?? null;
       const aiRes = await fetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "assistant", content: aiContent }),
+        body: JSON.stringify({
+          role: "assistant",
+          content: aiContent,
+          thinking: finalThinking,
+          thinkingSignature: finalSignature,
+        }),
       });
 
       if (aiRes.ok) {
@@ -505,7 +664,14 @@ export default function ChatWorkspace({
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempAiMsg.id
-              ? { ...m, id: savedAi.id, content: aiContent }
+              ? {
+                  ...m,
+                  id: savedAi.id,
+                  content: aiContent,
+                  thinking: savedAi.thinking ?? finalThinking,
+                  thinkingSignature: savedAi.thinkingSignature ?? finalSignature,
+                  streamingThinking: undefined,
+                }
               : m
           )
         );
@@ -533,9 +699,58 @@ export default function ChatWorkspace({
     setMessages([]);
   };
 
+  useImperativeHandle(ref, () => ({
+    handleNewChat: () => {
+      if (floating) {
+        setEffectiveChatId(null);
+        setEffectiveChatTitle("新Chat");
+        setMessages([]);
+        setInputValue("");
+      } else if (selectedProject) {
+        router.push(`/chat/new?project=${encodeURIComponent(selectedProject)}`);
+      } else {
+        router.push("/chat/new");
+      }
+    },
+    handleClear,
+    handleHistorySelect: (id: number) => {
+      handleHistorySelect(id);
+    },
+    handleShare,
+    get effectiveChatId() { return effectiveChatId; },
+    get shareOpen() { return shareOpen; },
+    setShareOpen,
+    get shareToken() { return shareToken; },
+    get shareLoading() { return shareLoading; },
+    handleCopyLink,
+    handleRegenerateLink,
+    handleCancelShare,
+  }), [floating, selectedProject, effectiveChatId, shareOpen, shareToken, shareLoading]);
+
+  const loadChat = async (targetChatId: number) => {
+    try {
+      const [chatRes, msgsRes] = await Promise.all([
+        fetch(`/api/chats/${targetChatId}`),
+        fetch(`/api/chats/${targetChatId}/messages`),
+      ]);
+      if (!chatRes.ok || !msgsRes.ok) return;
+      const chat = await chatRes.json();
+      const msgs = await msgsRes.json();
+      setEffectiveChatId(targetChatId);
+      setMessages(msgs || []);
+      if (chat.title) setEffectiveChatTitle(chat.title);
+      if (chat.modelId) setSelectedModelId(chat.modelId);
+      if (chat.templateId) setSelectedTemplateId(chat.templateId);
+    } catch {
+      // silently fail
+    }
+  };
+
   const handleHistorySelect = (chatId: number) => {
     if (onSwitchToChat) {
       onSwitchToChat(chatId);
+    } else if (floating) {
+      loadChat(chatId);
     } else if (embedded) {
       window.location.href = `/chat/${chatId}`;
     } else {
@@ -588,24 +803,39 @@ export default function ChatWorkspace({
       id: Date.now(),
       role: "assistant",
       content: "",
+      streamingThinking: "",
     };
     setMessages((prev) => [...prev, tempAiMsg]);
 
     // Stream AI response via SSE (same logic as handleSend)
     let aiContent = "";
+    // Extended Thinking 思考过程与签名（流式累加）
+    let aiThinking = "";
+    let aiSignature: string | undefined;
     try {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      const systemPrompt = selectedTemplateId
-        ? templates.find((t) => t.id === selectedTemplateId)?.agentPrompt
+      const selectedTemplate = selectedTemplateId
+        ? templates.find((t) => t.id === selectedTemplateId)
         : undefined;
 
+      const systemMsg = buildSystemMessage({
+        agentPrompt: selectedTemplate?.agentPrompt,
+        templateContent: selectedTemplate?.content,
+        projectId: selectedProject,
+        projectName,
+        openFileTabs,
+      });
+
       // Use conversation history up to the previous user message
-      const historyMsgs = messages
-        .slice(0, msgIndex)
-        .filter((m) => m.id !== aiMsg.id)
-        .map((m) => ({ role: m.role, content: m.content }));
+      const historyMsgs: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        ...(systemMsg ? [systemMsg] : []),
+        ...messages
+          .slice(0, msgIndex)
+          .filter((m) => m.id !== aiMsg.id)
+          .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      ];
 
       const res = await fetch("/api/chat/completions", {
         method: "POST",
@@ -613,7 +843,6 @@ export default function ChatWorkspace({
         body: JSON.stringify({
           modelId: selectedModelId,
           messages: historyMsgs,
-          systemPrompt,
           projectId: selectedProject,
         }),
         signal: abortController.signal,
@@ -625,66 +854,69 @@ export default function ChatWorkspace({
       } else {
         const reader = res.body?.getReader();
         if (reader) {
-          const decoder = new TextDecoder();
-          let buffer = "";
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
-              if (line.startsWith("event: ")) {
-                const eventType = line.slice(7).trim();
-                const dataLine = lines[i + 1];
-                if (dataLine?.startsWith("data: ")) {
-                  i++;
-                  try {
-                    const data = JSON.parse(dataLine.slice(6));
-                    if (eventType === "delta" && data.type === "text_delta") {
-                      aiContent += data.text;
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === tempAiMsg.id
-                            ? { ...m, content: aiContent }
-                            : m
-                        )
-                      );
-                    } else if (eventType === "error") {
-                      aiContent = data.error || "模型调用出错";
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === tempAiMsg.id
-                            ? { ...m, content: aiContent }
-                            : m
-                        )
-                      );
-                    } else if (eventType === "done" && data.type === "done") {
-                      if (!aiContent && data.fullText) {
-                        aiContent = data.fullText;
-                        setMessages((prev) =>
-                          prev.map((m) =>
-                            m.id === tempAiMsg.id
-                              ? { ...m, content: aiContent }
-                              : m
-                          )
-                        );
-                      }
-                    } else if (eventType === "tool_call" && data.type === "tool_call") {
-                      console.log("[ChatWorkspace] tool_call:", data.toolName, data.args);
-                      onToolCall?.({ toolName: data.toolName, args: data.args });
-                    }
-                  } catch {
-                    // Ignore parse errors
-                  }
-                }
+          await consumeSseStream(reader, (eventType, data) => {
+            if (eventType === "delta" && data.type === "text_delta" && typeof data.text === "string") {
+              aiContent += data.text;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id ? { ...m, content: aiContent } : m
+                )
+              );
+            } else if (eventType === "thinking_start" && data.type === "thinking_start") {
+              // Extended Thinking 块开始，重置实时 buffer
+              aiThinking = "";
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id ? { ...m, streamingThinking: "" } : m
+                )
+              );
+            } else if (eventType === "thinking_delta" && data.type === "thinking_delta" && typeof data.text === "string") {
+              aiThinking += data.text;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id
+                    ? { ...m, streamingThinking: aiThinking }
+                    : m
+                )
+              );
+            } else if (eventType === "thinking_signature" && data.type === "thinking_signature" && typeof data.signature === "string") {
+              aiSignature = data.signature;
+            } else if (eventType === "error") {
+              aiContent = (data.error as string) || "模型调用出错";
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id ? { ...m, content: aiContent } : m
+                )
+              );
+            } else if (eventType === "done" && data.type === "done") {
+              if (!aiContent && typeof data.fullText === "string") {
+                aiContent = data.fullText;
               }
+              const finalThinking =
+                (data.thinking as string | undefined) || (aiThinking || undefined);
+              const finalSignature =
+                (data.thinkingSignature as string | undefined) || aiSignature;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempAiMsg.id
+                    ? {
+                        ...m,
+                        content: aiContent,
+                        thinking: finalThinking,
+                        thinkingSignature: finalSignature,
+                        streamingThinking: undefined,
+                      }
+                    : m
+                )
+              );
+            } else if (eventType === "tool_call" && data.type === "tool_call") {
+              console.log("[ChatWorkspace] tool_call:", data.toolName, data.args);
+              onToolCall?.({
+                toolName: data.toolName as string,
+                args: (data.args as Record<string, unknown>) ?? {},
+              });
             }
-          }
+          });
         }
       }
     } catch (err) {
@@ -695,11 +927,23 @@ export default function ChatWorkspace({
       abortControllerRef.current = null;
     }
 
-    // Update the message and save to DB
+    // Update the message and save to DB（带 Extended Thinking 字段）
     if (aiContent) {
+      // 从 messages 中读取最新 thinking/signature（done 时已经更新进去）
+      const persisted = messages.find((m) => m.id === tempAiMsg.id);
+      const finalThinking = persisted?.thinking ?? (aiThinking || null);
+      const finalSignature = persisted?.thinkingSignature ?? aiSignature ?? null;
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === tempAiMsg.id ? { ...m, content: aiContent } : m
+          m.id === tempAiMsg.id
+            ? {
+                ...m,
+                content: aiContent,
+                thinking: finalThinking,
+                thinkingSignature: finalSignature,
+                streamingThinking: undefined,
+              }
+            : m
         )
       );
 
@@ -707,7 +951,12 @@ export default function ChatWorkspace({
         const aiRes = await fetch(`/api/chats/${effectiveChatId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role: "assistant", content: aiContent }),
+          body: JSON.stringify({
+            role: "assistant",
+            content: aiContent,
+            thinking: finalThinking,
+            thinkingSignature: finalSignature,
+          }),
         });
 
         if (aiRes.ok) {
@@ -715,7 +964,14 @@ export default function ChatWorkspace({
           setMessages((prev) =>
             prev.map((m) =>
               m.id === tempAiMsg.id
-                ? { ...m, id: savedAi.id, content: aiContent }
+                ? {
+                    ...m,
+                    id: savedAi.id,
+                    content: aiContent,
+                    thinking: savedAi.thinking ?? finalThinking,
+                    thinkingSignature: savedAi.thinkingSignature ?? finalSignature,
+                    streamingThinking: undefined,
+                  }
                 : m
             )
           );
@@ -743,21 +999,34 @@ export default function ChatWorkspace({
       msg === messages[messages.length - 1];
 
     const hasContent = !!msg.content;
+    // Extended Thinking 折叠区显示源：流式生成中用 streamingThinking，否则用持久化的 thinking
+    const thinkingText = msg.streamingThinking ?? msg.thinking ?? "";
+
+    // AI 气泡：前置 ThinkingBlock + Markdown 正文（content 改为 ReactNode）
+    // 用户气泡：保持原 Markdown contentRender
+    const isAssistant = msg.role === "assistant";
+    const contentNode = isAssistant ? (
+      <div>
+        <ThinkingBlock text={thinkingText} />
+        {renderMarkdown(msg.content)}
+      </div>
+    ) : msg.content;
 
     return {
       key: msg.id.toString(),
       role: msg.role,
-      content: msg.content,
-      contentRender: renderMarkdown,
+      content: contentNode,
+      // AI 气泡 content 是 ReactNode，跳过默认 contentRender
+      contentRender: isAssistant ? undefined : renderMarkdown,
       loading: isAiLoading || undefined,
       // Only apply typing to new AI messages that have content
       typing:
-        msg.role === "assistant" && msg.content && !isAiLoading
+        isAssistant && msg.content && !isAiLoading
           ? { effect: "typing" as const, step: 5, interval: 50 }
           : undefined,
       footer: hasContent
-        ? msg.role === "assistant"
-          ? (content: string) => (
+        ? isAssistant
+          ? () => (
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                 <Actions
                   items={[
@@ -775,11 +1044,12 @@ export default function ChatWorkspace({
                     },
                   ]}
                 />
-                <Actions.Copy text={String(content)} />
+                {/* 复制用 msg.content 字符串（而非 contentNode） */}
+                <Actions.Copy text={msg.content} />
               </div>
             )
-          : (content: string) => (
-              <Actions.Copy text={String(content)} />
+          : () => (
+              <Actions.Copy text={msg.content} />
             )
         : undefined,
     };
@@ -788,8 +1058,9 @@ export default function ChatWorkspace({
   return (
     <XProvider>
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-[41px] bg-white border-b border-gray-200">
+      {/* Header - hidden in floating mode, rendered by FloatingChatWindow */}
+      {!floating && (
+        <div className="flex items-center justify-between px-3 h-[41px] bg-white border-b border-gray-200">
         <div className="flex items-center gap-2 min-w-0">
           {embedded && onBack && (
             <Button
@@ -800,7 +1071,7 @@ export default function ChatWorkspace({
             />
           )}
           <h2 className="text-sm font-medium text-gray-800 truncate">
-            {chatTitle}
+            {effectiveChatTitle}
           </h2>
         </div>
         <Space size="small">
@@ -836,7 +1107,12 @@ export default function ChatWorkspace({
               icon={<PlusOutlined />}
               size="small"
               onClick={() => {
-                if (selectedProject) {
+                if (floating) {
+                  setEffectiveChatId(null);
+                  setEffectiveChatTitle("新Chat");
+                  setMessages([]);
+                  setInputValue("");
+                } else if (selectedProject) {
                   router.push(`/chat/new?project=${encodeURIComponent(selectedProject)}`);
                 } else {
                   router.push("/chat/new");
@@ -850,7 +1126,7 @@ export default function ChatWorkspace({
               onOpenChange={setShareOpen}
               trigger="click"
               placement="bottomRight"
-              title="分享对话"
+              title="Share Chat"
               content={
                 <div style={{ width: 280 }}>
                   <Input.TextArea
@@ -918,17 +1194,18 @@ export default function ChatWorkspace({
           </Tooltip>
         </Space>
       </div>
+      )}
 
       {/* Main content */}
-      {messages.length === 0 ? (
+      {messages.length === 0 && !floating ? (
         <div className="flex-1 flex items-center justify-center">
           <div style={{ width: 600 }}>
             <Welcome
               icon={
                 <RobotOutlined style={{ fontSize: 40, color: "#1677ff" }} />
               }
-              title="开始新对话"
-              description="在下方输入消息开始聊天。你可以将对话内容保存为 Markdown 文档。"
+              title="Start New Chat"
+              description="Enter a message below to start chatting. You can save the conversation as a Markdown document."
             />
             <Prompts
               title="你可以尝试"
@@ -996,6 +1273,7 @@ export default function ChatWorkspace({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
                 <div style={{ display: 'flex' }}>
                   <Dropdown
+                    getPopupContainer={floating ? () => document.getElementById('floating-chat-window') || document.body : undefined}
                     menu={{
                       items: [
                         ...(selectedModelId ? [{ key: '__clear_model__', label: '✕ 清除选择' }] : []),
@@ -1021,6 +1299,7 @@ export default function ChatWorkspace({
                   </Dropdown>
                   {!embedded && projects.length > 0 && (
                     <Dropdown
+                      getPopupContainer={floating ? () => document.getElementById('floating-chat-window') || document.body : undefined}
                       menu={{
                         items: [
                           ...(selectedProject ? [{ key: '__clear_project__', label: '✕ 清除选择' }] : []),
@@ -1047,6 +1326,7 @@ export default function ChatWorkspace({
                   )}
                   {templates.length > 0 && (
                     <Dropdown
+                      getPopupContainer={floating ? () => document.getElementById('floating-chat-window') || document.body : undefined}
                       menu={{
                         items: [
                           ...(selectedTemplateId ? [{ key: '__clear_template__', label: '✕ 清除选择' }] : []),
@@ -1088,4 +1368,6 @@ export default function ChatWorkspace({
     />
     </XProvider>
   );
-}
+});
+
+export default ChatWorkspace;

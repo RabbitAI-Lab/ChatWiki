@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import type { Repository, SandboxStatus, ProjectMember } from "@/lib/fs";
+import type { DocumentActivity } from "@/lib/types";
 import ActivityPanel from "./ActivityPanel";
 import IntegrationPanel from "./IntegrationPanel";
 import McpPanel from "./McpPanel";
 import SkillsPanel from "./SkillsPanel";
 import MemberManager from "./MemberManager";
+import LogPanel from "./LogPanel";
 import Badge from "@/components/ui/Badge";
 
 interface ProjectMeta {
@@ -28,7 +30,7 @@ interface RecentChat {
   updatedAt: string;
 }
 
-type SubTab = "activity" | "integration" | "skills" | "mcp" | "members";
+type SubTab = "activity" | "integration" | "skills" | "mcp" | "members" | "log";
 
 interface ProjectInfoTabProps {
   projectId: string;
@@ -36,8 +38,10 @@ interface ProjectInfoTabProps {
   projectMeta: ProjectMeta | null;
   projectPath: string;
   recentChats: RecentChat[];
+  recentDocuments?: DocumentActivity[];
   onSwitchToChat: (chatId: number) => void;
   onNewChat: () => void;
+  onNavigateToDocument?: (documentPath: string) => void;
 }
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
@@ -45,7 +49,8 @@ const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: "integration", label: "Integration" },
   { key: "skills", label: "Skills" },
   { key: "mcp", label: "MCP" },
-  { key: "members", label: "成员" },
+  { key: "members", label: "Members" },
+  { key: "log", label: "Log" },
 ];
 
 function formatDate(dateStr: string) {
@@ -62,8 +67,10 @@ export default function ProjectInfoTab({
   projectMeta,
   projectPath,
   recentChats,
+  recentDocuments,
   onSwitchToChat,
   onNewChat,
+  onNavigateToDocument,
 }: ProjectInfoTabProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("activity");
   const [repositories, setRepositories] = useState<Repository[]>(
@@ -150,7 +157,7 @@ export default function ProjectInfoTab({
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-semibold text-gray-800">{projectName}</h2>
             <p className="text-xs text-gray-400">
-              {projectMeta?.description || "暂无描述"}
+              {projectMeta?.description || "No description"}
             </p>
           </div>
           <button
@@ -160,12 +167,12 @@ export default function ProjectInfoTab({
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            开始对话
+            Start Chat
           </button>
         </div>
         {projectMeta?.createdAt && (
           <div className="text-xs text-gray-400 ml-12">
-            创建于 {formatDate(projectMeta.createdAt)}
+            Created {formatDate(projectMeta.createdAt)}
           </div>
         )}
       </div>
@@ -195,8 +202,10 @@ export default function ProjectInfoTab({
         {activeSubTab === "activity" && (
           <ActivityPanel
             recentChats={recentChats}
+            recentDocuments={recentDocuments || []}
             onSwitchToChat={onSwitchToChat}
             onNewChat={onNewChat}
+            onNavigateToDocument={onNavigateToDocument}
           />
         )}
         {activeSubTab === "integration" && (
@@ -220,6 +229,9 @@ export default function ProjectInfoTab({
             members={members}
             onMembersChange={setMembers}
           />
+        )}
+        {activeSubTab === "log" && (
+          <LogPanel projectPath={projectPath} />
         )}
       </div>
     </div>

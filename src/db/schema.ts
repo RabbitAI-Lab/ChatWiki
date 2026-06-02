@@ -32,6 +32,7 @@ export const templates = sqliteTable("templates", {
   content: text("content").notNull().default(""),
   icon: text("icon"),
   agentPrompt: text("agent_prompt").default(""),
+  isSystem: integer("is_system").notNull().default(0),  // 0=用户创建, 1=系统模板
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -53,6 +54,10 @@ export const chatMessages = sqliteTable("chat_messages", {
   chatId: integer("chat_id").notNull().references(() => chats.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["user", "assistant"] }).notNull(),
   content: text("content").notNull(),
+  // Extended Thinking 思考过程原文（Anthropic 返回的 thinking 字段）
+  thinking: text("thinking"),
+  // Extended Thinking 签名（用于多轮对话继续启用 thinking 时回传给模型）
+  thinkingSignature: text("thinking_signature"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -65,6 +70,10 @@ export const modelConfigs = sqliteTable("model_configs", {
   baseUrl: text("base_url").notNull(),
   apiKey: text("api_key").notNull(),
   modelName: text("model_name").notNull(),
+  // 用户可配置的环境变量 JSON 字符串
+  // 包含两个预定义开关（CLAUDE_CODE_DISABLE_ADAPTIVE / CLAUDE_CODE_DEFAULT_THINKING）
+  // 以及任意用户自定义 key/value
+  extraEnvJson: text("extra_env_json").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   isDefault: integer("is_default").notNull().default(0),
@@ -100,4 +109,39 @@ export const sharedChats = sqliteTable("shared_chats", {
   chatId: integer("chat_id").notNull().references(() => chats.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
   createdAt: text("created_at").notNull(),
+});
+
+// operation_logs: 操作日志
+export const operationLogs = sqliteTable("operation_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: text("project_id").notNull(),
+  category: text("category", { enum: ["repository", "sandbox", "skills", "mcp", "member"] }).notNull(),
+  action: text("action", { enum: ["create", "update", "delete", "enable", "disable"] }).notNull(),
+  detail: text("detail").notNull(),
+  operator: text("operator").notNull().default("system"),
+  metadata: text("metadata"),
+  createdAt: text("created_at").notNull(),
+});
+
+// document_activities: 文档活动日志
+export const documentActivities = sqliteTable("document_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: text("project_id").notNull(),
+  documentPath: text("document_path").notNull(),
+  documentTitle: text("document_title").notNull(),
+  action: text("action", { enum: ["create", "update", "delete", "rename"] }).notNull(),
+  oldTitle: text("old_title"),
+  createdAt: text("created_at").notNull(),
+});
+
+// system_prompts: 系统提示词配置
+export const systemPrompts = sqliteTable("system_prompts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  content: text("content").notNull(),
+  description: text("description"),
+  enabled: integer("enabled").notNull().default(1),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });

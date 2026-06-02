@@ -1,0 +1,1 @@
+UPDATE templates SET is_system = 1 WHERE name IN ('会议纪要', '项目提案', '产品需求', '技术方案', '博客文章', '发布说明');

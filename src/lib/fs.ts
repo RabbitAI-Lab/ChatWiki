@@ -121,12 +121,9 @@ export function listTree(dirSegments: string[]): TreeNode[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   const result: TreeNode[] = [];
 
-  // Sort: directories first, then files
-  const sorted = entries.sort((a, b) => {
-    if (a.isDirectory() && !b.isDirectory()) return -1;
-    if (!a.isDirectory() && b.isDirectory()) return 1;
-    return a.name.localeCompare(b.name);
-  });
+  // Sort alphabetically, mixed order (macOS / Windows / Linux style)
+  // Folders and files are interleaved by name, not grouped.
+  const sorted = entries.sort((a, b) => a.name.localeCompare(b.name));
 
   for (const entry of sorted) {
     const relPath = path.join(...dirSegments, entry.name);
@@ -261,6 +258,17 @@ export function renameDocument(newTitle: string, ...fileSegments: string[]): voi
 }
 
 /**
+ * Rename a directory.
+ */
+export function renameDir(newName: string, ...dirSegments: string[]): void {
+  const oldPath = path.join(getDataRoot(), ...dirSegments);
+  const newPath = path.join(getDataRoot(), ...dirSegments.slice(0, -1), newName);
+  if (fs.existsSync(oldPath)) {
+    fs.renameSync(oldPath, newPath);
+  }
+}
+
+/**
  * Repository metadata for project integration.
  */
 export interface RepositoryCredentials {
@@ -309,6 +317,7 @@ export interface SkillStatus {
  */
 export interface ProjectSkills {
   ecc?: SkillStatus;
+  huashu?: SkillStatus;
 }
 
 /**

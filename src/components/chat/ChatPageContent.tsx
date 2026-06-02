@@ -3,11 +3,14 @@
 import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { App } from "antd";
+import { useFloatingChat } from "./FloatingChatContext";
 import ChatWorkspace from "@/components/chat/ChatWorkspace";
 import FileTree from "@/components/ui/FileTree";
 import ProjectInfoTab from "@/components/project/ProjectInfoTab";
-import { TreeNode, stripTreePrefix } from "@/lib/tree";
+import { TreeNode, stripTreePrefix, computeDefaultDirName, computeDefaultFileName, findChildren, findNodeByPath, renameNodeInTree } from "@/lib/tree";
 import type { Repository, ProjectMeta as ProjectMetaType } from "@/lib/fs";
+import type { DocumentActivity } from "@/lib/types";
 
 const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
   ssr: false,
@@ -51,28 +54,7 @@ interface ChatPageContentProps {
   projectName?: string;
   projectMeta?: ProjectMetaType | null;
   recentChats?: RecentChat[];
-}
-
-function computeDefaultDirName(existingChildren: TreeNode[]): string {
-  const baseName = "新建文件夹";
-  const existingNames = new Set(
-    existingChildren.filter((n) => n.type === "directory").map((n) => n.name)
-  );
-  if (!existingNames.has(baseName)) return baseName;
-  let i = 1;
-  while (existingNames.has(`${baseName}(${i})`)) i++;
-  return `${baseName}(${i})`;
-}
-
-function findChildren(nodes: TreeNode[], parentPath: string): TreeNode[] {
-  for (const node of nodes) {
-    if (node.path === parentPath && node.children) return node.children;
-    if (node.children) {
-      const found = findChildren(node.children, parentPath);
-      if (found.length > 0) return found;
-    }
-  }
-  return [];
+  recentDocuments?: DocumentActivity[];
 }
 
 export default function ChatPageContent({
@@ -86,8 +68,11 @@ export default function ChatPageContent({
   projectName,
   projectMeta,
   recentChats,
+  recentDocuments,
 }: ChatPageContentProps) {
   const router = useRouter();
+  const { message } = App.useApp();
+  const { open: openFloatingChat, isOpen: floatingChatOpen, isMinimized: floatingChatMinimized, setMentionFile: setFloatingMentionFile } = useFloatingChat();
 
   // Active chat state
   const [activeChatId, setActiveChatId] = useState(chatId);
@@ -100,13 +85,9 @@ export default function ChatPageContent({
   // File tree state
   const [tree, setTree] = useState<TreeNode[]>(initialTree);
   const [treeLoading, setTreeLoading] = useState(false);
-  const [showNewDir, setShowNewDir] = useState(false);
-  const [newDirName, setNewDirName] = useState("");
-  const [newDirParent, setNewDirParent] = useState("");
-  const [showNewFile, setShowNewFile] = useState(false);
-  const [newFileName, setNewFileName] = useState("");
-  const [newFileParent, setNewFileParent] = useState("");
-  const dirInputRef = useRef<HTMLInputElement>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renamingName, setRenamingName] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
   // Tab system state
@@ -142,7 +123,7 @@ export default function ChatPageContent({
       const msgData = await msgRes.json();
 
       setActiveChatId(chatId);
-      setActiveChatTitle(chatData.title || "新对话");
+      setActiveChatTitle(chatData.title || "新Chat");
       setActiveChatMessages(
         (Array.isArray(msgData) ? msgData : msgData.messages || []).map(
           (m: { id: number; role: "user" | "assistant"; content: string }) => ({
@@ -168,43 +149,122 @@ export default function ChatPageContent({
 
   // --- File tree functions ---
 
-  const handleStartNewDir = useCallback(
-    (parentPath: string) => {
-      const children = parentPath ? findChildren(tree, parentPath) : tree;
-      const defaultName = computeDefaultDirName(children);
-      setNewDirParent(parentPath);
-      setNewDirName(defaultName);
-      setShowNewDir(true);
-      setTimeout(() => dirInputRef.current?.select(), 0);
-    },
-    [tree]
-  );
+  const handleCreateFile = useCallback(async (parentPath: string) => {
+    if (!projectId) return;
+    const children = parentPath ? findChildren(tree, parentPath) : tree;
+    const defaultName = computeDefaultFileName(children);
+    const fullPath = parentPath
+      ? `${docsPath}/${parentPath}/${defaultName}`
+      : `${docsPath}/${defaultName}`;
+    await fetch("/api/fs/document", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: fullPath, content: `# ${defaultName}\n\n` }),
+    });
+    const relativePath = parentPath ? `${parentPath}/${defaultName}` : defaultName;
+    // Optimistically insert node into local tree
+    const newNode: TreeNode = { name: defaultName, type: "file", path: relativePath };
+    setTree((prev) => {
+      if (!parentPath) return [...prev, newNode];
+      return insertNode(prev, parentPath, newNode);
+    });
+    setRenamingPath(relativePath);
+    setRenamingName(defaultName);
+    setTimeout(() => renameInputRef.current?.select(), 0);
+    // Open the new file as a tab
+    const fileContent = `# ${defaultName}\n\n`;
+    contentCache.current[relativePath] = fileContent;
+    setFileTabs((prev) => [...prev, { filePath: relativePath, content: fileContent, loaded: true }]);
+    setActiveTabId(relativePath);
+    refreshTree();
+  }, [tree, projectId, docsPath]);
 
-  const handleCreateDir = async () => {
-    if (!newDirName.trim() || !projectId) return;
-    const fullPath = newDirParent
-      ? `${docsPath}/${newDirParent}/${newDirName.trim()}`
-      : `${docsPath}/${newDirName.trim()}`;
+  const handleCreateDir = useCallback(async (parentPath: string) => {
+    if (!projectId) return;
+    const children = parentPath ? findChildren(tree, parentPath) : tree;
+    const defaultName = computeDefaultDirName(children);
+    const fullPath = parentPath
+      ? `${docsPath}/${parentPath}/${defaultName}`
+      : `${docsPath}/${defaultName}`;
     await fetch("/api/fs/directory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: fullPath }),
     });
-    setShowNewDir(false);
-    setNewDirName("");
-    setNewDirParent("");
+    const relativePath = parentPath ? `${parentPath}/${defaultName}` : defaultName;
+    // Optimistically insert node into local tree
+    const newNode: TreeNode = { name: defaultName, type: "directory", path: relativePath, children: [] };
+    setTree((prev) => {
+      if (!parentPath) return [...prev, newNode];
+      return insertNode(prev, parentPath, newNode);
+    });
+    setRenamingPath(relativePath);
+    setRenamingName(defaultName);
+    setTimeout(() => renameInputRef.current?.select(), 0);
     refreshTree();
-  };
+  }, [tree, projectId, docsPath]);
 
-  const handleCancelNewDir = () => {
-    setShowNewDir(false);
-    setNewDirName("");
-    setNewDirParent("");
-  };
+  const handleRenameConfirm = useCallback(async () => {
+    const currentPath = renamingPath;
+    const currentName = renamingName;
+    if (!currentPath) return;
+
+    const trimmedName = currentName.trim();
+    const node = findNodeByPath(tree, currentPath);
+    if (!node || !trimmedName || trimmedName === node.name) {
+      setRenamingPath(null);
+      return;
+    }
+
+    let res: Response;
+    if (node.type === "file") {
+      res = await fetch("/api/fs/document", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: `${docsPath}/${currentPath}`, newTitle: trimmedName }),
+      });
+    } else {
+      res = await fetch("/api/fs/directory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: `${docsPath}/${currentPath}`, newName: trimmedName }),
+      });
+    }
+
+    if (res.status === 409) {
+      const data = await res.json();
+      message.warning(data.error || "A file or folder with this name already exists");
+      setTimeout(() => renameInputRef.current?.focus(), 0);
+      return;
+    }
+
+    // Update tab paths for file renames
+    if (node.type === "file") {
+      const newPath = currentPath.includes("/")
+        ? currentPath.replace(/[^/]*$/, trimmedName)
+        : trimmedName;
+      updateTabPaths(currentPath, newPath);
+    }
+
+    // Optimistically update the local tree so the new name is visible immediately
+    setTree((prev) => renameNodeInTree(prev, currentPath, trimmedName));
+    setRenamingPath(null);
+    refreshTree();
+  }, [renamingPath, renamingName, tree, docsPath]);
+
+  const handleRenameCancel = useCallback(() => {
+    setRenamingPath(null);
+  }, []);
+
+  const handleStartRename = useCallback((path: string) => {
+    const node = findNodeByPath(tree, path);
+    if (!node) return;
+    setRenamingPath(path);
+    setRenamingName(node.name);
+    setTimeout(() => renameInputRef.current?.select(), 0);
+  }, [tree]);
 
   const handleDeleteDir = async (dirPath: string) => {
-    const name = dirPath.split("/").pop() || dirPath;
-    if (!confirm(`确认删除文件夹 "${name}" 及其所有内容?`)) return;
     await fetch("/api/fs/directory", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -214,8 +274,6 @@ export default function ChatPageContent({
   };
 
   const handleDeleteFile = async (filePath: string) => {
-    const name = filePath.split("/").pop() || filePath;
-    if (!confirm(`确认删除文档 "${name}"?`)) return;
     await fetch("/api/fs/document", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -227,31 +285,15 @@ export default function ChatPageContent({
     refreshTree();
   };
 
-  const handleCreateFile = async () => {
-    if (!newFileName.trim() || !projectId) return;
-    const fullPath = newFileParent
-      ? `${docsPath}/${newFileParent}/${newFileName.trim()}`
-      : `${docsPath}/${newFileName.trim()}`;
-    await fetch("/api/fs/document", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: fullPath,
-        content: `# ${newFileName.trim()}\n\n`,
-      }),
-    });
-    const relativePath = newFileParent
-      ? `${newFileParent}/${newFileName.trim()}`
-      : newFileName.trim();
-    setShowNewFile(false);
-    setNewFileName("");
-    setNewFileParent("");
-    refreshTree();
-    // Open the new file as a tab
-    const initialContent = `# ${newFileName.trim()}\n\n`;
-    contentCache.current[relativePath] = initialContent;
-    setFileTabs((prev) => [...prev, { filePath: relativePath, content: initialContent, loaded: true }]);
-    setActiveTabId(relativePath);
+  // Helper to update tab paths when a file is renamed
+  const updateTabPaths = (oldPath: string, newPath: string) => {
+    setFileTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
+    setActiveTabId((prev) => prev === oldPath ? newPath : prev);
+    const cached = contentCache.current[oldPath];
+    if (cached !== undefined) {
+      contentCache.current[newPath] = cached;
+      delete contentCache.current[oldPath];
+    }
   };
 
   // --- File tab functions ---
@@ -296,6 +338,21 @@ export default function ChatPageContent({
       return [...prev, newTab];
     });
   }, [docsPath]);
+
+  const handleNavigateToDocument = useCallback(async (documentPath: string) => {
+    try {
+      const res = await fetch(`/api/fs/document?path=${docsPath}/${documentPath}`);
+      if (res.status === 404) {
+        alert("该文档已被删除");
+        return;
+      }
+      if (!res.ok) return;
+    } catch {
+      return;
+    }
+    const node: TreeNode = { name: documentPath.split("/").pop() || documentPath, type: "file", path: documentPath };
+    handleFileClick(node);
+  }, [docsPath, handleFileClick]);
 
   const handleFileTabClose = useCallback((tabId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -343,7 +400,7 @@ export default function ChatPageContent({
         <div className="flex items-center h-[41px] bg-gray-50 border-b border-gray-200 overflow-x-auto shrink-0">
           <button
             onClick={() => setActiveTabId(CHAT_TAB)}
-            className={`flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+            className={`group flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
               activeTabId === CHAT_TAB
                 ? "bg-white text-blue-600 border-blue-600"
                 : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-100"
@@ -352,7 +409,18 @@ export default function ChatPageContent({
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            对话
+            Chat
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); openFloatingChat(); }}
+              className="ml-0.5 w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-blue-500 transition-opacity"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 3 21 3 21 9" />
+                <path d="M21 3l-7 7" />
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              </svg>
+            </span>
           </button>
         </div>
 
@@ -370,6 +438,11 @@ export default function ChatPageContent({
               initialModelId={activeChatModelId}
               initialTemplateId={activeChatTemplateId}
               projectId={projectId}
+              projectName={projectName}
+              openFileTabs={fileTabs.map(t => ({
+                fileName: t.filePath.split("/").pop() || t.filePath,
+                filePath: t.filePath,
+              }))}
               onSwitchToChat={handleSwitchToChat}
             />
           </div>
@@ -387,71 +460,37 @@ export default function ChatPageContent({
         {/* Project header */}
         <div className="px-3 h-[41px] border-b border-gray-200 bg-white flex items-center gap-2">
           <h3 className="text-sm font-semibold text-gray-800 truncate">
-            {projectName || projectId} 文档
+            {projectName || projectId} Documents
           </h3>
         </div>
 
         {/* File tree toolbar */}
         <div className="px-2 py-1.5 border-b border-gray-100 flex gap-1">
           <button
-            onClick={() => {
-              setNewFileName("");
-              setNewFileParent("");
-              setShowNewFile(true);
-            }}
-            className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            onClick={() => handleCreateFile("")}
+            disabled={renamingPath !== null}
+            className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <line x1="12" y1="11" x2="12" y2="17" />
               <line x1="9" y1="14" x2="15" y2="14" />
             </svg>
-            新建文档
+            Document
           </button>
           <button
-            onClick={() => handleStartNewDir("")}
-            className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            onClick={() => handleCreateDir("")}
+            disabled={renamingPath !== null}
+            className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               <line x1="12" y1="11" x2="12" y2="17" />
               <line x1="9" y1="14" x2="15" y2="14" />
             </svg>
-            新建文件夹
+            Folder
           </button>
         </div>
-
-        {/* New file input */}
-        {showNewFile && (
-          <div className="px-2 py-1.5 border-b border-gray-100 bg-blue-50">
-            <input
-              autoFocus
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateFile()}
-              placeholder={newFileParent ? `${newFileParent}/文档名` : "文档名"}
-              className="w-full px-2 py-1 text-xs border border-blue-200 rounded focus:outline-none focus:border-blue-400"
-            />
-            <div className="flex gap-1 mt-1">
-              <button
-                onClick={handleCreateFile}
-                className="px-2 py-0.5 text-xs text-white bg-blue-600 rounded hover:bg-blue-700"
-              >
-                创建
-              </button>
-              <button
-                onClick={() => {
-                  setShowNewFile(false);
-                  setNewFileName("");
-                  setNewFileParent("");
-                }}
-                className="px-2 py-0.5 text-xs text-gray-500 hover:text-gray-700"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* File tree */}
         {treeLoading ? (
@@ -465,23 +504,25 @@ export default function ChatPageContent({
             mode="editable"
             selectedPath={activeTabId !== CHAT_TAB && activeTabId !== PROJECT_INFO_TAB ? activeTabId : null}
             onFileClick={(node) => handleFileClick(node)}
-            onNewDirectory={(parentPath) => handleStartNewDir(parentPath)}
-            onNewFile={(parentPath) => {
-              setNewFileParent(parentPath);
-              setShowNewFile(true);
-            }}
+            onNewDirectory={(parentPath) => handleCreateDir(parentPath)}
+            onNewFile={(parentPath) => handleCreateFile(parentPath)}
             onDeleteDirectory={(dirPath) => handleDeleteDir(dirPath)}
             onDeleteFile={(filePath) => handleDeleteFile(filePath)}
             onMentionFile={(node) => {
-              setMentionFile(node.path);
-              setActiveTabId(CHAT_TAB);
+              if (floatingChatOpen && !floatingChatMinimized) {
+                setFloatingMentionFile(node.path);
+              } else {
+                setMentionFile(node.path);
+                setActiveTabId(CHAT_TAB);
+              }
             }}
-            creatingDirParent={showNewDir ? newDirParent : null}
-            creatingDirName={newDirName}
-            onCreatingDirNameChange={setNewDirName}
-            onCreatingDirConfirm={handleCreateDir}
-            onCreatingDirCancel={handleCancelNewDir}
-            dirInputRef={dirInputRef}
+            renamingPath={renamingPath}
+            renamingName={renamingName}
+            onRenamingNameChange={setRenamingName}
+            onRenameConfirm={handleRenameConfirm}
+            onRenameCancel={handleRenameCancel}
+            renameInputRef={renameInputRef}
+            onStartRename={handleStartRename}
           />
         )}
       </div>
@@ -504,13 +545,13 @@ export default function ChatPageContent({
               <line x1="12" y1="16" x2="12" y2="12" />
               <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
-            项目信息
+            Project Info
           </button>
 
           {/* Chat tab */}
           <button
             onClick={() => setActiveTabId(CHAT_TAB)}
-            className={`flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+            className={`group flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
               activeTabId === CHAT_TAB
                 ? "bg-white text-blue-600 border-blue-600"
                 : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-100"
@@ -519,7 +560,18 @@ export default function ChatPageContent({
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            对话
+            Chat
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); openFloatingChat(projectId); }}
+              className="ml-0.5 w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-blue-500 transition-opacity"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 3 21 3 21 9" />
+                <path d="M21 3l-7 7" />
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              </svg>
+            </span>
           </button>
 
           {/* File tabs */}
@@ -565,8 +617,10 @@ export default function ChatPageContent({
               projectMeta={projectMeta ?? null}
               projectPath={`personal/default/projects/${projectId}`}
               recentChats={recentChats || []}
+              recentDocuments={recentDocuments || []}
               onSwitchToChat={handleSwitchToChat}
               onNewChat={handleNewChat}
+              onNavigateToDocument={handleNavigateToDocument}
             />
           </div>
 
@@ -584,6 +638,11 @@ export default function ChatPageContent({
               initialTemplateId={activeChatTemplateId}
               embedded
               projectId={projectId}
+              projectName={projectName}
+              openFileTabs={fileTabs.map(t => ({
+                fileName: t.filePath.split("/").pop() || t.filePath,
+                filePath: t.filePath,
+              }))}
               onDocumentSaved={refreshTree}
               mentionFile={mentionFile}
               onMentionConsumed={() => setMentionFile(null)}
@@ -620,4 +679,17 @@ export default function ChatPageContent({
       </div>
     </div>
   );
+}
+
+/** Insert a node into the tree under the given parent path */
+function insertNode(nodes: TreeNode[], parentPath: string, newNode: TreeNode): TreeNode[] {
+  return nodes.map((node) => {
+    if (node.path === parentPath) {
+      return { ...node, children: [...(node.children || []), newNode] };
+    }
+    if (node.children) {
+      return { ...node, children: insertNode(node.children, parentPath, newNode) };
+    }
+    return node;
+  });
 }

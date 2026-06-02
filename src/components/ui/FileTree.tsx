@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
 import { TreeNode } from "@/lib/tree";
 
 export interface FileTreeProps {
@@ -12,26 +13,76 @@ export interface FileTreeProps {
   onDeleteDirectory?: (dirPath: string) => void;
   onMentionFile?: (node: TreeNode) => void;
   onDeleteFile?: (filePath: string) => void;
-  creatingDirParent?: string | null;
-  creatingDirName?: string;
-  onCreatingDirNameChange?: (name: string) => void;
-  onCreatingDirConfirm?: () => void;
-  onCreatingDirCancel?: () => void;
-  dirInputRef?: React.RefObject<HTMLInputElement | null>;
+  renamingPath?: string | null;
+  renamingName?: string;
+  onRenamingNameChange?: (name: string) => void;
+  onRenameConfirm?: () => void;
+  onRenameCancel?: () => void;
+  renameInputRef?: React.RefObject<HTMLInputElement | null>;
+  onStartRename?: (path: string) => void;
   emptyText?: string;
+}
+
+function RenameInput({
+  name,
+  inputRef,
+  onNameChange,
+  onConfirm,
+  onCancel,
+}: {
+  name: string;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  onNameChange: (name: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const confirmingRef = useRef(false);
+
+  return (
+    <input
+      ref={inputRef}
+      autoFocus
+      value={name}
+      onChange={(e) => onNameChange(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          confirmingRef.current = true;
+          onConfirm();
+        }
+        if (e.key === "Escape") {
+          confirmingRef.current = true;
+          onCancel();
+        }
+      }}
+      onBlur={() => {
+        if (!confirmingRef.current) onConfirm();
+      }}
+      className="flex-1 min-w-0 px-1.5 py-0.5 text-sm border border-blue-300 rounded focus:outline-none focus:border-blue-500 bg-white"
+    />
+  );
 }
 
 function FileTreeNode({
   node,
   level,
   props,
+  confirmDeletePath,
+  setConfirmDeletePath,
+  expandedPaths,
+  onToggleExpand,
 }: {
   node: TreeNode;
   level: number;
   props: FileTreeProps;
+  confirmDeletePath: string | null;
+  setConfirmDeletePath: (path: string | null) => void;
+  expandedPaths: Set<string>;
+  onToggleExpand: (path: string) => void;
 }) {
   const isEditable = props.mode === "editable";
   const isSelected = props.selectedPath === node.path;
+  const isRenaming = props.renamingPath === node.path;
 
   if (node.type === "directory") {
     return (
@@ -39,11 +90,42 @@ function FileTreeNode({
         <div
           className={`flex items-center gap-1.5 w-full px-2 py-1 text-sm transition-colors select-none ${
             isEditable
-              ? "text-gray-500 hover:bg-gray-100 cursor-default group"
-              : "text-gray-500 cursor-default"
+              ? "text-gray-500 hover:bg-gray-100 cursor-pointer group"
+              : "text-gray-500 cursor-pointer"
           }`}
+          onClick={() => {
+            if (!isRenaming) onToggleExpand(node.path);
+          }}
+          onDoubleClick={() => {
+            if (isEditable && !isRenaming && props.onStartRename) {
+              props.onStartRename(node.path);
+            }
+          }}
           style={{ paddingLeft: `${8 + level * 14}px` }}
         >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isRenaming) onToggleExpand(node.path);
+            }}
+            className="shrink-0 p-0.5 -ml-1.5 text-gray-400 hover:text-gray-600"
+            aria-label={expandedPaths.has(node.path) ? "Collapse" : "Expand"}
+            tabIndex={-1}
+          >
+            <svg
+              className={`w-3 h-3 transition-transform duration-150 ${
+                expandedPaths.has(node.path) ? "rotate-90" : ""
+              }`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
           <svg
             className="w-3.5 h-3.5 shrink-0 text-amber-400"
             viewBox="0 0 24 24"
@@ -51,14 +133,24 @@ function FileTreeNode({
           >
             <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
           </svg>
-          <span className="truncate font-medium">{node.name}</span>
-          {isEditable && (
+          {isRenaming ? (
+            <RenameInput
+              name={props.renamingName || ""}
+              inputRef={props.renameInputRef}
+              onNameChange={props.onRenamingNameChange || (() => {})}
+              onConfirm={props.onRenameConfirm || (() => {})}
+              onCancel={props.onRenameCancel || (() => {})}
+            />
+          ) : (
+            <span className="truncate font-medium">{node.name}</span>
+          )}
+          {isEditable && !isRenaming && (
             <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               {props.onNewDirectory && (
                 <button
                   onClick={() => props.onNewDirectory!(node.path)}
                   className="p-0.5 text-gray-400 hover:text-blue-600"
-                  title="新建文件夹"
+                  title="Folder"
                 >
                   <svg
                     className="w-3.5 h-3.5"
@@ -77,7 +169,7 @@ function FileTreeNode({
                 <button
                   onClick={() => props.onNewFile!(node.path)}
                   className="p-0.5 text-gray-400 hover:text-blue-600"
-                  title="新建文档"
+                  title="Document"
                 >
                   <svg
                     className="w-3.5 h-3.5"
@@ -93,40 +185,64 @@ function FileTreeNode({
                 </button>
               )}
               {props.onDeleteDirectory && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    props.onDeleteDirectory!(node.path);
-                  }}
-                  className="p-0.5 text-gray-400 hover:text-red-500"
-                  title="删除"
-                >
-                  <svg
-                    className="w-3 h-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+                <span className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeletePath(node.path);
+                    }}
+                    className="p-0.5 text-gray-400 hover:text-red-500"
+                    title="删除"
                   >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
+                    <svg
+                      className="w-3 h-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                  {confirmDeletePath === node.path && (
+                    <span className="absolute right-0 bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 flex items-center gap-2 text-xs whitespace-nowrap z-50">
+                      <span className="text-gray-500">确认删除?</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeletePath(null);
+                          props.onDeleteDirectory!(node.path);
+                        }}
+                        className="px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
+                      >删除</button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeletePath(null);
+                        }}
+                        className="px-1.5 py-0.5 text-gray-500 hover:text-gray-700"
+                      >取消</button>
+                    </span>
+                  )}
+                </span>
               )}
             </div>
           )}
         </div>
-        {isEditable &&
-          props.creatingDirParent === node.path &&
-          renderNewDirInput(level, props)}
         {node.children &&
           node.children.length > 0 &&
+          expandedPaths.has(node.path) &&
           node.children.map((child) => (
             <FileTreeNode
               key={child.path}
               node={child}
               level={level + 1}
               props={props}
+              confirmDeletePath={confirmDeletePath}
+              setConfirmDeletePath={setConfirmDeletePath}
+              expandedPaths={expandedPaths}
+              onToggleExpand={onToggleExpand}
             />
           ))}
       </div>
@@ -161,6 +277,11 @@ function FileTreeNode({
               ? "text-gray-600 hover:bg-gray-50 cursor-default"
               : "text-gray-600 cursor-default"
         }`}
+        onDoubleClick={() => {
+          if (isEditable && !isRenaming && props.onStartRename) {
+            props.onStartRename(node.path);
+          }
+        }}
         style={{ paddingLeft: `${8 + level * 14}px` }}
       >
         <svg
@@ -175,8 +296,18 @@ function FileTreeNode({
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
         </svg>
-        <span className="truncate flex-1">{node.name}</span>
-        {isEditable && (props.onMentionFile || props.onDeleteFile) && (
+        {isRenaming ? (
+          <RenameInput
+            name={props.renamingName || ""}
+            inputRef={props.renameInputRef}
+            onNameChange={props.onRenamingNameChange || (() => {})}
+            onConfirm={props.onRenameConfirm || (() => {})}
+            onCancel={props.onRenameCancel || (() => {})}
+          />
+        ) : (
+          <span className="truncate flex-1">{node.name}</span>
+        )}
+        {isEditable && !isRenaming && (props.onMentionFile || props.onDeleteFile) && (
           <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             {props.onMentionFile && (
               <button
@@ -202,25 +333,47 @@ function FileTreeNode({
               </button>
             )}
             {props.onDeleteFile && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  props.onDeleteFile!(node.path);
-                }}
-                className="p-0.5 text-gray-400 hover:text-red-500"
-                title="删除"
-              >
-                <svg
-                  className="w-3 h-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
+                <span className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeletePath(node.path);
+                    }}
+                    className="p-0.5 text-gray-400 hover:text-red-500"
+                    title="删除"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                  {confirmDeletePath === node.path && (
+                    <span className="absolute right-0 bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 flex items-center gap-2 text-xs whitespace-nowrap z-50">
+                      <span className="text-gray-500">确认删除?</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeletePath(null);
+                          props.onDeleteFile!(node.path);
+                        }}
+                        className="px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
+                      >删除</button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeletePath(null);
+                        }}
+                        className="px-1.5 py-0.5 text-gray-500 hover:text-gray-700"
+                      >取消</button>
+                    </span>
+                  )}
+                </span>
             )}
           </div>
         )}
@@ -229,47 +382,51 @@ function FileTreeNode({
   );
 }
 
-function renderNewDirInput(level: number, props: FileTreeProps) {
-  return (
-    <div
-      className="flex items-center gap-1.5 px-2 py-1 bg-blue-50"
-      style={{ paddingLeft: `${8 + (level + 1) * 14}px` }}
-    >
-      <svg
-        className="w-3.5 h-3.5 shrink-0 text-amber-400"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
-      </svg>
-      <input
-        ref={props.dirInputRef}
-        autoFocus
-        value={props.creatingDirName || ""}
-        onChange={(e) => props.onCreatingDirNameChange?.(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") props.onCreatingDirConfirm?.();
-          if (e.key === "Escape") props.onCreatingDirCancel?.();
-        }}
-        onBlur={() => props.onCreatingDirCancel?.()}
-        className="flex-1 min-w-0 px-1.5 py-0.5 text-sm border border-blue-300 rounded focus:outline-none focus:border-blue-500 bg-white"
-      />
-    </div>
-  );
-}
-
 export default function FileTree(props: FileTreeProps) {
-  const { tree, emptyText = "暂无文档" } = props;
+  const { tree, emptyText = "No documents" } = props;
+  const [confirmDeletePath, setConfirmDeletePath] = useState<string | null>(null);
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const toggleExpand = (path: string) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    if (!confirmDeletePath) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setConfirmDeletePath(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [confirmDeletePath]);
 
   return (
-    <div className="flex-1 overflow-y-auto py-1">
-      {props.mode === "editable" &&
-        props.creatingDirParent === "" &&
-        renderNewDirInput(-1, props)}
+    <div ref={containerRef} className="flex-1 overflow-y-auto py-1">
       {tree.map((node) => (
-        <FileTreeNode key={node.path} node={node} level={0} props={props} />
+        <FileTreeNode
+          key={node.path}
+          node={node}
+          level={0}
+          props={props}
+          confirmDeletePath={confirmDeletePath}
+          setConfirmDeletePath={setConfirmDeletePath}
+          expandedPaths={expandedPaths}
+          onToggleExpand={toggleExpand}
+        />
       ))}
-      {tree.length === 0 && props.creatingDirParent == null && (
+      {tree.length === 0 && props.renamingPath == null && (
         <p className="px-3 py-4 text-sm text-gray-400 text-center">{emptyText}</p>
       )}
     </div>

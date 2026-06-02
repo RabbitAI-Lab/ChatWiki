@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ClearOutlined } from "@ant-design/icons";
 
 interface Chat {
   id: number;
@@ -88,27 +89,28 @@ export default function ChatsPageClient() {
         <h1 className="text-2xl font-bold text-gray-800">Chats</h1>
         <span className="flex items-center gap-3">
           <span className="text-sm text-gray-400">
-            {data ? `共 ${data.total} 条会话` : ""}
+            {data ? `Total ${data.total} chats` : ""}
           </span>
           {data && data.total > 0 && (
             <span className="relative">
               <button
                 onClick={() => setShowClearConfirm(true)}
-                className="text-sm text-red-500 hover:text-red-700 transition-colors"
+                className="flex items-center justify-center p-1.5 rounded hover:bg-gray-100 transition-colors"
+                title="Clear All"
               >
-                清空
+                <ClearOutlined className="text-gray-500 hover:text-gray-700" style={{ fontSize: '14px' }} />
               </button>
               {showClearConfirm && (
                 <span className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 flex items-center gap-2 text-xs whitespace-nowrap z-50">
-                  <span className="text-gray-500">确认清空所有会话?</span>
+                  <span className="text-gray-500">Confirm clearing all chats?</span>
                   <button
                     onClick={handleClearAll}
                     className="px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                  >清空</button>
+                  >Clear</button>
                   <button
                     onClick={() => setShowClearConfirm(false)}
                     className="px-1.5 py-0.5 text-gray-500 hover:text-gray-700 transition-colors"
-                  >取消</button>
+                  >Cancel</button>
                 </span>
               )}
             </span>
@@ -118,7 +120,7 @@ export default function ChatsPageClient() {
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-gray-400">加载中...</div>
+          <div className="text-gray-400">Loading...</div>
         </div>
       ) : data && data.chats.length > 0 ? (
         <>
@@ -127,16 +129,16 @@ export default function ChatsPageClient() {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    标题
+                    Title
                   </th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-56">
-                    所属项目
+                    Project
                   </th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-44">
-                    创建时间
+                    Created
                   </th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-44">
-                    更新时间
+                    Updated
                   </th>
                   <th className="w-12"></th>
                 </tr>
@@ -178,15 +180,15 @@ export default function ChatsPageClient() {
                             onClick={(e) => e.stopPropagation()}
                             className="absolute right-0 bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 flex items-center gap-2 text-xs whitespace-nowrap z-50"
                           >
-                            <span className="text-gray-500">确认删除?</span>
+                            <span className="text-gray-500">Confirm delete?</span>
                             <button
                               onClick={() => handleDelete(chat.id)}
                               className="px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                            >删除</button>
+                            >Delete</button>
                             <button
                               onClick={() => setConfirmDeleteId(null)}
                               className="px-1.5 py-0.5 text-gray-500 hover:text-gray-700 transition-colors"
-                            >取消</button>
+                            >Cancel</button>
                           </span>
                         )}
                       </span>
@@ -205,17 +207,17 @@ export default function ChatsPageClient() {
                 disabled={page <= 1}
                 className="px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                上一页
+                Previous
               </button>
               <span className="text-sm text-gray-500">
-                第 {page} / {data.totalPages} 页
+                Page {page} / {data.totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
                 disabled={page >= data.totalPages}
                 className="px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                下一页
+                Next
               </button>
             </div>
           )}
@@ -223,12 +225,12 @@ export default function ChatsPageClient() {
       ) : (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-gray-400 mb-2">暂无会话记录</p>
+            <p className="text-gray-400 mb-2">No chat records</p>
             <button
               onClick={() => router.push("/chat/new")}
               className="text-sm text-blue-600 hover:text-blue-800"
             >
-              开始新会话
+              Start new chat
             </button>
           </div>
         </div>

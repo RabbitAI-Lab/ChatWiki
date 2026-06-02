@@ -1,33 +1,33 @@
-// 预设厂商列表（仅用于下拉快速选择 + 默认值映射）
-export const PROVIDERS = ["GLM", "MiniMax", "Kimi", "阿里云", "DeepSeek"] as const;
+// Preset provider list (for dropdown quick select + default value mapping)
+export const PROVIDERS = ["GLM", "MiniMax", "Kimi", "Alibaba Cloud", "DeepSeek"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
-// 协议列表
+// Protocol list
 export const PROTOCOLS = ["openai", "anthropic"] as const;
 export type Protocol = (typeof PROTOCOLS)[number];
 
-// 协议显示名
+// Protocol display names
 export const PROTOCOL_LABELS: Record<Protocol, string> = {
-  openai: "OpenAI 兼容",
-  anthropic: "Anthropic 兼容",
+  openai: "OpenAI Compatible",
+  anthropic: "Anthropic Compatible",
 };
 
-// 协议 Tag 颜色
+// Protocol tag colors
 export const PROTOCOL_TAG_COLORS: Record<Protocol, string> = {
   openai: "cyan",
   anthropic: "volcano",
 };
 
-// 厂商 Tag 颜色（自定义厂商默认 geekblue）
+// Provider tag colors (custom provider defaults to geekblue)
 export const PROVIDER_TAG_COLORS: Record<string, string> = {
   GLM: "blue",
   MiniMax: "purple",
   Kimi: "gold",
-  阿里云: "orange",
+  "Alibaba Cloud": "orange",
   DeepSeek: "green",
 };
 
-// 预设厂商×协议 → 默认值映射（自定义厂商无预设默认值，用户手填）
+// Preset provider × protocol → default value mapping (custom provider has no preset defaults, user fills manually)
 export const PROVIDER_DEFAULTS: Record<
   Provider,
   Record<Protocol, { baseUrl: string; modelName: string }>
@@ -62,7 +62,7 @@ export const PROVIDER_DEFAULTS: Record<
       modelName: "kimi-for-coding",
     },
   },
-  阿里云: {
+  "Alibaba Cloud": {
     openai: {
       baseUrl: "https://coding.dashscope.aliyuncs.com/v1",
       modelName: "glm-5",
@@ -84,14 +84,14 @@ export const PROVIDER_DEFAULTS: Record<
   },
 };
 
-// 辅助函数：获取厂商+协议的默认值（自定义厂商返回 null）
+// Helper function: get provider + protocol defaults (returns null for custom providers)
 export function getProviderDefaults(provider: string, protocol: string) {
   return (
     PROVIDER_DEFAULTS[provider as Provider]?.[protocol as Protocol] ?? null
   );
 }
 
-// 判断是否为预设厂商
+// Check if provider is a preset provider
 export function isPresetProvider(provider: string): provider is Provider {
   return (PROVIDERS as readonly string[]).includes(provider);
 }
