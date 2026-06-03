@@ -29,7 +29,7 @@ async function streamAiResponse(params: {
   selectedModelId: number;
   selectedProject: string | undefined;
   onToolCall?: (toolCall: { toolName: string; args: Record<string, unknown> }) => void;
-}): Promise<{ aiContent: string; aiThinking: string; aiSignature: string | undefined }> {
+}): Promise<{ aiContent: string; aiThinking: string; aiSignature: string | undefined; hasError: boolean }> {
   const {
     tempAiMsgId,
     chatMessages,
@@ -43,6 +43,7 @@ async function streamAiResponse(params: {
   let aiContent = "";
   let aiThinking = "";
   let aiSignature: string | undefined;
+  let hasError = false;
 
   try {
     const abortController = new AbortController();
@@ -80,7 +81,8 @@ async function streamAiResponse(params: {
             aiSignature = data.signature;
           } else if (eventType === "error") {
             aiContent = (data.error as string) || "模型调用出错";
-            setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent }));
+            hasError = true;
+            setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent, isError: true }));
           } else if (eventType === "done" && data.type === "done") {
             if (!aiContent && typeof data.fullText === "string") {
               aiContent = data.fullText;
@@ -105,19 +107,21 @@ async function streamAiResponse(params: {
         });
       } else {
         aiContent = "无法读取响应流";
-        setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent }));
+        hasError = true;
+        setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent, isError: true }));
       }
     }
   } catch (err) {
     if ((err as Error).name !== "AbortError") {
       aiContent = aiContent || "模型调用失败，请重试";
-      setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent }));
+      hasError = true;
+      setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent, isError: true }));
     }
   } finally {
     abortControllerRef.current = null;
   }
 
-  return { aiContent, aiThinking, aiSignature };
+  return { aiContent, aiThinking, aiSignature, hasError };
 }
 
 interface UseChatMessagesOptions {
@@ -300,7 +304,7 @@ export function useChatMessages({
 
     const allMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       ...(systemMsg ? [systemMsg] : []),
-      ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      ...messages.filter((m) => !m.isError).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user" as const, content: fullContent },
     ];
 
@@ -319,6 +323,8 @@ export function useChatMessages({
       // Use a ref-based approach to read latest thinking/signature from setMessages
       const finalThinking = result.aiThinking || null;
       const finalSignature = result.aiSignature ?? null;
+      // 检查当前消息是否被标记为 isError
+      const isErrorMessage = result.hasError;
       const aiRes = await fetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -327,6 +333,7 @@ export function useChatMessages({
           content: result.aiContent,
           thinking: finalThinking,
           thinkingSignature: finalSignature,
+          isError: isErrorMessage,
         }),
       });
 
@@ -395,7 +402,7 @@ export function useChatMessages({
       ...(systemMsg ? [systemMsg] : []),
       ...messages
         .slice(0, msgIndex)
-        .filter((m) => m.id !== aiMsg.id)
+        .filter((m) => m.id !== aiMsg.id && !m.isError)
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     ];
 
@@ -436,6 +443,7 @@ export function useChatMessages({
             content: result.aiContent,
             thinking: finalThinking,
             thinkingSignature: finalSignature,
+            isError: result.hasError,
           }),
         });
 

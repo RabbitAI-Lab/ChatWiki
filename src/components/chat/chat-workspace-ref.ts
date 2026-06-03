@@ -8,6 +8,8 @@ export interface Message {
   thinkingSignature?: string | null;
   // 流式生成中实时增长的思考过程（生成结束后会清空，最终值写入 thinking）
   streamingThinking?: string;
+  // 标记该消息是否为错误消息（如 529 模型过载等），错误消息不参与后续模型调用
+  isError?: boolean;
 }
 
 export interface ChatWorkspaceProps {

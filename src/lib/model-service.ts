@@ -153,6 +153,28 @@ export async function* streamModelResponse(
         ],
       },
     },
+    // Layer 3.5: PreToolUse hook — 在权限规则检查之前执行，可拦截预批准的工具
+    // Write .md 文件路径约束：必须写入 docs/ 目录
+    hooks: {
+      PreToolUse: [{
+        matcher: "Write",
+        hooks: [async (input) => {
+          const toolInput = (input as { tool_input?: Record<string, unknown> }).tool_input;
+          const filePath = toolInput?.file_path as string | undefined;
+          if (filePath && filePath.endsWith(".md")) {
+            const resolved = path.resolve(cwd, filePath);
+            const docsDir = path.resolve(cwd, "docs");
+            if (!resolved.startsWith(docsDir + path.sep)) {
+              return {
+                decision: "block" as const,
+                reason: "Markdown (.md) files must be written to the docs/ directory. Please adjust the file path to be under docs/.",
+              };
+            }
+          }
+          return { continue: true };
+        }],
+      }],
+    },
     // Layer 3: 运行时回调，最终门控
     canUseTool: async (toolName, input) => {
       // 允许所有 MCP 工具
@@ -206,13 +228,24 @@ export async function* streamModelResponse(
     }
   }
   const clientToolsServer = createClientToolsMcpServer();
+  // 为所有 MCP 配置添加 alwaysLoad: true，确保 SDK 同步等待 MCP 连接完成再构建 prompt
+  // 否则 stdio/sse 类型的 MCP 如果启动较慢，第一轮对话时工具尚未注册，会报 "no tool available"
+  const withAlwaysLoad = (servers: Record<string, McpServerConfig> | undefined): Record<string, McpServerConfig> | undefined => {
+    if (!servers) return undefined;
+    return Object.fromEntries(
+      Object.entries(servers).map(([name, cfg]) => [name, { ...cfg, alwaysLoad: true }])
+    );
+  };
   sdkOptions.mcpServers = {
-    ...globalMcpServers,
-    ...projectMcpServers,
+    ...withAlwaysLoad(globalMcpServers),
+    ...withAlwaysLoad(projectMcpServers),
     chatwiki_client: clientToolsServer,
   };
   sdkOptions.allowedTools = [
     "mcp__chatwiki_client__*",
+    "mcp__chatwiki__*",
+    "mcp__gitnexus__*",
+    "mcp__zhipu-web-search-sse__*",
     "Read", "Write", "Edit",
     "Glob", "Grep", "WebFetch",
   ];
@@ -228,7 +261,8 @@ export async function* streamModelResponse(
   console.log("[AgentSDK] maxTurns:", sdkOptions.maxTurns);
   console.log("[AgentSDK] settingSources:", sdkOptions.settingSources);
   console.log("[AgentSDK] sandbox:", JSON.stringify(sdkOptions.sandbox));
-  console.log("[AgentSDK] systemPrompt:", options?.systemPrompt ? `(length: ${options.systemPrompt.length})` : "(none)");
+  console.log("[AgentSDK] systemPrompt (from options):", options?.systemPrompt ? `(length: ${options.systemPrompt.length})` : "(none)");
+  console.log("[AgentSDK] messages[0] system content:", hasSystemMessage ? `(length: ${messages[0].content.length})` : "(none)");
   console.log("[AgentSDK] messages count:", messages.length);
   console.log("[AgentSDK] prompt length:", prompt.length);
   console.log("[AgentSDK] mcpServers:", Object.keys(sdkOptions.mcpServers).join(", "));
@@ -336,7 +370,41 @@ export async function* streamModelResponse(
           }
         }
       } else if (message.type === "system") {
-        console.log("[AgentSDK] system:", (message as Record<string, unknown>).subtype || message.type);
+        const sysMsg = message as Record<string, unknown>;
+        const subtype = sysMsg.subtype as string | undefined;
+        console.log("[AgentSDK] system:", subtype || message.type);
+
+        // 检测 api_retry 事件，对 529 等服务端错误直接终止，不再重试
+        if (subtype === "api_retry") {
+          const errorStatus = sysMsg.error_status as number | null;
+          const errorType = sysMsg.error as string | undefined;
+          console.warn(
+            "[AgentSDK] api_retry: status=", errorStatus,
+            "error=", errorType,
+            "attempt=", sysMsg.attempt,
+            "max_retries=", sysMsg.max_retries
+          );
+          // 529 = 服务端过载，429 = 限流，5xx = 服务端错误 — 这些都不应重试
+          if (
+            errorStatus === 529 ||
+            errorStatus === 429 ||
+            (errorStatus !== null && errorStatus >= 500 && errorStatus < 600)
+          ) {
+            const userMessage = errorStatus === 529
+              ? "模型访问量过大，请稍后再试"
+              : errorStatus === 429
+              ? "模型调用频率超限，请稍后再试"
+              : `模型服务暂时不可用 (${errorStatus})，请稍后再试`;
+            console.error("[AgentSDK] 终止重试，直接返回错误:", userMessage);
+            q.close();
+            yield {
+              type: "error",
+              error: userMessage,
+              code: "SERVER_OVERLOADED",
+            };
+            return;
+          }
+        }
       }
     }
 

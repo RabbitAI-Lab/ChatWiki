@@ -1,0 +1,23 @@
+FROM node:20-bookworm-slim
+
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+
+# better-sqlite3 等原生模块的编译依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json ./
+# （可选）若有 pnpm-lock.yaml 可解开下一行
+# COPY pnpm-lock.yaml ./
+
+RUN pnpm install --no-frozen-lockfile
+
+# 源码由 docker-compose 卷挂载覆盖
+COPY . .
+
+EXPOSE 3000 4001
+
+CMD ["pnpm", "dev:docker"]

@@ -73,7 +73,13 @@ export function mapMessagesToBubbleItems({
     const contentNode = isAssistant ? (
       <div>
         <ThinkingBlock text={thinkingText} />
-        {renderMarkdown(msg.content)}
+        {msg.isError ? (
+          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+            {msg.content}
+          </div>
+        ) : (
+          renderMarkdown(msg.content)
+        )}
       </div>
     ) : msg.content;
 
@@ -84,7 +90,7 @@ export function mapMessagesToBubbleItems({
       contentRender: isAssistant ? undefined : renderMarkdown,
       loading: isAiLoading || undefined,
       typing:
-        isAssistant && msg.content && !isAiLoading
+        isAssistant && msg.content && !isAiLoading && !msg.isError
           ? { effect: "typing" as const, step: 5, interval: 50 }
           : undefined,
       footer: hasContent

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Repository, SandboxStatus, ProjectMember } from "@/lib/fs";
+import type { Repository, SandboxStatus, ProjectMember, GitNexusStatus } from "@/lib/fs";
 import type { DocumentActivity } from "@/lib/types";
 import WorkspaceActivityPanel from "./WorkspaceActivityPanel";
 import WorkspaceProjectsPanel from "./WorkspaceProjectsPanel";
@@ -22,6 +22,7 @@ interface WorkspaceMeta {
   sortOrder: number;
   repositories?: Repository[];
   sandbox?: SandboxStatus;
+  gitnexusStatus?: GitNexusStatus;
   members?: ProjectMember[];
 }
 
@@ -97,6 +98,9 @@ export default function WorkspaceInfoTab({
   );
   const [sandbox, setSandbox] = useState<SandboxStatus>(
     workspaceMeta?.sandbox || { enabled: false }
+  );
+  const [gitnexusStatus, setGitnexusStatus] = useState<GitNexusStatus | null>(
+    workspaceMeta?.gitnexusStatus || null
   );
   const [hasUnsynced, setHasUnsynced] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>(
@@ -214,8 +218,10 @@ export default function WorkspaceInfoTab({
             workspacePath={workspacePath}
             repositories={repositories}
             sandbox={sandbox}
+            gitnexusStatus={gitnexusStatus}
             onRepositoriesChange={setRepositories}
             onSandboxChange={setSandbox}
+            onGitNexusStatusChange={setGitnexusStatus}
           />
         )}
         {activeSubTab === "skills" && (

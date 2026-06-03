@@ -72,3 +72,112 @@ export class ModelError extends Error {
     this.code = code;
   }
 }
+
+// ========== 项目/工作空间元数据类型（从 fs.ts 迁出） ==========
+
+/**
+ * Repository credentials for project integration.
+ */
+export interface RepositoryCredentials {
+  type: "token" | "username_password" | "none";
+  token?: string;
+  username?: string;
+  password?: string;
+}
+
+/**
+ * Repository metadata for project integration.
+ */
+export interface Repository {
+  id: string;
+  name: string;
+  url: string;
+  type: "github" | "gitlab" | "other";
+  credentials: RepositoryCredentials;
+  // 同步状态字段
+  syncStatus?: "not_cloned" | "synced" | "behind" | "error";
+  lastSyncAt?: string;      // 上次同步时间 (ISO)
+  lastCheckedAt?: string;   // 上次检查时间 (ISO)
+  localCommitHash?: string; // 本地 HEAD commit hash
+  remoteCommitHash?: string; // 远程 HEAD commit hash
+  errorMessage?: string;    // 错误信息
+}
+
+/**
+ * Sandbox status for a project.
+ */
+export interface SandboxStatus {
+  enabled: boolean;        // 是否已申请沙盒
+  requestedAt?: string;    // 申请时间
+  releasedAt?: string;     // 释放时间
+}
+
+/**
+ * Skill status for a project.
+ */
+export interface SkillStatus {
+  enabled: boolean;
+  installedAt?: string;
+  uninstalledAt?: string;
+  version?: string;
+}
+
+/**
+ * Project skills configuration.
+ */
+export interface ProjectSkills {
+  ecc?: SkillStatus;
+  huashu?: SkillStatus;
+}
+
+/**
+ * Project member.
+ */
+export interface ProjectMember {
+  id: string;           // UUID
+  accountName: string;  // 账号名称
+  addedAt: string;      // 添加时间 (ISO)
+}
+
+/**
+ * Project metadata stored as .project.json in each project directory.
+ * Also serves as WorkspaceMeta (fields are identical).
+ */
+export interface ProjectMeta {
+  id: string;          // projectId or workspaceId (UUID)
+  name: string;        // user-visible name
+  description: string;
+  createdAt: string;
+  accountId: string;
+  accountType: string;
+  sortOrder: number;   // lower = higher priority (appears first)
+  repositories?: Repository[];
+  sandbox?: SandboxStatus;  // 沙盒状态
+  skills?: ProjectSkills;   // Skills 状态
+  members?: ProjectMember[]; // 项目成员
+  gitnexusStatus?: GitNexusStatus; // GitNexus 索引状态（项目/工作空间级单例）
+}
+
+/** Workspace metadata — identical to ProjectMeta, uses .workspace.json instead. */
+export type WorkspaceMeta = ProjectMeta;
+
+// ========== GitNexus 索引状态 ==========
+
+/**
+ * Phase of the GitNexus indexing task for a project/workspace root.
+ */
+export type GitNexusPhase = "idle" | "analyzing" | "cleaning" | "success" | "failed";
+
+/**
+ * GitNexus indexing status for a project/workspace root.
+ * Persisted under ProjectMeta.gitnexusStatus.
+ *
+ * Note: 整个 project/workspace 目录视为一个扫描根，共享一个状态。
+ *       `--force` 与 `--skip-git` 始终为 true（API 强制），不再由用户配置。
+ */
+export interface GitNexusStatus {
+  phase: GitNexusPhase;
+  lastSuccessAt?: string;
+  lastError?: string;
+  indexExists: boolean; // 物理状态：项目根 .gitnexus/ 是否存在
+}

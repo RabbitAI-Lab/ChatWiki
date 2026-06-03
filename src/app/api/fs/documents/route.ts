@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const segments = dirPath.split("/").filter(Boolean);
 
   if (tree) {
-    const treeData = listTree(segments);
+    const treeData = listTree(segments, [".md", ".html"])
     return NextResponse.json(treeData);
   }
 

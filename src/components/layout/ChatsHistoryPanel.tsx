@@ -16,6 +16,8 @@ interface Chat {
 
 interface ChatsHistoryPanelProps {
   chats: Chat[];
+  panelCollapsed?: boolean;
+  onTogglePanelCollapse?: (collapsed: boolean) => void;
 }
 
 interface ChatGroup {
@@ -89,7 +91,7 @@ function groupChats(chats: Chat[]): ChatGroup[] {
   return groups;
 }
 
-export default function ChatsHistoryPanel({ chats }: ChatsHistoryPanelProps) {
+export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanelCollapse }: ChatsHistoryPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { collapsed } = useSidebar();
@@ -121,7 +123,7 @@ export default function ChatsHistoryPanel({ chats }: ChatsHistoryPanelProps) {
   }
 
   return (
-    <CollapsibleGroup title="Chats History" defaultOpen={true}>
+    <CollapsibleGroup title="Chats History" open={panelCollapsed !== undefined ? !panelCollapsed : undefined} onToggle={onTogglePanelCollapse ? (open) => onTogglePanelCollapse(!open) : undefined} storageKey={panelCollapsed === undefined ? "chats-history-collapsed" : undefined}>
       <div className="space-y-1">
         {groups.length === 0 && (
           <p className="px-3 py-2 text-sm text-gray-400 text-center">No chat history</p>

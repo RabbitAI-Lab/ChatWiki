@@ -1,17 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface CollapsibleGroupProps {
   title: string;
   defaultOpen?: boolean;
+  storageKey?: string;
+  open?: boolean;
+  onToggle?: (open: boolean) => void;
   children: React.ReactNode;
   actions?: React.ReactNode;
 }
 
-export default function CollapsibleGroup({ title, defaultOpen = true, children, actions }: CollapsibleGroupProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+export default function CollapsibleGroup({ title, defaultOpen = true, storageKey, open, onToggle, children, actions }: CollapsibleGroupProps) {
+  const [internalOpen, setInternalOpen] = useState(() => {
+    if (storageKey) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+      if (saved !== null) return saved === "true";
+      } catch {
+        // ignore
+      }
+    }
+    return defaultOpen;
+  });
+
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setIsOpen = (value: boolean) => {
+    if (onToggle) {
+      onToggle(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
+
+  useEffect(() => {
+    if (storageKey && open === undefined) {
+      try {
+        localStorage.setItem(storageKey, String(internalOpen));
+      } catch {
+        // ignore
+      }
+    }
+  }, [internalOpen, storageKey, open]);
 
   return (
     <div className="mb-1">

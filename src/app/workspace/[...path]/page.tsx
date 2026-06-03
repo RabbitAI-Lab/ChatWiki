@@ -1,4 +1,4 @@
-import { readWorkspaceMeta, listWorkspaceProjects } from "@/lib/fs";
+import { readWorkspaceMeta, listWorkspaceProjects, listTree, stripTreePrefix, readDocument, TreeNode } from "@/lib/fs";
 import { db } from "@/db";
 import { chats, documentActivities } from "@/db/schema";
 import { gte, desc, eq, and, inArray } from "drizzle-orm";
@@ -10,10 +10,10 @@ export default async function WorkspacePage({
   searchParams,
 }: {
   params: Promise<{ path: string[] }>;
-  searchParams: Promise<{ chatId?: string }>;
+  searchParams: Promise<{ chatId?: string; file?: string }>;
 }) {
   const { path: rawPath } = await params;
-  const { chatId: chatIdParam } = await searchParams;
+  const { chatId: chatIdParam, file: rawFile } = await searchParams;
   const urlPath = rawPath.map(decodeURIComponent);
 
   // urlPath = ["personal", "default", "{workspaceId}"]
@@ -36,6 +36,22 @@ export default async function WorkspacePage({
   );
 
   const projectIds = linkedProjects.map((p) => p.id);
+
+  // Build docs path for workspace file tree
+  const docsDirSegments = [...workspaceDirSegments, "docs"];
+  const docsPrefix = docsDirSegments.join("/");
+  const rawTree = listTree(docsDirSegments, [".md", ".html"]);
+  const tree = stripTreePrefix(rawTree, docsPrefix);
+
+  // Get selected file content (only when explicitly requested via ?file=)
+  let selectedFile: string | null = null;
+  let fileContent: string | null = null;
+
+  if (rawFile) {
+    selectedFile = decodeURIComponent(rawFile);
+    const fileSegments = [...workspaceDirSegments, "docs", ...selectedFile.split("/")];
+    fileContent = readDocument(...fileSegments);
+  }
 
   // 预取最近 20 天的聊天（只查从该 workspace 发起的聊天）
   const twentyDaysAgo = new Date(
@@ -85,6 +101,10 @@ export default async function WorkspacePage({
       accountType={accountType}
       accountId={accountId}
       initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
+      tree={tree}
+      docsPath={docsPrefix}
+      selectedFile={selectedFile}
+      initialContent={fileContent || ""}
     />
   );
 }

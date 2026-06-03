@@ -64,7 +64,7 @@ function clamp(val: number, min: number, max: number) {
 }
 
 export default function FloatingChatWindow() {
-  const { isOpen, isMinimized, close, minimize, projectId, workspaceId, windowKey, mentionFile, setMentionFile } = useFloatingChat();
+  const { isOpen, isMinimized, close, minimize, open, projectId, workspaceId, windowKey, mentionFile, setMentionFile } = useFloatingChat();
   const containerRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<ChatWorkspaceRef>(null);
 
@@ -238,19 +238,20 @@ export default function FloatingChatWindow() {
   const ws = workspaceRef.current;
 
   const portal = (
-    <div
-      id="floating-chat-window"
-      ref={containerRef}
-      className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
-      style={{
-        left: position.x,
-        top: position.y,
-        width: size.width,
-        height: size.height,
-        zIndex: 9999,
-        display: isMinimized ? "none" : "flex",
-      }}
-    >
+    <>
+      <div
+        id="floating-chat-window"
+        ref={containerRef}
+        className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+        style={{
+          left: position.x,
+          top: position.y,
+          width: size.width,
+          height: size.height,
+          zIndex: 9999,
+          display: isMinimized ? "none" : "flex",
+        }}
+      >
       {/* Header - draggable */}
       <div
         className="flex items-center gap-2 h-10 px-3 border-b border-gray-100 shrink-0 cursor-grab active:cursor-grabbing select-none"
@@ -457,7 +458,39 @@ export default function FloatingChatWindow() {
         }}
         onPointerDown={handleResizeStart("sw")}
       />
-    </div>
+      </div>
+
+      {/* Minimized restore bubble */}
+      {isMinimized && (
+        <Tooltip title="Restore Chat" placement="left">
+          <button
+            onClick={() => open()}
+            className="fixed flex items-center justify-center border-none cursor-pointer"
+            style={{
+              bottom: 24,
+              right: 24,
+              zIndex: 9999,
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              backgroundColor: "#1677ff",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              transition: "transform 0.15s, box-shadow 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+              e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+            }}
+          >
+            <RobotOutlined style={{ color: "white", fontSize: 22 }} />
+          </button>
+        </Tooltip>
+      )}
+    </>
   );
 
   return createPortal(portal, document.body);

@@ -4,9 +4,10 @@ import { desc } from "drizzle-orm";
 import SidebarShell from "./SidebarShell";
 import NewChatButton from "./NewChatButton";
 import NavLink from "./NavLink";
+import TodoNavLink from "./TodoNavLink";
 import ProjectsPanel from "./ProjectsPanel";
 import WorkspacesPanel from "./WorkspacesPanel";
-import ChatsHistoryPanel from "./ChatsHistoryPanel";
+import ResizableChatsHistory from "./ResizableChatsHistory";
 
 interface SidebarProps {
   initialWidth?: string;
@@ -26,6 +27,11 @@ export default function Sidebar({ initialWidth, initialCollapsed }: SidebarProps
       {/* New Chat Button */}
       <div className="px-2 pt-2 pb-1">
         <NewChatButton />
+      </div>
+
+      {/* Todo menu button */}
+      <div className="px-2 mb-1">
+        <TodoNavLink />
       </div>
 
       {/* Chats menu button */}
@@ -66,9 +72,9 @@ export default function Sidebar({ initialWidth, initialCollapsed }: SidebarProps
         <WorkspacesPanel />
       </div>
 
-      {/* Chats History */}
-      <div className="border-t border-gray-100 max-h-[40%] overflow-y-auto">
-        <ChatsHistoryPanel chats={recentChats} />
+      {/* Chats History - resizable */}
+      <div className="border-t border-gray-100 shrink-0">
+        <ResizableChatsHistory chats={recentChats} />
       </div>
 
       {/* Sandbox & Admin menu buttons */}

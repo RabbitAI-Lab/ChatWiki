@@ -4,9 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev.sh",
+    "dev:docker": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "start:docker": "next start --hostname 0.0.0.0",
+    "lint": "eslint",
+    "docker": "docker compose -f docker/docker-compose.dev.yml up",
+    "docker:build": "docker compose -f docker/docker-compose.dev.yml up --build",
+    "docker:down": "docker compose -f docker/docker-compose.dev.yml down",
+    "docker:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
+    "docker:prod:build": "docker compose -f docker/docker-compose.prod.yml build",
+    "docker:prod:up": "docker compose -f docker/docker-compose.prod.yml up -d",
+    "docker:prod:down": "docker compose -f docker/docker-compose.prod.yml down",
+    "docker:prod:logs": "docker compose -f docker/docker-compose.prod.yml logs -f"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.5",

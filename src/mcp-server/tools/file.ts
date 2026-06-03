@@ -245,7 +245,7 @@ export function registerFileTools(server: McpServer) {
       if (invalid) {
         return { content: [{ type: "text", text: invalid }], isError: true };
       }
-      const tree = listTree(segments);
+      const tree = listTree(segments, [".md", ".html"])
       return {
         content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
       };

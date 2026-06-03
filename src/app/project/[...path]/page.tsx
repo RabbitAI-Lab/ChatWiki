@@ -25,7 +25,7 @@ export default async function ProjectPage({
   const docsPrefix = docsDirSegments.join("/"); // "personal/default/projects/{projectId}/docs"
 
   // Get file tree (paths are like "personal/default/projects/{projectId}/docs/subdir/file.md")
-  const rawTree = listTree(docsDirSegments);
+  const rawTree = listTree(docsDirSegments, [".md", ".html"])
 
   // Strip docs prefix and .md extension from tree paths
   const tree = stripTreePrefix(rawTree, docsPrefix);

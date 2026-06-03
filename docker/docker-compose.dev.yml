@@ -1,0 +1,33 @@
+services:
+  chatwiki-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    image: chatwiki:dev
+    container_name: chatwiki-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # Next.js Web
+      - "4001:4001"   # MCP Server（instrumentation.ts 启动）
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      # 源码热更新（容器内 node_modules 仍用镜像中已安装的版本）
+      # 注意：相对路径基于 compose 文件所在目录（docker/），故使用 ../ 指代项目根
+      - ../src:/app/src
+      - ../public:/app/public
+      - ../drizzle:/app/drizzle
+      - ../next.config.ts:/app/next.config.ts
+      - ../package.json:/app/package.json
+      - ../tsconfig.json:/app/tsconfig.json
+      - ../postcss.config.mjs:/app/postcss.config.mjs
+      - ../eslint.config.mjs:/app/eslint.config.mjs
+      - ../scripts:/app/scripts
+      # 业务数据持久化（绑定挂载，宿主机可访问）
+      - ../data:/app/data
+      - ../data.db:/app/data.db
+      - ../data.db-shm:/app/data.db-shm
+      - ../data.db-wal:/app/data.db-wal
+    stdin_open: true
+    tty: true

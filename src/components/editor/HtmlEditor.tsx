@@ -143,7 +143,8 @@ export default function HtmlEditor({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button
+          {/* Share button temporarily hidden */}
+          {/* <button
             type="button"
             onClick={() => setShareDialogOpen(true)}
             className="px-2.5 h-7 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center gap-1"
@@ -157,7 +158,7 @@ export default function HtmlEditor({
               <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
             分享
-          </button>
+          </button> */}
           <button
             type="button"
             onClick={handleSave}

@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import http from "isomorphic-git/http/node";
 import type { RepositoryCredentials } from "./fs";
+import { getDataRoot } from "./fs/core";
 
 /**
  * 获取认证回调函数
@@ -259,6 +260,5 @@ export function getRepoLocalPath(
   repoId: string
 ): string {
   // data/personal/{accountId}/projects/{projectId}/repos/{repoId}
-  const baseDir = projectDirSegments.join("/");
-  return path.join(baseDir, "repos", repoId);
+  return path.join(getDataRoot(), ...projectDirSegments, "repos", repoId);
 }

@@ -6,11 +6,16 @@ import dynamic from "next/dynamic";
 import { App } from "antd";
 import ChatWorkspace from "@/components/chat/ChatWorkspace";
 import { useFloatingChat } from "./FloatingChatContext";
+import { useProjectFileTree } from "./useProjectFileTree";
+import { useFileTabSystem, PROJECT_INFO_TAB, CHAT_TAB } from "./useFileTabSystem";
+import { useChatSwitching } from "./useChatSwitching";
+import type { RecentChat } from "./useChatSwitching";
 import FileTree from "@/components/ui/FileTree";
 import ProjectInfoTab from "@/components/project/ProjectInfoTab";
 import type { ProjectMeta } from "@/lib/fs";
 import type { DocumentActivity } from "@/lib/types";
-import { TreeNode, stripTreePrefix, computeDefaultDirName, computeDefaultFileName, findChildren, findNodeByPath, renameNodeInTree } from "@/lib/tree";
+import type { TreeNode } from "@/lib/tree";
+import { stripTreePrefix } from "@/lib/tree";
 
 const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
   ssr: false,
@@ -22,34 +27,16 @@ const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
   ),
 });
 
-interface FileTab {
-  filePath: string;
-  content: string;
-  loaded: boolean;
-}
-
-interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-}
-
-const PROJECT_INFO_TAB = "__project_info__" as const;
-
 export default function NewChatWorkspace() {
   const searchParams = useSearchParams();
   const { message } = App.useApp();
   const { open: openFloatingChat, isOpen: floatingChatOpen, isMinimized: floatingChatMinimized, setMentionFile: setFloatingMentionFile } = useFloatingChat();
   const preselectProjectId = searchParams.get("project");
+
+  // Project selection state
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedProjectName, setSelectedProjectName] = useState("");
-  const [tree, setTree] = useState<TreeNode[]>([]);
-  const [treeLoading, setTreeLoading] = useState(false);
-  const [chatKey, setChatKey] = useState(0);
-  const [renamingPath, setRenamingPath] = useState<string | null>(null);
-  const [renamingName, setRenamingName] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
   // Project info state
@@ -57,23 +44,27 @@ export default function NewChatWorkspace() {
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [recentDocuments, setRecentDocuments] = useState<DocumentActivity[]>([]);
 
-  // Chat switching state
-  const [activeChatId, setActiveChatId] = useState<number | null>(null);
-  const [activeChatTitle, setActiveChatTitle] = useState("New Conversation");
-  const [activeChatMessages, setActiveChatMessages] = useState<Array<{ id: number; role: "user" | "assistant"; content: string }>>([]);
-  const [activeChatModelId, setActiveChatModelId] = useState<number | undefined>();
-  const [activeChatTemplateId, setActiveChatTemplateId] = useState<number | undefined>();
-
-  // Tab system state
-  const [tabs, setTabs] = useState<FileTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string>("__chat__");
-  const contentCache = useRef<Record<string, string>>({});
-
   const projectPath = selectedProjectId
     ? `personal/default/projects/${selectedProjectId}/docs`
     : "";
 
   const autoSelectedRef = useRef(false);
+
+  // --- Custom hooks ---
+
+  const tabSystem = useFileTabSystem({ projectId: selectedProjectId, projectPath });
+
+  const fileTree = useProjectFileTree({
+    projectId: selectedProjectId,
+    projectPath,
+    message,
+    onCloseTab: tabSystem.handleTabClose,
+    onUpdateTabPaths: tabSystem.updateTabPaths,
+  });
+
+  const chatSwitching = useChatSwitching({ setActiveTabId: tabSystem.setActiveTabId });
+
+  // --- Project list fetch ---
 
   useEffect(() => {
     fetch("/api/fs/projects?type=personal&accountId=default")
@@ -92,21 +83,7 @@ export default function NewChatWorkspace() {
       });
   }, []);
 
-  const refreshTree = async () => {
-    if (!selectedProjectId) return;
-    setTreeLoading(true);
-    const prefix = `personal/default/projects/${selectedProjectId}/docs`;
-    try {
-      const res = await fetch(`/api/fs/tree?path=${prefix}`);
-      const data = await res.json();
-      setTree(Array.isArray(data) ? stripTreePrefix(data, prefix) : []);
-    } catch {
-      setTree([]);
-    }
-    setTreeLoading(false);
-  };
-
-  // --- Refresh recent chats ---
+  // --- Refresh recent chats & documents ---
 
   const refreshRecentChats = useCallback(async (projectId: string) => {
     const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
@@ -130,34 +107,31 @@ export default function NewChatWorkspace() {
     }
   }, []);
 
+  // --- Project selection handlers ---
+
   const handleSelectProject = async (project: ProjectMeta) => {
     setSelectedProjectId(project.id);
     setSelectedProjectName(project.name);
     setProjectMeta(project);
-    setTreeLoading(true);
+
+    // Load file tree for the selected project
+    fileTree.setTreeLoading(true);
     const prefix = `personal/default/projects/${project.id}/docs`;
     try {
       const res = await fetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();
-      setTree(Array.isArray(data) ? stripTreePrefix(data, prefix) : []);
+      fileTree.setTree(Array.isArray(data) ? stripTreePrefix(data, prefix) : []);
     } catch {
-      setTree([]);
+      fileTree.setTree([]);
     }
-    setTreeLoading(false);
-    setChatKey((k) => k + 1);
-    // Reset tab system — default to chat tab since this is the "New Chat" entry
-    setTabs([]);
-    setActiveTabId("__chat__");
-    contentCache.current = {};
-    // Reset chat switching state
-    setActiveChatId(null);
-    setActiveChatTitle("New Conversation");
-    setActiveChatMessages([]);
-    setActiveChatModelId(undefined);
-    setActiveChatTemplateId(undefined);
-    // Fetch recent chats
+    fileTree.setTreeLoading(false);
+
+    // Reset sub-systems
+    tabSystem.reset();
+    chatSwitching.reset();
+
+    // Fetch recent chats & documents
     refreshRecentChats(project.id);
-    // Fetch recent document activities
     refreshRecentDocuments(project.id);
     window.history.replaceState(null, "", `/chat/new?project=${project.id}`);
   };
@@ -168,284 +142,13 @@ export default function NewChatWorkspace() {
     setProjectMeta(null);
     setRecentChats([]);
     setRecentDocuments([]);
-    setTree([]);
-    setRenamingPath(null);
-    setRenamingName("");
-    // Reset tab system
-    setTabs([]);
-    setActiveTabId("__chat__");
-    contentCache.current = {};
-    // Reset chat switching state
-    setActiveChatId(null);
-    setActiveChatTitle("New Conversation");
-    setActiveChatMessages([]);
-    setActiveChatModelId(undefined);
-    setActiveChatTemplateId(undefined);
+    fileTree.reset();
+    tabSystem.reset();
+    chatSwitching.reset();
     window.history.replaceState(null, "", "/chat/new");
   };
 
-  // --- File tree functions ---
-
-  const handleCreateFile = useCallback(async (parentPath: string) => {
-    if (!selectedProjectId) return;
-    const children = parentPath ? findChildren(tree, parentPath) : tree;
-    const defaultName = computeDefaultFileName(children);
-    const fullPath = parentPath
-      ? `${projectPath}/${parentPath}/${defaultName}`
-      : `${projectPath}/${defaultName}`;
-    await fetch("/api/fs/document", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: fullPath, content: `# ${defaultName}\n\n` }),
-    });
-    const relativePath = parentPath ? `${parentPath}/${defaultName}` : defaultName;
-    // Optimistically insert node into local tree
-    const newNode: TreeNode = { name: defaultName, type: "file", path: relativePath };
-    setTree((prev) => {
-      if (!parentPath) return [...prev, newNode];
-      return insertNode(prev, parentPath, newNode);
-    });
-    setRenamingPath(relativePath);
-    setRenamingName(defaultName);
-    setTimeout(() => renameInputRef.current?.select(), 0);
-    refreshTree();
-  }, [tree, selectedProjectId, projectPath]);
-
-  const handleCreateDir = useCallback(async (parentPath: string) => {
-    if (!selectedProjectId) return;
-    const children = parentPath ? findChildren(tree, parentPath) : tree;
-    const defaultName = computeDefaultDirName(children);
-    const fullPath = parentPath
-      ? `${projectPath}/${parentPath}/${defaultName}`
-      : `${projectPath}/${defaultName}`;
-    await fetch("/api/fs/directory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: fullPath }),
-    });
-    const relativePath = parentPath ? `${parentPath}/${defaultName}` : defaultName;
-    // Optimistically insert node into local tree
-    const newNode: TreeNode = { name: defaultName, type: "directory", path: relativePath, children: [] };
-    setTree((prev) => {
-      if (!parentPath) return [...prev, newNode];
-      return insertNode(prev, parentPath, newNode);
-    });
-    setRenamingPath(relativePath);
-    setRenamingName(defaultName);
-    setTimeout(() => renameInputRef.current?.select(), 0);
-    refreshTree();
-  }, [tree, selectedProjectId, projectPath]);
-
-  const handleRenameConfirm = useCallback(async () => {
-    const currentPath = renamingPath;
-    const currentName = renamingName;
-    if (!currentPath) return;
-
-    const trimmedName = currentName.trim();
-    const node = findNodeByPath(tree, currentPath);
-    if (!node || !trimmedName || trimmedName === node.name) {
-      setRenamingPath(null);
-      return;
-    }
-
-    let res: Response;
-    if (node.type === "file") {
-      res = await fetch("/api/fs/document", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: `${projectPath}/${currentPath}`, newTitle: trimmedName }),
-      });
-    } else {
-      res = await fetch("/api/fs/directory", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: `${projectPath}/${currentPath}`, newName: trimmedName }),
-      });
-    }
-
-    if (res.status === 409) {
-      const data = await res.json();
-      message.warning(data.error || "A file or folder with this name already exists");
-      setTimeout(() => renameInputRef.current?.focus(), 0);
-      return;
-    }
-
-    // Update tab paths for file renames
-    if (node.type === "file") {
-      const newPath = currentPath.includes("/")
-        ? currentPath.replace(/[^/]*$/, trimmedName)
-        : trimmedName;
-      updateTabPaths(currentPath, newPath);
-    }
-
-    // Optimistically update the local tree so the new name is visible immediately
-    setTree((prev) => renameNodeInTree(prev, currentPath, trimmedName));
-    setRenamingPath(null);
-    refreshTree();
-  }, [renamingPath, renamingName, tree, projectPath]);
-
-  const handleRenameCancel = useCallback(() => {
-    setRenamingPath(null);
-  }, []);
-
-  const handleStartRename = useCallback((path: string) => {
-    const node = findNodeByPath(tree, path);
-    if (!node) return;
-    setRenamingPath(path);
-    setRenamingName(node.name);
-    setTimeout(() => renameInputRef.current?.select(), 0);
-  }, [tree]);
-
-  const handleDeleteDir = async (dirPath: string) => {
-    await fetch("/api/fs/directory", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${projectPath}/${dirPath}` }),
-    });
-    refreshTree();
-  };
-
-  const handleDeleteFile = async (filePath: string) => {
-    await fetch("/api/fs/document", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${projectPath}/${filePath}` }),
-    });
-    // Close the tab if open
-    if (tabs.some((t) => t.filePath === filePath)) {
-      handleTabClose(filePath);
-    }
-    refreshTree();
-  };
-
-  // Helper to update tab paths when a file is renamed
-  const updateTabPaths = (oldPath: string, newPath: string) => {
-    setTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
-    setActiveTabId((prev) => prev === oldPath ? newPath : prev);
-    const cached = contentCache.current[oldPath];
-    if (cached !== undefined) {
-      contentCache.current[newPath] = cached;
-      delete contentCache.current[oldPath];
-    }
-  };
-
-  // --- Tab system functions ---
-
-  const handleFileClick = useCallback(async (node: TreeNode) => {
-    const filePath = node.path;
-    // If tab already open, switch to it
-    setTabs((prev) => {
-      const existingTab = prev.find((t) => t.filePath === filePath);
-      if (existingTab) {
-        setActiveTabId(filePath);
-        return prev;
-      }
-      // Create new tab
-      const cachedContent = contentCache.current[filePath] ?? "";
-      const newTab: FileTab = {
-        filePath,
-        content: cachedContent,
-        loaded: !!cachedContent,
-      };
-      setActiveTabId(filePath);
-
-      // Fetch content if not cached
-      if (!cachedContent) {
-        const apiPath = `personal/default/projects/${selectedProjectId}/docs/${filePath}`;
-        fetch(`/api/fs/document?path=${apiPath}`)
-          .then((r) => r.json())
-          .then((data) => {
-            const content = data.content ?? "";
-            contentCache.current[filePath] = content;
-            setTabs((prev2) =>
-              prev2.map((t) =>
-                t.filePath === filePath ? { ...t, content, loaded: true } : t
-              )
-            );
-          })
-          .catch(() => {
-            setTabs((prev2) =>
-              prev2.map((t) =>
-                t.filePath === filePath ? { ...t, content: "", loaded: true } : t
-              )
-            );
-          });
-      }
-
-      return [...prev, newTab];
-    });
-  }, [selectedProjectId]);
-
-  const handleTabClose = useCallback((tabId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setTabs((prev) => {
-      const idx = prev.findIndex((t) => t.filePath === tabId);
-      const newTabs = prev.filter((t) => t.filePath !== tabId);
-      if (activeTabId === tabId) {
-        if (newTabs.length === 0) {
-          setActiveTabId(PROJECT_INFO_TAB);
-        } else if (idx < newTabs.length) {
-          setActiveTabId(newTabs[idx].filePath);
-        } else {
-          setActiveTabId(newTabs[newTabs.length - 1].filePath);
-        }
-      }
-      return newTabs;
-    });
-  }, [activeTabId]);
-
-  const handleFileSave = useCallback(async (filePath: string, markdown: string) => {
-    contentCache.current[filePath] = markdown;
-    await fetch("/api/fs/document", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${projectPath}/${filePath}`, content: markdown }),
-    });
-  }, [projectPath]);
-
-  const handleFileChange = useCallback((filePath: string, markdown: string) => {
-    contentCache.current[filePath] = markdown;
-  }, []);
-
-  // --- Chat navigation from ProjectInfoTab ---
-
-  const handleSwitchToChat = useCallback(async (chatId: number) => {
-    try {
-      const [chatRes, msgRes] = await Promise.all([
-        fetch(`/api/chats/${chatId}`),
-        fetch(`/api/chats/${chatId}/messages`),
-      ]);
-      const chatData = await chatRes.json();
-      const msgData = await msgRes.json();
-
-      setActiveChatId(chatId);
-      setActiveChatTitle(chatData.title || "New Conversation");
-      setActiveChatMessages(
-        (Array.isArray(msgData) ? msgData : msgData.messages || []).map(
-          (m: { id: number; role: "user" | "assistant"; content: string }) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-        }))
-      );
-      setActiveChatModelId(chatData.modelId);
-      setActiveChatTemplateId(chatData.templateId);
-      setChatKey((k) => k + 1);
-      setActiveTabId("__chat__");
-    } catch {
-      setActiveTabId("__chat__");
-    }
-  }, []);
-
-  const handleNewChat = useCallback(() => {
-    setActiveChatId(null);
-    setActiveChatTitle("New Conversation");
-    setActiveChatMessages([]);
-    setActiveChatModelId(undefined);
-    setActiveChatTemplateId(undefined);
-    setChatKey((k) => k + 1);
-    setActiveTabId("__chat__");
-  }, []);
+  // --- Callbacks ---
 
   const handleChatCreated = useCallback((_chatId: number) => {
     if (selectedProjectId) {
@@ -465,8 +168,10 @@ export default function NewChatWorkspace() {
       return;
     }
     const node: TreeNode = { name: documentPath.split("/").pop() || documentPath, type: "file", path: documentPath };
-    handleFileClick(node);
-  }, [projectPath, handleFileClick]);
+    tabSystem.handleFileClick(node);
+  }, [projectPath, tabSystem.handleFileClick]);
+
+
 
   return (
     <div className="flex h-full">
@@ -491,8 +196,8 @@ export default function NewChatWorkspace() {
             {/* File tree toolbar */}
             <div className="px-2 py-1.5 border-b border-gray-100 flex gap-1">
               <button
-                onClick={() => handleCreateFile("")}
-                disabled={renamingPath !== null}
+                onClick={() => fileTree.handleCreateFile("")}
+                disabled={fileTree.renamingPath !== null}
                 className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -503,8 +208,8 @@ export default function NewChatWorkspace() {
                 Document
               </button>
               <button
-                onClick={() => handleCreateDir("")}
-                disabled={renamingPath !== null}
+                onClick={() => fileTree.handleCreateDir("")}
+                disabled={fileTree.renamingPath !== null}
                 className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -517,36 +222,36 @@ export default function NewChatWorkspace() {
             </div>
 
             {/* File tree */}
-            {treeLoading ? (
+            {fileTree.treeLoading ? (
               <div className="flex-1 flex items-center justify-center py-8 text-gray-400">
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-blue-600 mr-2" />
                 <span className="text-xs">加载中...</span>
               </div>
             ) : (
               <FileTree
-                tree={tree}
+                tree={fileTree.tree}
                 mode="editable"
-                selectedPath={activeTabId !== "__chat__" && activeTabId !== PROJECT_INFO_TAB ? activeTabId : null}
-                onFileClick={(node) => handleFileClick(node)}
-                onNewDirectory={(parentPath) => handleCreateDir(parentPath)}
-                onNewFile={(parentPath) => handleCreateFile(parentPath)}
-                onDeleteDirectory={(dirPath) => handleDeleteDir(dirPath)}
-                onDeleteFile={(filePath) => handleDeleteFile(filePath)}
+                selectedPath={tabSystem.activeTabId !== CHAT_TAB && tabSystem.activeTabId !== PROJECT_INFO_TAB ? tabSystem.activeTabId : null}
+                onFileClick={(node) => tabSystem.handleFileClick(node)}
+                onNewDirectory={(parentPath) => fileTree.handleCreateDir(parentPath)}
+                onNewFile={(parentPath) => fileTree.handleCreateFile(parentPath)}
+                onDeleteDirectory={(dirPath) => fileTree.handleDeleteDir(dirPath)}
+                onDeleteFile={(filePath) => fileTree.handleDeleteFile(filePath)}
                 onMentionFile={(node) => {
                   if (floatingChatOpen && !floatingChatMinimized) {
                     setFloatingMentionFile(node.path);
                   } else {
                     setMentionFile(node.path);
-                    setActiveTabId("__chat__");
+                    tabSystem.setActiveTabId(CHAT_TAB);
                   }
                 }}
-                renamingPath={renamingPath}
-                renamingName={renamingName}
-                onRenamingNameChange={setRenamingName}
-                onRenameConfirm={handleRenameConfirm}
-                onRenameCancel={handleRenameCancel}
-                renameInputRef={renameInputRef}
-                onStartRename={handleStartRename}
+                renamingPath={fileTree.renamingPath}
+                renamingName={fileTree.renamingName}
+                onRenamingNameChange={fileTree.setRenamingName}
+                onRenameConfirm={fileTree.handleRenameConfirm}
+                onRenameCancel={fileTree.handleRenameCancel}
+                renameInputRef={fileTree.renameInputRef}
+                onStartRename={fileTree.handleStartRename}
               />
             )}
           </>
@@ -588,9 +293,9 @@ export default function NewChatWorkspace() {
             <div className="flex items-center h-[41px] bg-gray-50 border-b border-gray-200 overflow-x-auto shrink-0">
               {/* Project Info tab */}
               <button
-                onClick={() => setActiveTabId(PROJECT_INFO_TAB)}
+                onClick={() => tabSystem.setActiveTabId(PROJECT_INFO_TAB)}
                 className={`flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTabId === PROJECT_INFO_TAB
+                  tabSystem.activeTabId === PROJECT_INFO_TAB
                     ? "bg-white text-blue-600 border-blue-600"
                     : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-100"
                 }`}
@@ -605,9 +310,9 @@ export default function NewChatWorkspace() {
 
               {/* Chat tab */}
               <button
-                onClick={() => setActiveTabId("__chat__")}
+                onClick={() => tabSystem.setActiveTabId(CHAT_TAB)}
                 className={`group flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTabId === "__chat__"
+                  tabSystem.activeTabId === CHAT_TAB
                     ? "bg-white text-blue-600 border-blue-600"
                     : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-100"
                 }`}
@@ -630,14 +335,14 @@ export default function NewChatWorkspace() {
               </button>
 
               {/* File tabs */}
-              {tabs.map((tab) => {
+              {tabSystem.tabs.map((tab) => {
                 const fileName = tab.filePath.split("/").pop() || tab.filePath;
                 return (
                   <button
                     key={tab.filePath}
-                    onClick={() => setActiveTabId(tab.filePath)}
+                    onClick={() => tabSystem.setActiveTabId(tab.filePath)}
                     className={`group flex items-center gap-1.5 h-full px-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
-                      activeTabId === tab.filePath
+                      tabSystem.activeTabId === tab.filePath
                         ? "bg-white text-blue-600 border-blue-600"
                         : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-100"
                     }`}
@@ -649,7 +354,7 @@ export default function NewChatWorkspace() {
                     <span className="truncate max-w-[120px]">{fileName}</span>
                     <span
                       role="button"
-                      onClick={(e) => handleTabClose(tab.filePath, e)}
+                      onClick={(e) => tabSystem.handleTabClose(tab.filePath, e)}
                       className="ml-0.5 w-4 h-4 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
                       ×
@@ -664,7 +369,7 @@ export default function NewChatWorkspace() {
               {/* Project Info tab content */}
               <div
                 className="absolute inset-0 overflow-y-auto"
-                style={{ display: activeTabId === PROJECT_INFO_TAB ? "flex" : "none", flexDirection: "column" }}
+                style={{ display: tabSystem.activeTabId === PROJECT_INFO_TAB ? "flex" : "none", flexDirection: "column" }}
               >
                 <ProjectInfoTab
                   projectId={selectedProjectId}
@@ -673,8 +378,8 @@ export default function NewChatWorkspace() {
                   projectPath={`personal/default/projects/${selectedProjectId}`}
                   recentChats={recentChats}
                   recentDocuments={recentDocuments}
-                  onSwitchToChat={handleSwitchToChat}
-                  onNewChat={handleNewChat}
+                  onSwitchToChat={chatSwitching.handleSwitchToChat}
+                  onNewChat={chatSwitching.handleNewChat}
                   onNavigateToDocument={handleNavigateToDocument}
                 />
               </div>
@@ -682,44 +387,44 @@ export default function NewChatWorkspace() {
               {/* Chat workspace */}
               <div
                 className="absolute inset-0"
-                style={{ display: activeTabId === "__chat__" ? "flex" : "none", flexDirection: "column" }}
+                style={{ display: tabSystem.activeTabId === CHAT_TAB ? "flex" : "none", flexDirection: "column" }}
               >
                 <ChatWorkspace
-                  key={chatKey}
-                  chatId={activeChatId}
-                  chatTitle={activeChatTitle}
-                  initialMessages={activeChatMessages}
-                  initialModelId={activeChatModelId}
-                  initialTemplateId={activeChatTemplateId}
+                  key={chatSwitching.chatKey}
+                  chatId={chatSwitching.activeChatId}
+                  chatTitle={chatSwitching.activeChatTitle}
+                  initialMessages={chatSwitching.activeChatMessages}
+                  initialModelId={chatSwitching.activeChatModelId}
+                  initialTemplateId={chatSwitching.activeChatTemplateId}
                   embedded
                   projectId={selectedProjectId}
                   projectName={selectedProjectName}
-                  openFileTabs={tabs.map(t => ({
+                  openFileTabs={tabSystem.tabs.map(t => ({
                     fileName: t.filePath.split("/").pop() || t.filePath,
                     filePath: t.filePath,
                   }))}
-                  onDocumentSaved={refreshTree}
+                  onDocumentSaved={fileTree.refreshTree}
                   mentionFile={mentionFile}
                   onMentionConsumed={() => setMentionFile(null)}
-                  onToolCall={({ toolName }) => { if (toolName === "refresh_file_tree") refreshTree(); }}
+                  onToolCall={({ toolName }) => { if (toolName === "refresh_file_tree") fileTree.refreshTree(); }}
                   onChatCreated={handleChatCreated}
                 />
               </div>
 
               {/* File editor tabs */}
-              {tabs.map((tab) => (
+              {tabSystem.tabs.map((tab) => (
                 <div
                   key={tab.filePath}
                   className="absolute inset-0"
-                  style={{ display: activeTabId === tab.filePath ? "flex" : "none", flexDirection: "column" }}
+                  style={{ display: tabSystem.activeTabId === tab.filePath ? "flex" : "none", flexDirection: "column" }}
                 >
                   {tab.loaded ? (
                     <CherryEditor
                       key={tab.filePath}
                       editorId={"cherry-" + tab.filePath.replace(/\//g, "-")}
                       initialValue={tab.content}
-                      onChange={(markdown) => handleFileChange(tab.filePath, markdown)}
-                      onSave={() => handleFileSave(tab.filePath, contentCache.current[tab.filePath] ?? tab.content)}
+                      onChange={(markdown) => tabSystem.handleFileChange(tab.filePath, markdown)}
+                      onSave={() => tabSystem.handleFileSave(tab.filePath, tabSystem.contentCache.current[tab.filePath] ?? tab.content)}
                       defaultModel="editOnly"
                     />
                   ) : (
@@ -753,17 +458,4 @@ export default function NewChatWorkspace() {
       </div>
     </div>
   );
-}
-
-/** Insert a node into the tree under the given parent path */
-function insertNode(nodes: TreeNode[], parentPath: string, newNode: TreeNode): TreeNode[] {
-  return nodes.map((node) => {
-    if (node.path === parentPath) {
-      return { ...node, children: [...(node.children || []), newNode] };
-    }
-    if (node.children) {
-      return { ...node, children: insertNode(node.children, parentPath, newNode) };
-    }
-    return node;
-  });
 }

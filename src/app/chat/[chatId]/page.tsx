@@ -28,7 +28,7 @@ export default async function ChatPage({
 
   if (chat.projectId) {
     const projectPrefix = `personal/default/projects/${chat.projectId}/docs`;
-    const rawTree = listTree(["personal", "default", "projects", chat.projectId, "docs"]);
+    const rawTree = listTree(["personal", "default", "projects", chat.projectId, "docs"], [".md", ".html"])
     initialTree = stripTreePrefix(rawTree, projectPrefix);
     const meta = readProjectMeta(["personal", "default", "projects", chat.projectId]);
     projectName = meta?.name;
@@ -59,7 +59,7 @@ export default async function ChatPage({
       key={chat.id}
       chatId={chat.id}
       chatTitle={chat.title}
-      initialMessages={messages}
+      initialMessages={messages.map((m) => ({ ...m, isError: !!m.isError }))}
       initialModelId={chat.modelId ?? undefined}
       initialTemplateId={chat.templateId ?? undefined}
       projectId={chat.projectId ?? undefined}

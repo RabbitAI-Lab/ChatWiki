@@ -48,7 +48,14 @@ export function useChatNavigation({
       const chat = await chatRes.json();
       const msgs = await msgsRes.json();
       setEffectiveChatId(targetChatId);
-      setMessages(msgs || []);
+      setMessages(
+        (msgs || []).map((m: Record<string, unknown>) => ({
+          id: m.id as number,
+          role: m.role as "user" | "assistant",
+          content: m.content as string,
+          isError: !!m.isError,
+        }))
+      );
       if (chat.title) setEffectiveChatTitle(chat.title);
       if (chat.modelId) setSelectedModelId(chat.modelId);
       if (chat.templateId) setSelectedTemplateId(chat.templateId);

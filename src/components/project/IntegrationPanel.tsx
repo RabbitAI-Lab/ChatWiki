@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import type { Repository, SandboxStatus } from "@/lib/fs";
+import type { Repository, SandboxStatus, GitNexusStatus } from "@/lib/fs";
 import RepositoryManager from "./RepositoryManager";
 import SandboxManager from "./SandboxManager";
+import GitNexusManager from "./GitNexusManager";
 
 interface IntegrationPanelProps {
   projectPath: string;
   repositories: Repository[];
   sandbox?: SandboxStatus;
+  gitnexusStatus: GitNexusStatus | null;
   onRepositoriesChange: (repos: Repository[]) => void;
   onSandboxChange: (sandbox: SandboxStatus) => void;
+  onGitNexusStatusChange: (s: GitNexusStatus | null) => void;
 }
 
 interface IntegrationGroup {
@@ -21,6 +24,13 @@ interface IntegrationGroup {
 }
 
 const INTEGRATION_GROUPS: IntegrationGroup[] = [
+  {
+    key: "gitnexus",
+    label: "GitNexus",
+    icon: "M12 2a10 10 0 1 0 10 10M12 2a10 10 0 0 1 10 10M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07",
+    description:
+      "Index the project root into a local code knowledge graph (force, skip git check)",
+  },
   {
     key: "repository",
     label: "Repository",
@@ -39,11 +49,13 @@ export default function IntegrationPanel({
   projectPath,
   repositories,
   sandbox,
+  gitnexusStatus,
   onRepositoriesChange,
   onSandboxChange,
+  onGitNexusStatusChange,
 }: IntegrationPanelProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(["repository"])
+    new Set(["gitnexus", "repository"])
   );
 
   const toggleGroup = (key: string) => {
@@ -106,6 +118,13 @@ export default function IntegrationPanel({
 
               {isExpanded && (
                 <div className="px-4 pb-4 border-t border-gray-100">
+                  {group.key === "gitnexus" && (
+                    <GitNexusManager
+                      projectPath={projectPath}
+                      status={gitnexusStatus}
+                      onStatusChange={onGitNexusStatusChange}
+                    />
+                  )}
                   {group.key === "repository" && (
                     <RepositoryManager
                       projectPath={projectPath}

@@ -28,16 +28,17 @@ export function computeDefaultDirName(existingChildren: TreeNode[]): string {
   return `${baseName}(${i})`;
 }
 
-/** Compute a default file name, handling conflicts (Untitled, Untitled(1), ...) */
+/** Compute a default file name, handling conflicts (Untitled.md, Untitled(1).md, ...) */
 export function computeDefaultFileName(existingChildren: TreeNode[]): string {
   const baseName = "Untitled";
+  const ext = ".md";
   const existingNames = new Set(
     existingChildren.filter((n) => n.type === "file").map((n) => n.name),
   );
-  if (!existingNames.has(baseName)) return baseName;
+  if (!existingNames.has(`${baseName}${ext}`)) return `${baseName}${ext}`;
   let i = 1;
-  while (existingNames.has(`${baseName}(${i})`)) i++;
-  return `${baseName}(${i})`;
+  while (existingNames.has(`${baseName}(${i})${ext}`)) i++;
+  return `${baseName}(${i})${ext}`;
 }
 
 /** Find children nodes for a given parent path */
@@ -100,18 +101,28 @@ function updateDescendantPaths(children: TreeNode[], oldParent: string, newParen
     };
   });
 }
+/** Insert a node into the tree under the given parent path */
+export function insertNode(nodes: TreeNode[], parentPath: string, newNode: TreeNode): TreeNode[] {
+  return nodes.map((node) => {
+    if (node.path === parentPath) {
+      return { ...node, children: [...(node.children || []), newNode] };
+    }
+    if (node.children) {
+      return { ...node, children: insertNode(node.children, parentPath, newNode) };
+    }
+    return node;
+  });
+}
+
 /**
- * Strip project prefix from tree paths and remove the configured file extension
- * (default ".md") from file nodes.
+ * Strip project prefix from tree paths.
  *
  * Converts full paths (e.g. "personal/default/projects/{id}/Root/test.md")
- * to relative paths (e.g. "Root/test"). Pass `ext = ".html"` to strip a
- * different extension.
+ * to relative paths (e.g. "Root/test.md").
  */
 export function stripTreePrefix(
   nodes: TreeNode[],
   prefix: string,
-  ext: string = ".md",
 ): TreeNode[] {
   return nodes.map((node) => {
     let relPath = node.path;
@@ -120,14 +131,11 @@ export function stripTreePrefix(
     } else if (relPath.startsWith(prefix)) {
       relPath = relPath.slice(prefix.length);
     }
-    if (node.type === "file" && ext && relPath.endsWith(ext)) {
-      relPath = relPath.slice(0, -ext.length);
-    }
     return {
       ...node,
       path: relPath,
       ...(node.children
-        ? { children: stripTreePrefix(node.children, prefix, ext) }
+        ? { children: stripTreePrefix(node.children, prefix) }
         : {}),
     };
   });

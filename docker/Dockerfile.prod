@@ -1,0 +1,61 @@
+# Stage 1: 全量依赖（含 devDeps，用于 build）
+FROM node:20-bookworm-slim AS deps
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package.json ./
+RUN pnpm install --no-frozen-lockfile
+
+# Stage 2: 构建
+FROM node:20-bookworm-slim AS builder
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
+
+# Stage 2.5: 裁剪为生产依赖
+FROM builder AS prod-deps
+RUN pnpm prune --prod
+
+# Stage 3: 运行时
+FROM node:20-bookworm-slim AS runner
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV MCP_PORT=4001
+ENV HOSTNAME=0.0.0.0
+
+# 非 root 用户
+RUN groupadd --system --gid 1001 nodejs \
+ && useradd --system --uid 1001 --gid nodejs nextjs
+
+# 复制构建产物与精简依赖
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=nextjs:nodejs /app/package.json  ./package.json
+COPY --from=builder   --chown=nextjs:nodejs /app/.next    ./.next
+COPY --from=builder   --chown=nextjs:nodejs /app/public   ./public
+COPY --from=builder   --chown=nextjs:nodejs /app/drizzle  ./drizzle
+
+# 预创建数据目录
+RUN mkdir -p /app/data \
+ && touch /app/data.db \
+ && chown -R nextjs:nodejs /app/data /app/data.db
+
+USER nextjs
+
+EXPOSE 3000 4001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+
+CMD ["pnpm", "start:docker"]

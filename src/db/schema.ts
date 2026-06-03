@@ -59,6 +59,8 @@ export const chatMessages = sqliteTable("chat_messages", {
   thinking: text("thinking"),
   // Extended Thinking 签名（用于多轮对话继续启用 thinking 时回传给模型）
   thinkingSignature: text("thinking_signature"),
+  // 标记该消息是否为错误消息（如 529 模型过载等），错误消息不参与后续模型调用
+  isError: integer("is_error").notNull().default(0),
   createdAt: text("created_at").notNull(),
 });
 
@@ -155,6 +157,16 @@ export const systemPrompts = sqliteTable("system_prompts", {
   enabled: integer("enabled").notNull().default(1),
   sortOrder: integer("sort_order").notNull().default(0),
   isSystem: integer("is_system").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// todos: 待办事项
+export const todos = sqliteTable("todos", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  completed: integer("completed").notNull().default(0),  // 0=待办, 1=已完成
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

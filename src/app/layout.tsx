@@ -1,20 +1,44 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { App as AntApp } from "antd";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import ShareLayoutGuard from "@/components/layout/ShareLayoutGuard";
 import FloatingChatProvider from "@/components/chat/FloatingChatProvider";
 
-const geistSans = Geist({
+const geistSans = localFont({
+  src: [
+    {
+      path: "../../public/fonts/Geist/Geist-Latin-Variable.woff2",
+      weight: "100 900",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/Geist/Geist-Latin-Variable-Italic.woff2",
+      weight: "100 900",
+      style: "italic",
+    },
+  ],
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: [
+    {
+      path: "../../public/fonts/GeistMono/GeistMono-Latin-Variable.woff2",
+      weight: "100 900",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/GeistMono/GeistMono-Latin-Variable-Italic.woff2",
+      weight: "100 900",
+      style: "italic",
+    },
+  ],
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {

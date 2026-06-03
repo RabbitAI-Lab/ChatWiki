@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Repository, SandboxStatus, ProjectMember } from "@/lib/fs";
+import type {
+  Repository,
+  SandboxStatus,
+  ProjectMember,
+  GitNexusStatus,
+} from "@/lib/fs";
 import type { DocumentActivity } from "@/lib/types";
 import ActivityPanel from "./ActivityPanel";
 import IntegrationPanel from "./IntegrationPanel";
@@ -10,25 +15,7 @@ import SkillsPanel from "./SkillsPanel";
 import MemberManager from "./MemberManager";
 import LogPanel from "./LogPanel";
 import Badge from "@/components/ui/Badge";
-
-interface ProjectMeta {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  accountId: string;
-  accountType: string;
-  sortOrder: number;
-  repositories?: Repository[];
-  sandbox?: SandboxStatus;
-  members?: ProjectMember[];
-}
-
-interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-}
+import type { ProjectMeta, RecentChat } from "./types";
 
 type SubTab = "activity" | "integration" | "skills" | "mcp" | "members" | "log";
 
@@ -82,6 +69,9 @@ export default function ProjectInfoTab({
   const [hasUnsynced, setHasUnsynced] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>(
     projectMeta?.members || []
+  );
+  const [gitnexusStatus, setGitnexusStatus] = useState<GitNexusStatus | null>(
+    projectMeta?.gitnexusStatus || null
   );
 
   const dirSegments = projectPath.split(",");
@@ -213,8 +203,10 @@ export default function ProjectInfoTab({
             projectPath={projectPath}
             repositories={repositories}
             sandbox={sandbox}
+            gitnexusStatus={gitnexusStatus}
             onRepositoriesChange={setRepositories}
             onSandboxChange={setSandbox}
+            onGitNexusStatusChange={setGitnexusStatus}
           />
         )}
         {activeSubTab === "skills" && (

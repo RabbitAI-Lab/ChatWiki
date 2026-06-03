@@ -47,6 +47,9 @@ export async function POST(req: NextRequest) {
     .orderBy(systemPrompts.sortOrder)
     .all();
 
+  console.log("[SystemPrompts] active prompts count:", activePrompts.length,
+    activePrompts.map(p => ({ id: p.id, name: p.name, enabled: p.enabled })));
+
   if (activePrompts.length > 0) {
     const globalSection = activePrompts.map(p => p.content).join("\n\n---\n\n");
     if (messages[0]?.role === "system") {
@@ -57,6 +60,9 @@ export async function POST(req: NextRequest) {
         content: globalSection,
       });
     }
+    console.log("[SystemPrompts] injected into messages[0], content length:", messages[0]?.content?.length);
+  } else {
+    console.log("[SystemPrompts] NO active prompts found in DB");
   }
 
   const encoder = new TextEncoder();
