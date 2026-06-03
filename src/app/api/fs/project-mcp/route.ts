@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readProjectMcpConfig, writeProjectMcpConfig } from "@/lib/fs";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
  * 兼容老字段 enabled/apiKey（基于 zhipu-web-search-sse 计算），便于旧调用方降级。
  */
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegmentsStr = searchParams.get("dirSegments");
 
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest) {
  *   2. { dirSegments, rawJson } - 原始 JSON 模式（高级，会做防御性校验）
  */
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments } = body as { dirSegments?: string[] };
 

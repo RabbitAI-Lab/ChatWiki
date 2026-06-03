@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useAuth } from "@/components/auth/useAuth";
 import { useState, useCallback } from "react";
 import EditorToolbar from "./EditorToolbar";
 import TitleEditor from "./TitleEditor";
@@ -29,12 +30,13 @@ export default function DocumentEditor({
   fileName,
 }: DocumentEditorProps) {
   const [content, setContent] = useState(initialContent);
+  const { authFetch } = useAuth();
   const [title, setTitle] = useState(fileName);
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async (markdown: string) => {
     setSaving(true);
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: docPath, content: markdown }),
@@ -52,7 +54,7 @@ export default function DocumentEditor({
 
   const handleTitleChange = async (newTitle: string) => {
     setTitle(newTitle);
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: docPath, newTitle }),

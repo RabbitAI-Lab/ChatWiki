@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { requireAuth } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sharedChats } from "@/db/schema";

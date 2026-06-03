@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { useRouter } from "next/navigation";
 import { App } from "antd";
 import { useFloatingChat } from "@/components/chat/FloatingChatContext";
@@ -62,6 +63,7 @@ export default function WorkspaceDetail({
       }]
     : [];
   const [tabs, setTabs] = useState<FileTab[]>(initTab);
+  const { authFetch } = useAuth();
   const [activeTabId, setActiveTabId] = useState<string>(
     initialChatId ? CHAT_TAB : (selectedFile ? selectedFile : WORKSPACE_INFO_TAB)
   );
@@ -103,7 +105,7 @@ export default function WorkspaceDetail({
     const fullPath = parentPath
       ? `${docsPath}/${parentPath}/${defaultName}`
       : `${docsPath}/${defaultName}`;
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: fullPath, content: `# ${baseName}\n\n` }),
@@ -130,7 +132,7 @@ export default function WorkspaceDetail({
     const fullPath = parentPath
       ? `${docsPath}/${parentPath}/${defaultName}`
       : `${docsPath}/${defaultName}`;
-    await fetch("/api/fs/directory", {
+    await authFetch("/api/fs/directory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: fullPath }),
@@ -170,13 +172,13 @@ export default function WorkspaceDetail({
 
     let res: Response;
     if (node.type === "file") {
-      res = await fetch("/api/fs/document", {
+      res = await authFetch("/api/fs/document", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: `${docsPath}/${currentPath}`, newTitle: finalName }),
       });
     } else {
-      res = await fetch("/api/fs/directory", {
+      res = await authFetch("/api/fs/directory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: `${docsPath}/${currentPath}`, newName: finalName }),
@@ -216,7 +218,7 @@ export default function WorkspaceDetail({
   }, [tree]);
 
   const handleDeleteDir = async (dirPath: string) => {
-    await fetch("/api/fs/directory", {
+    await authFetch("/api/fs/directory", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${docsPath}/${dirPath}` }),
@@ -225,7 +227,7 @@ export default function WorkspaceDetail({
   };
 
   const handleDeleteFile = async (filePath: string) => {
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${docsPath}/${filePath}` }),
@@ -270,7 +272,7 @@ export default function WorkspaceDetail({
       setActiveTabId(filePath);
 
       if (!cachedContent) {
-        fetch(`/api/fs/document?path=${docsPath}/${filePath}`)
+        authFetch(`/api/fs/document?path=${docsPath}/${filePath}`)
           .then((r) => r.json())
           .then((data) => {
             const content = data.content ?? "";
@@ -312,7 +314,7 @@ export default function WorkspaceDetail({
         return [...prev, { filePath, content: cached, loaded: true, type: "html" }];
       }
       setActiveTabId(filePath);
-      fetch(`/api/fs/document?path=${docsPath}/${filePath}`)
+      authFetch(`/api/fs/document?path=${docsPath}/${filePath}`)
         .then((r) => {
           if (!r.ok) throw new Error("fetch failed");
           return r.json();
@@ -363,7 +365,7 @@ export default function WorkspaceDetail({
 
   const handleFileSave = useCallback(async (filePath: string, markdown: string) => {
     contentCache.current[filePath] = markdown;
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${docsPath}/${filePath}`, content: markdown }),
@@ -380,8 +382,8 @@ export default function WorkspaceDetail({
     async (chatId: number, projectId: string | null) => {
       try {
         const [chatRes, msgRes] = await Promise.all([
-          fetch(`/api/chats/${chatId}`),
-          fetch(`/api/chats/${chatId}/messages`),
+          authFetch(`/api/chats/${chatId}`),
+          authFetch(`/api/chats/${chatId}/messages`),
         ]);
         const chatData = await chatRes.json();
         const msgData = await msgRes.json();

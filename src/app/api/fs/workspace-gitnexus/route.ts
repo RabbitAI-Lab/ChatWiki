@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readWorkspaceMeta, writeWorkspaceMeta } from "@/lib/fs";
 import { refreshIndexExists, isGitNexusRunning } from "@/lib/gitnexus-service";
 
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 // 额外：孤儿状态自愈 — 若 phase 是 analyzing/cleaning 但内存 tasks 中无对应任务
 // （dev server 重启 / 进程崩溃导致），自动重置为 idle 并附提示。
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegmentsStr = searchParams.get("dirSegments");
   if (!dirSegmentsStr) {

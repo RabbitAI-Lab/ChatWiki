@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readWorkspaceMeta, writeWorkspaceMeta } from "@/lib/fs";
 import { checkSyncStatus, getRepoLocalPath } from "@/lib/git-service";
 import type { Repository } from "@/lib/fs";
@@ -6,6 +7,7 @@ import type { Repository } from "@/lib/fs";
 // POST /api/fs/workspace-repositories/check-status
 // 批量检查工作区所有仓库的同步状态
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments } = body;
 

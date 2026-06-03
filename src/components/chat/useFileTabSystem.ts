@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import type { TreeNode } from "@/lib/tree";
 
 export interface FileTab {
@@ -22,6 +23,7 @@ interface UseFileTabSystemOptions {
 
 export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PROJECT_INFO_TAB }: UseFileTabSystemOptions) {
   const [tabs, setTabs] = useState<FileTab[]>([]);
+  const { authFetch } = useAuth();
   const [activeTabId, setActiveTabId] = useState<string>(CHAT_TAB);
   const contentCache = useRef<Record<string, string>>({});
 
@@ -60,7 +62,7 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
       // Fetch content if not cached
       if (!cachedContent) {
         const apiPath = `${projectPath}/${filePath}`;
-        fetch(`/api/fs/document?path=${apiPath}`)
+        authFetch(`/api/fs/document?path=${apiPath}`)
           .then((r) => r.json())
           .then((data) => {
             const content = data.content ?? "";
@@ -104,7 +106,7 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
 
   const handleFileSave = useCallback(async (filePath: string, markdown: string) => {
     contentCache.current[filePath] = markdown;
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${projectPath}/${filePath}`, content: markdown }),

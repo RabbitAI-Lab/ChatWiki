@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ClearOutlined } from "@ant-design/icons";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface Chat {
   id: number;
@@ -30,6 +31,7 @@ interface ProjectMeta {
 
 export default function ChatsPageClient() {
   const router = useRouter();
+  const { user, isLoading: authLoading, authFetch } = useAuth();
   const [data, setData] = useState<ChatsData | null>(null);
   const [projectMap, setProjectMap] = useState<Map<string, string>>(new Map());
   const [workspaceMap, setWorkspaceMap] = useState<Map<string, string>>(new Map());
@@ -40,44 +42,50 @@ export default function ChatsPageClient() {
   const pageSize = 20;
 
   useEffect(() => {
-    fetch("/api/fs/projects?type=personal&accountId=default")
+    if (authLoading || !user) return;
+    authFetch("/api/fs/projects?type=personal&accountId=default")
       .then((res) => res.json())
-      .then((projects: ProjectMeta[]) => {
-        const map = new Map<string, string>();
-        for (const p of projects) map.set(p.id, p.name);
-        setProjectMap(map);
+      .then((projects: ProjectMeta[] | { error: string }) => {
+        if (Array.isArray(projects)) {
+          const map = new Map<string, string>();
+          for (const p of projects) map.set(p.id, p.name);
+          setProjectMap(map);
+        }
       });
-    fetch("/api/fs/workspaces?type=personal&accountId=default")
+    authFetch("/api/fs/workspaces?type=personal&accountId=default")
       .then((res) => res.json())
-      .then((workspaces: ProjectMeta[]) => {
-        const map = new Map<string, string>();
-        for (const w of workspaces) map.set(w.id, w.name);
-        setWorkspaceMap(map);
+      .then((workspaces: ProjectMeta[] | { error: string }) => {
+        if (Array.isArray(workspaces)) {
+          const map = new Map<string, string>();
+          for (const w of workspaces) map.set(w.id, w.name);
+          setWorkspaceMap(map);
+        }
       });
-  }, []);
+  }, [authLoading, user, authFetch]);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     setLoading(true);
-    fetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
+    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
       .then((res) => res.json())
       .then((json) => {
         setData(json);
         setLoading(false);
       });
-  }, [page]);
+  }, [page, authLoading, user, authFetch]);
 
   const handleDelete = async (chatId: number) => {
-    await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
+    await authFetch(`/api/chats/${chatId}`, { method: "DELETE" });
     setConfirmDeleteId(null);
-    fetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
+    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
       .then((res) => res.json())
       .then((json) => setData(json));
   };
 
   const handleClearAll = async () => {
-    await fetch("/api/chats", { method: "DELETE" });
+    await authFetch("/api/chats", { method: "DELETE" });
     setShowClearConfirm(false);
-    fetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
+    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
       .then((res) => res.json())
       .then((json) => setData(json));
     router.refresh();

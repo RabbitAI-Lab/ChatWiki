@@ -6,6 +6,7 @@ import EditMcpModal from "@/components/mcp/edit-mcp-modal";
 import McpListItem from "@/components/mcp/mcp-list-item";
 import McpToolbar from "@/components/mcp/mcp-toolbar";
 import { useMcpConfig } from "@/components/mcp/use-mcp-config";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface McpPanelProps {
   projectPath: string;
@@ -22,6 +23,7 @@ interface McpPanelProps {
  */
 export default function McpPanel({ projectPath }: McpPanelProps) {
   const dirSegments = projectPath.split("/");
+  const { authFetch } = useAuth();
   const {
     mcpJson,
     loading,
@@ -44,6 +46,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
   } = useMcpConfig({
     dirSegments,
     apiBase: "/api/fs/project-mcp",
+    authFetch,
   });
 
   if (loading) {

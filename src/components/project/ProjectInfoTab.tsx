@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import type {
   Repository,
   SandboxStatus,
@@ -60,6 +61,7 @@ export default function ProjectInfoTab({
   onNavigateToDocument,
 }: ProjectInfoTabProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("activity");
+  const { authFetch } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>(
     projectMeta?.repositories || []
   );
@@ -86,7 +88,7 @@ export default function ProjectInfoTab({
     // 调用批量状态检查 API
     const checkStatus = async () => {
       try {
-        const res = await fetch("/api/fs/project-repositories/check-status", {
+        const res = await authFetch("/api/fs/project-repositories/check-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ dirSegments }),

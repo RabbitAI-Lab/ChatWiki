@@ -9,7 +9,7 @@ data
 data.db
 data.db-shm
 data.db-wal
-chatwiki.db
+rabbitdocs.db
 *.log
 .DS_Store
 .env*

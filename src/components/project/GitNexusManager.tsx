@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Modal } from "antd";
 import type { GitNexusStatus, GitNexusPhase } from "@/lib/fs";
 
@@ -50,6 +51,7 @@ export default function GitNexusManager({
   status,
   onStatusChange,
 }: GitNexusManagerProps) {
+  const { authFetch } = useAuth();
   const phase: GitNexusPhase = status?.phase ?? "idle";
   const badge = PHASE_BADGE[phase];
   const isInProgress = phase === "analyzing" || phase === "cleaning";
@@ -59,8 +61,7 @@ export default function GitNexusManager({
     if (!isInProgress) return;
     const timer = setInterval(async () => {
       try {
-        const res = await fetch(
-          `/api/fs/project-gitnexus?dirSegments=${encodeURIComponent(projectPath)}`
+        const res = await authFetch(`/api/fs/project-gitnexus?dirSegments=${encodeURIComponent(projectPath)}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -77,7 +78,7 @@ export default function GitNexusManager({
 
   const handleAnalyze = async () => {
     try {
-      const res = await fetch("/api/fs/project-gitnexus/analyze", {
+      const res = await authFetch("/api/fs/project-gitnexus/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -114,7 +115,7 @@ export default function GitNexusManager({
       cancelText: "Keep running",
       onOk: async () => {
         try {
-          const res = await fetch("/api/fs/project-gitnexus/clean", {
+          const res = await authFetch("/api/fs/project-gitnexus/clean", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -149,7 +150,7 @@ export default function GitNexusManager({
       cancelText: "Cancel",
       onOk: async () => {
         try {
-          const res = await fetch("/api/fs/project-gitnexus/clean", {
+          const res = await authFetch("/api/fs/project-gitnexus/clean", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

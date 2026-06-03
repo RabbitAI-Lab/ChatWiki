@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Button, Space, App } from "antd";
 import {
   PlusOutlined,
@@ -25,6 +26,7 @@ interface Props {
 
 export default function ModelsPageClient({ initialModels }: Props) {
   const [models, setModels] = useState<ModelConfig[]>(initialModels);
+  const { authFetch } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
@@ -41,7 +43,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshList = useCallback(async () => {
-    const res = await fetch("/api/models");
+    const res = await authFetch("/api/models");
     const data = await res.json();
     setModels(data);
   }, []);
@@ -50,7 +52,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
 
   const handleCreate = useCallback(
     async (data: ModelConfigSubmitData) => {
-      await fetch("/api/models", {
+      await authFetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -64,7 +66,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   const handleSaveEdit = useCallback(
     async (data: ModelConfigSubmitData) => {
       if (!editingModel) return;
-      await fetch(`/api/models/${editingModel.id}`, {
+      await authFetch(`/api/models/${editingModel.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -79,7 +81,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   const handleSetDefault = useCallback(
     (model: ModelConfig) => {
       const newDefault = model.isDefault ? 0 : 1;
-      fetch(`/api/models/${model.id}`, {
+      authFetch(`/api/models/${model.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isDefault: newDefault }),
@@ -109,7 +111,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         cancelText: "Cancel",
         okButtonProps: { danger: true },
         onOk: async () => {
-          await fetch(`/api/models/${id}`, { method: "DELETE" });
+          await authFetch(`/api/models/${id}`, { method: "DELETE" });
           await refreshList();
         },
       });
@@ -221,7 +223,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
             let successCount = 0;
             for (const item of validItems) {
               try {
-                await fetch("/api/models", {
+                await authFetch("/api/models", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(item),

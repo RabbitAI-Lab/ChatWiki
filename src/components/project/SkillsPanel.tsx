@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Switch, App } from "antd";
 
 interface SkillsPanelProps {
@@ -9,6 +10,7 @@ interface SkillsPanelProps {
 
 export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
   const [loading, setLoading] = useState(true);
+  const { authFetch } = useAuth();
   const [saving, setSaving] = useState<string | null>(null);
   const [eccEnabled, setEccEnabled] = useState(false);
   const [eccVersion, setEccVersion] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/fs/project-skills?dirSegments=${dirSegments.join(",")}`)
+    authFetch(`/api/fs/project-skills?dirSegments=${dirSegments.join(",")}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data) {
@@ -47,7 +49,7 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
     if (skillId === "ecc") setEccError(null);
     else setHuashuError(null);
     try {
-      const res = await fetch("/api/fs/project-skills", {
+      const res = await authFetch("/api/fs/project-skills", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readWorkspaceMeta, writeWorkspaceMeta, type ProjectSkills } from "@/lib/fs";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
 
@@ -9,6 +10,7 @@ const HUASHU_VERSION = "3f410cf";
 
 // GET /api/fs/workspace-skills - 获取工作区 Skills 状态
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegments = searchParams.get("dirSegments");
 
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest) {
 // PUT /api/fs/workspace-skills - 启用/禁用 Skill
 // 注意：工作区级别的 skills 仅修改 meta，不执行 CLI 副作用（计划中明确说明）
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, skillId, enabled } = body as {
     dirSegments: string[];

@@ -1,10 +1,10 @@
 services:
-  chatwiki-prod:
+  rabbitdocs-prod:
     build:
       context: ..
       dockerfile: docker/Dockerfile.prod
-    image: chatwiki:prod
-    container_name: chatwiki-prod
+    image: rabbitdocs:prod
+    container_name: rabbitdocs-prod
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -17,8 +17,8 @@ services:
       - HOSTNAME=0.0.0.0
     volumes:
       # 生产数据使用命名卷，独立于宿主机目录
-      - chatwiki_data:/app/data
-      - chatwiki_db:/app/data.db
+      - rabbitdocs_data:/app/data
+      - rabbitdocs_db:/app/data.db
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
@@ -27,5 +27,5 @@ services:
       start_period: 20s
 
 volumes:
-  chatwiki_data:
-  chatwiki_db:
+  rabbitdocs_data:
+  rabbitdocs_db:

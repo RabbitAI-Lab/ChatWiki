@@ -23,7 +23,7 @@ import type { GitNexusPhase, GitNexusStatus } from "./types";
 
 declare global {
   // eslint-disable-next-line no-var
-  var __chatwiki_gitnexus_tasks__: Map<string, GitNexusTask> | undefined;
+  var __rabbitdocs_gitnexus_tasks__: Map<string, GitNexusTask> | undefined;
 }
 
 interface GitNexusTask {
@@ -34,8 +34,8 @@ interface GitNexusTask {
 }
 
 const tasks: Map<string, GitNexusTask> =
-  globalThis.__chatwiki_gitnexus_tasks__ ?? new Map();
-globalThis.__chatwiki_gitnexus_tasks__ = tasks;
+  globalThis.__rabbitdocs_gitnexus_tasks__ ?? new Map();
+globalThis.__rabbitdocs_gitnexus_tasks__ = tasks;
 
 function taskKey(dirSegments: string[]): string {
   return dirSegments.join("/");

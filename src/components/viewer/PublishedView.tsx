@@ -37,7 +37,7 @@ export default function PublishedView({ content, publishPath, segments }: Publis
       {/* Footer */}
       <div className="max-w-3xl mx-auto px-6 py-8 mt-8 border-t border-gray-100">
         <p className="text-xs text-gray-400 text-center">
-          Path: {publishPath} &nbsp;|&nbsp; Powered by ChatWiki
+          Path: {publishPath} &nbsp;|&nbsp; Powered by RabbitDocs
         </p>
       </div>
     </div>

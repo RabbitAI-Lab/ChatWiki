@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import type { Repository, SandboxStatus, ProjectMember, GitNexusStatus } from "@/lib/fs";
 import type { DocumentActivity } from "@/lib/types";
 import WorkspaceActivityPanel from "./WorkspaceActivityPanel";
@@ -93,6 +94,7 @@ export default function WorkspaceInfoTab({
   accountId,
 }: WorkspaceInfoTabProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("activity");
+  const { authFetch } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>(
     workspaceMeta?.repositories || []
   );
@@ -119,7 +121,7 @@ export default function WorkspaceInfoTab({
 
     const checkStatus = async () => {
       try {
-        const res = await fetch("/api/fs/workspace-repositories/check-status", {
+        const res = await authFetch("/api/fs/workspace-repositories/check-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ dirSegments }),

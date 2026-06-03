@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/components/auth/useAuth";
+import {
+  Button,
+  Form,
+  Input,
+  Card,
+  App,
+  Spin,
+  Divider,
+} from "antd";
+import { MailOutlined, LockOutlined, KeyOutlined } from "@ant-design/icons";
+import { startAuthentication } from "@simplewebauthn/browser";
+import Link from "next/link";
+
+export default function LoginPage() {
+  const { login, loginWithTokens } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { message } = App.useApp();
+  const [loading, setLoading] = useState(false);
+  const [needVerification, setNeedVerification] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [checkingInit, setCheckingInit] = useState(true);
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
+  // Check if system is initialized; redirect to /setup if not
+  useEffect(() => {
+    fetch("/api/auth/init-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.initialized === false) {
+          router.replace("/setup");
+        } else {
+          setCheckingInit(false);
+        }
+      })
+      .catch(() => {
+        setCheckingInit(false);
+      });
+  }, [router]);
+
+  // Check if Passkey is enabled (public endpoint)
+  useEffect(() => {
+    fetch("/api/passkey/enabled")
+      .then((res) => res.json())
+      .then((data) => {
+        setPasskeyEnabled(data?.enabled === true);
+      })
+      .catch(() => {
+        setPasskeyEnabled(false);
+      });
+  }, []);
+
+  if (checkingInit) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  const onFinish = async (values: { email: string; password: string }) => {
+    setLoading(true);
+    setNeedVerification(false);
+    try {
+      const result = await login(values.email, values.password);
+
+      if (result.needVerification) {
+        setNeedVerification(true);
+        setVerifyEmail(values.email);
+        message.warning(result.message || "Please verify your email first");
+        return;
+      }
+
+      message.success("Logged in successfully");
+      const redirect = searchParams.get("redirect") || "/";
+      router.push(redirect);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifyEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message.success(data.message || "Verification email sent");
+      } else {
+        message.error(data.error || "Failed to send");
+      }
+    } catch {
+      message.error("Failed to send, please try again later");
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyLoading(true);
+    try {
+      // Step 1: 获取认证选项
+      const startRes = await fetch("/api/passkey/authenticate/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!startRes.ok) {
+        const data = await startRes.json().catch(() => ({}));
+        throw new Error(data.error || "Unable to start Passkey login");
+      }
+      const options = await startRes.json();
+      const challengeKey: string | undefined = options._challengeKey;
+
+      // Step 2: 浏览器弹生物识别 / PIN 验证
+      const authResult = await startAuthentication({ optionsJSON: options });
+
+      // Step 3: 提交结果
+      const finishRes = await fetch("/api/passkey/authenticate/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credential: JSON.stringify(authResult),
+          _challengeKey: challengeKey,
+        }),
+      });
+      const data = await finishRes.json();
+      if (!finishRes.ok) {
+        throw new Error(data.error || "Passkey login failed");
+      }
+
+      // Step 4: 注入会话
+      loginWithTokens({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+      });
+
+      message.success("Logged in successfully");
+      const redirect = searchParams.get("redirect") || "/";
+      router.push(redirect);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Passkey login failed";
+      // 用户主动取消时不当作错误
+      if (/cancel|abort|not allowed/i.test(msg)) {
+        message.info("Cancelled");
+      } else {
+        message.error(msg);
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
+
+  return (
+    <Card title="Login to RabbitDocs" className="shadow-lg">
+      <Form onFinish={onFinish} layout="vertical" size="large">
+        <Form.Item
+          name="email"
+          rules={[
+            { required: true, message: "Please enter your email" },
+            { type: "email", message: "Please enter a valid email address" },
+          ]}
+        >
+          <Input prefix={<MailOutlined />} placeholder="Email" autoComplete="email" />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          rules={[{ required: true, message: "Please enter your password" }]}
+        >
+          <Input.Password
+            prefix={<LockOutlined />}
+            placeholder="Password"
+            autoComplete="current-password"
+          />
+        </Form.Item>
+
+        <Form.Item>
+          <Button type="primary" htmlType="submit" loading={loading} block>
+            Log In
+          </Button>
+        </Form.Item>
+      </Form>
+
+      {passkeyEnabled && (
+        <>
+          <Divider plain className="!my-3 !text-xs">
+            OR
+          </Divider>
+          <Button
+            block
+            size="large"
+            icon={<KeyOutlined />}
+            loading={passkeyLoading}
+            onClick={handlePasskeyLogin}
+          >
+            Sign in with Passkey
+          </Button>
+        </>
+      )}
+
+      {needVerification && (
+        <div className="text-center my-4">
+          <Button type="link" onClick={handleResendVerification}>
+            Resend Verification Email
+          </Button>
+        </div>
+      )}
+
+      <div className="text-center text-sm text-gray-500 mt-4">
+        Don't have an account?{" "}
+        <Link href="/register" className="text-blue-600 hover:text-blue-800">
+          Sign Up
+        </Link>
+      </div>
+    </Card>
+  );
+}

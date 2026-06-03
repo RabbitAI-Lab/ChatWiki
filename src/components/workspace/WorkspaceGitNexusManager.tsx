@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Modal } from "antd";
 import type { GitNexusStatus, GitNexusPhase } from "@/lib/fs";
 
@@ -50,6 +51,7 @@ export default function WorkspaceGitNexusManager({
   status,
   onStatusChange,
 }: WorkspaceGitNexusManagerProps) {
+  const { authFetch } = useAuth();
   // workspacePath 实际是 "/" 分隔
   const dirSegments = workspacePath.split("/").filter(Boolean);
 
@@ -62,8 +64,7 @@ export default function WorkspaceGitNexusManager({
     if (!isInProgress) return;
     const timer = setInterval(async () => {
       try {
-        const res = await fetch(
-          `/api/fs/workspace-gitnexus?dirSegments=${encodeURIComponent(workspacePath)}`
+        const res = await authFetch(`/api/fs/workspace-gitnexus?dirSegments=${encodeURIComponent(workspacePath)}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -80,7 +81,7 @@ export default function WorkspaceGitNexusManager({
 
   const handleAnalyze = async () => {
     try {
-      const res = await fetch("/api/fs/workspace-gitnexus/analyze", {
+      const res = await authFetch("/api/fs/workspace-gitnexus/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -117,7 +118,7 @@ export default function WorkspaceGitNexusManager({
       cancelText: "Keep running",
       onOk: async () => {
         try {
-          const res = await fetch("/api/fs/workspace-gitnexus/clean", {
+          const res = await authFetch("/api/fs/workspace-gitnexus/clean", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -152,7 +153,7 @@ export default function WorkspaceGitNexusManager({
       cancelText: "Cancel",
       onOk: async () => {
         try {
-          const res = await fetch("/api/fs/workspace-gitnexus/clean", {
+          const res = await authFetch("/api/fs/workspace-gitnexus/clean", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

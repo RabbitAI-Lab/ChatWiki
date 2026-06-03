@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/components/auth/useAuth";
 
 import { useState } from "react";
 import { Input, Button, Modal } from "antd";
@@ -25,6 +26,7 @@ export default function WorkspaceMemberManager({
   onMembersChange,
 }: WorkspaceMemberManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const { authFetch } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [formAccountName, setFormAccountName] = useState("");
 
@@ -50,7 +52,7 @@ export default function WorkspaceMemberManager({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/fs/workspace-members", {
+      const res = await authFetch("/api/fs/workspace-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dirSegments, member }),
@@ -69,7 +71,7 @@ export default function WorkspaceMemberManager({
   const handleDelete = async (memberId: string) => {
     if (!confirm("Are you sure you want to remove this member?")) return;
 
-    const res = await fetch("/api/fs/workspace-members", {
+    const res = await authFetch("/api/fs/workspace-members", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dirSegments, memberId }),
@@ -94,7 +96,7 @@ export default function WorkspaceMemberManager({
 
     setEditSubmitting(true);
     try {
-      const res = await fetch("/api/fs/workspace-members", {
+      const res = await authFetch("/api/fs/workspace-members", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

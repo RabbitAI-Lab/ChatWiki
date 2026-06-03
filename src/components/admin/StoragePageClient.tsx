@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Button, Input, App, Typography, Space, Alert } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 
@@ -30,6 +31,7 @@ export default function StoragePageClient({ initialConfig }: Props) {
   const [storagePath, setStoragePath] = useState(
     initialConfig?.storagePath || ""
   );
+  const { authFetch } = useAuth();
   const [updatedAt, setUpdatedAt] = useState(initialConfig?.updatedAt || null);
   const [isSaving, setIsSaving] = useState(false);
   const { message } = App.useApp();
@@ -45,7 +47,7 @@ export default function StoragePageClient({ initialConfig }: Props) {
 
     setIsSaving(true);
     try {
-      const res = await fetch("/api/storage-config", {
+      const res = await authFetch("/api/storage-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storagePath: storagePath.trim() }),

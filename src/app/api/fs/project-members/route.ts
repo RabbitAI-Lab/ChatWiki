@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import {
   readProjectMeta,
   addMember,
@@ -9,6 +10,7 @@ import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 // GET /api/fs/project-members?dirSegments=personal,default,projects,{id}
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegmentsStr = searchParams.get("dirSegments");
   if (!dirSegmentsStr) {
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/fs/project-members - add a member
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, member } = body;
   if (!dirSegments || !member) {
@@ -45,6 +48,7 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/fs/project-members - update a member
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, memberId, updates } = body;
   if (!dirSegments || !memberId || !updates) {
@@ -69,6 +73,7 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/fs/project-members - remove a member
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, memberId } = body;
   if (!dirSegments || !memberId) {

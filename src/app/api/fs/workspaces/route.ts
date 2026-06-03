@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { listWorkspaces, createWorkspace, deleteWorkspace, readWorkspaceMeta, writeWorkspaceMeta } from "@/lib/fs";
 
 // GET /api/fs/workspaces?type=personal&accountId=default
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const type = (searchParams.get("type") || "personal") as "personal" | "enterprise";
   const accountId = searchParams.get("accountId") || "default";
@@ -14,6 +16,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/fs/workspaces - create workspace
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { type = "personal", accountId = "default", name, orgId } = body;
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -24,6 +27,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/fs/workspaces - delete workspace
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { type = "personal", accountId = "default", id, orgId } = body;
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -34,6 +38,7 @@ export async function DELETE(req: NextRequest) {
 
 // PATCH /api/fs/workspaces - update workspace (rename / sortOrder)
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { type = "personal", accountId = "default", id, name, sortOrder, orgId } = body;
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -57,6 +62,7 @@ export async function PATCH(req: NextRequest) {
 // PUT /api/fs/workspaces - batch reorder workspaces
 // Body: { type, accountId, orgId?, orders: [{ id, sortOrder }] }
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { type = "personal", accountId = "default", orders, orgId } = body;
   if (!Array.isArray(orders)) return NextResponse.json({ error: "orders array is required" }, { status: 400 });

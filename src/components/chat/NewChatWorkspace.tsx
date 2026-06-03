@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { App } from "antd";
@@ -35,6 +36,7 @@ export default function NewChatWorkspace() {
 
   // Project selection state
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
+  const { authFetch } = useAuth();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedProjectName, setSelectedProjectName] = useState("");
   const [mentionFile, setMentionFile] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export default function NewChatWorkspace() {
   // --- Project list fetch ---
 
   useEffect(() => {
-    fetch("/api/fs/projects?type=personal&accountId=default")
+    authFetch("/api/fs/projects?type=personal&accountId=default")
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
@@ -88,7 +90,7 @@ export default function NewChatWorkspace() {
   const refreshRecentChats = useCallback(async (projectId: string) => {
     const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const res = await fetch(`/api/chats?projectId=${projectId}&since=${twentyDaysAgo}&pageSize=20`);
+      const res = await authFetch(`/api/chats?projectId=${projectId}&since=${twentyDaysAgo}&pageSize=20`);
       const data = await res.json();
       setRecentChats(data.chats || []);
     } catch {
@@ -99,7 +101,7 @@ export default function NewChatWorkspace() {
   const refreshRecentDocuments = useCallback(async (projectId: string) => {
     const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const res = await fetch(`/api/document-activities?projectId=${projectId}&since=${twentyDaysAgo}&limit=20`);
+      const res = await authFetch(`/api/document-activities?projectId=${projectId}&since=${twentyDaysAgo}&limit=20`);
       const data = await res.json();
       setRecentDocuments(data.activities || []);
     } catch {
@@ -118,7 +120,7 @@ export default function NewChatWorkspace() {
     fileTree.setTreeLoading(true);
     const prefix = `personal/default/projects/${project.id}/docs`;
     try {
-      const res = await fetch(`/api/fs/tree?path=${prefix}`);
+      const res = await authFetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();
       fileTree.setTree(Array.isArray(data) ? stripTreePrefix(data, prefix) : []);
     } catch {
@@ -158,7 +160,7 @@ export default function NewChatWorkspace() {
 
   const handleNavigateToDocument = useCallback(async (documentPath: string) => {
     try {
-      const res = await fetch(`/api/fs/document?path=${projectPath}/${documentPath}`);
+      const res = await authFetch(`/api/fs/document?path=${projectPath}/${documentPath}`);
       if (res.status === 404) {
         alert("该文档已被删除");
         return;
@@ -259,7 +261,7 @@ export default function NewChatWorkspace() {
           <div className="flex-1 flex flex-col m-2 animate-blue-breathing overflow-hidden bg-white">
             {/* Project selection header */}
             <div className="px-3 h-[41px] border-b border-gray-200 flex items-center">
-              <h3 className="text-sm font-semibold text-gray-800">选择项目</h3>
+              <h3 className="text-sm font-semibold text-gray-800">Select Project</h3>
             </div>
 
             {/* Project list */}
@@ -451,7 +453,7 @@ export default function NewChatWorkspace() {
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
               {/* 提示文字 */}
-              <p className="text-lg text-blue-700 font-medium">请先在左侧选择一个项目</p>
+              <p className="text-lg text-blue-700 font-medium">Please select a project on the left first</p>
             </div>
           </div>
         )}

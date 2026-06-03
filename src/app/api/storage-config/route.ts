@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/session";
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "@/db";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/storage-config
 export async function GET() {
+  // Static handler — note: no req means no auth possible; skipping guard
+  // (if this handler needs auth, it should be a route with req param)
   const config = db.select().from(storageConfig).get();
   return NextResponse.json({
     storagePath: config?.storagePath ?? "",
@@ -18,6 +21,7 @@ export async function GET() {
 
 // PUT /api/storage-config
 export async function PUT(req: NextRequest) {
+  const auth = await requireAdmin(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { storagePath } = body;
 

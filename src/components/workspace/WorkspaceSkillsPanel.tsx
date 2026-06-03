@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/components/auth/useAuth";
 
 import { useState, useEffect } from "react";
 import { Switch, App } from "antd";
@@ -11,6 +12,7 @@ export default function WorkspaceSkillsPanel({
   workspacePath,
 }: WorkspaceSkillsPanelProps) {
   const [loading, setLoading] = useState(true);
+  const { authFetch } = useAuth();
   const [saving, setSaving] = useState<string | null>(null);
   const [eccEnabled, setEccEnabled] = useState(false);
   const [eccVersion, setEccVersion] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export default function WorkspaceSkillsPanel({
     if (skillId === "ecc") setEccError(null);
     else setHuashuError(null);
     try {
-      const res = await fetch("/api/fs/workspace-skills", {
+      const res = await authFetch("/api/fs/workspace-skills", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { operationLogs } from "@/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 // GET /api/fs/workspace-logs?projectId={workspaceId}&category=xxx&page=1&pageSize=20
 // 注意：复用 operation_logs 表，projectId 参数实际是 workspaceId
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("projectId");
   const category = searchParams.get("category");

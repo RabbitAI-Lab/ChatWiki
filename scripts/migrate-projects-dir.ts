@@ -85,7 +85,7 @@ function migrateDirectory(baseDir: string, accountId: string): ProjectMapping[] 
 }
 
 function main() {
-  console.log("=== ChatWiki Projects Directory Migration ===\n");
+  console.log("=== RabbitDocs Projects Directory Migration ===\n");
 
   const allMappings: Array<{ oldName: string; newId: string; accountContext: string }> = [];
 

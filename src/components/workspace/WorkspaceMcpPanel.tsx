@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import {
   Switch,
   Input,
@@ -74,6 +75,7 @@ export default function WorkspaceMcpPanel({
     mcpServers: {},
     _apiKeys: {},
   });
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -93,8 +95,7 @@ export default function WorkspaceMcpPanel({
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch(
-        `/api/fs/workspace-mcp?dirSegments=${dirSegments.join(",")}`,
+      const res = await authFetch(`/api/fs/workspace-mcp?dirSegments=${dirSegments.join(",")}`,
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -122,7 +123,7 @@ export default function WorkspaceMcpPanel({
     setMcpJson(next);
     setSaving(true);
     try {
-      const res = await fetch("/api/fs/workspace-mcp", {
+      const res = await authFetch("/api/fs/workspace-mcp", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dirSegments, mcpJson: next }),

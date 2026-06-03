@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import {
   readWorkspaceMeta,
   addWorkspaceRepository,
@@ -9,6 +10,7 @@ import { logOperation, extractProjectId } from "@/lib/operation-log";
 
 // GET /api/fs/workspace-repositories?dirSegments=personal,default,workspace,{id}
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegmentsStr = searchParams.get("dirSegments");
   if (!dirSegmentsStr) {
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/fs/workspace-repositories - add a repository
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, repository } = body;
   if (!dirSegments || !repository) {
@@ -45,6 +48,7 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/fs/workspace-repositories - update a repository
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, repoId, updates } = body;
   if (!dirSegments || !repoId || !updates) {
@@ -69,6 +73,7 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/fs/workspace-repositories - remove a repository
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, repoId } = body;
   if (!dirSegments || !repoId) {

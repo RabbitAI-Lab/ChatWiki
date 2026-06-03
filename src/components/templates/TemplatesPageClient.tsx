@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/ui/Spinner";
 
@@ -23,6 +24,7 @@ interface TemplatesPageClientProps {
 export default function TemplatesPageClient({ initialTemplates }: TemplatesPageClientProps) {
   const router = useRouter();
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
 
   // New Template
@@ -32,7 +34,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
 
   const refreshList = async () => {
     setLoading(true);
-    const res = await fetch("/api/templates");
+    const res = await authFetch("/api/templates");
     const data = await res.json();
     setTemplates(data);
     setLoading(false);
@@ -42,7 +44,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
     if (!createForm.name.trim() || creating) return;
     setCreating(true);
     try {
-      const res = await fetch("/api/templates", {
+      const res = await authFetch("/api/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm),
@@ -61,7 +63,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
   const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
     e.stopPropagation();
     if (!confirm(`确认删除模板 "${name}"?`)) return;
-    await fetch(`/api/templates/${id}`, { method: "DELETE" });
+    await authFetch(`/api/templates/${id}`, { method: "DELETE" });
     refreshList();
   };
 

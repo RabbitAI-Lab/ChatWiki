@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/components/auth/useAuth";
 
 import { useState } from "react";
 import { Input, Select, Button } from "antd";
@@ -45,6 +46,7 @@ export default function WorkspaceRepositoryManager({
   onRepositoriesChange,
 }: WorkspaceRepositoryManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const { authFetch } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [syncingRepos, setSyncingRepos] = useState<SyncingState>({});
 
@@ -93,7 +95,7 @@ export default function WorkspaceRepositoryManager({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/fs/workspace-repositories", {
+      const res = await authFetch("/api/fs/workspace-repositories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dirSegments, repository }),
@@ -112,7 +114,7 @@ export default function WorkspaceRepositoryManager({
   const handleDelete = async (repoId: string) => {
     if (!confirm("Are you sure you want to delete this repository?")) return;
 
-    const res = await fetch("/api/fs/workspace-repositories", {
+    const res = await authFetch("/api/fs/workspace-repositories", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dirSegments, repoId }),
@@ -128,7 +130,7 @@ export default function WorkspaceRepositoryManager({
     setSyncingRepos((prev) => ({ ...prev, [repo.id]: true }));
 
     try {
-      const res = await fetch("/api/fs/workspace-repositories/sync", {
+      const res = await authFetch("/api/fs/workspace-repositories/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readWorkspaceMeta, writeWorkspaceMeta } from "@/lib/fs";
 import {
   cloneRepository,
@@ -11,6 +12,7 @@ import type { Repository } from "@/lib/fs";
 // GET /api/fs/workspace-repositories/sync?dirSegments=...&repoId=...
 // 获取单个仓库的同步状态
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegmentsStr = searchParams.get("dirSegments");
   const repoId = searchParams.get("repoId");
@@ -47,6 +49,7 @@ export async function GET(req: NextRequest) {
 // POST /api/fs/workspace-repositories/sync
 // 执行同步操作 (clone 或 pull)
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, repoId, action } = body;
 

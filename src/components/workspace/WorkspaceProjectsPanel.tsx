@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/components/auth/useAuth";
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,7 @@ export default function WorkspaceProjectsPanel({
 }: WorkspaceProjectsPanelProps) {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectMeta[]>(initialProjects);
+  const { authFetch } = useAuth();
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [availableProjects, setAvailableProjects] = useState<ProjectMeta[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -76,7 +78,7 @@ export default function WorkspaceProjectsPanel({
   const handleBatchAdd = async () => {
     setAdding(true);
     for (const projectId of selectedIds) {
-      await fetch("/api/fs/workspaces/projects", {
+      await authFetch("/api/fs/workspaces/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -93,7 +95,7 @@ export default function WorkspaceProjectsPanel({
   };
 
   const handleRemoveProject = async (projectId: string) => {
-    await fetch("/api/fs/workspaces/projects", {
+    await authFetch("/api/fs/workspaces/projects", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -108,7 +110,7 @@ export default function WorkspaceProjectsPanel({
   };
 
   const handleDeleteWorkspace = async () => {
-    await fetch("/api/fs/workspaces", {
+    await authFetch("/api/fs/workspaces", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: accountType, accountId, id: workspaceId }),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readProjectMeta } from "@/lib/fs";
 import { cancelGitNexus, runGitNexus } from "@/lib/gitnexus-service";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 // Body: { dirSegments: string[], action: "clean" | "cancel" }
 // 行为：清理或取消项目根目录的 GitNexus 任务。不再针对单个仓库。
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, action } = body;
 

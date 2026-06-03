@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readProjectMeta } from "@/lib/fs";
 import { runGitNexus } from "@/lib/gitnexus-service";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 // 行为：在项目根目录（data/personal/default/projects/{projectId}）上启动 gitnexus analyze。
 //       --force 与 --skip-git 由 API 强制启用，不再由前端传入。
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments } = body;
 

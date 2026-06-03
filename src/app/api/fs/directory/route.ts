@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import path from "path";
 import fs from "fs";
 import { createDir, deleteDir, renameDir, getDataRoot } from "@/lib/fs";
 
 // POST /api/fs/directory - create a directory
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { path: dirPath } = body;
   if (!dirPath || typeof dirPath !== "string") {
@@ -18,6 +20,7 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/fs/directory - rename a directory
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { path: dirPath, newName } = body;
   if (!dirPath || !newName || typeof dirPath !== "string" || typeof newName !== "string") {
@@ -36,6 +39,7 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/fs/directory - delete a directory
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { path: dirPath } = body;
   if (!dirPath || typeof dirPath !== "string") {

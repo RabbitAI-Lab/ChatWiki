@@ -22,157 +22,157 @@ export async function seed() {
   if (existingTemplates.length === 0) {
     const templateData = [
       {
-        name: "会议纪要",
-        description: "会议记录标准模板",
+        name: "Meeting Minutes",
+        description: "Standard meeting notes template",
         icon: "📋",
-        content: `# 会议纪要
+        content: `# Meeting Minutes
 
-## 会议信息
-- **日期**：
-- **参会人员**：
-- **主持人**：
+## Meeting Info
+- **Date**:
+- **Attendees**:
+- **Facilitator**:
 
-## 会议议程
+## Agenda
 1. 
 2. 
 3. 
 
-## 讨论内容
+## Discussion
 
-### 议题一
+### Topic 1
 - 
 
-### 议题二
+### Topic 2
 - 
 
-## 决议事项
+## Decisions
 - 
 
-## 待办事项
-- [ ] 待办项
+## Action Items
+- [ ] Todo item
 `,
-        agentPrompt: "你是一个专业的会议记录助手。请根据用户提供的会议讨论内容，整理成结构清晰的会议纪要。包含：会议信息、议程、讨论要点、决议事项、待办事项。语言简洁正式。使用 Markdown 格式输出。",
+        agentPrompt: "You are a professional meeting notes assistant. Based on the meeting discussion content provided by the user, organize it into well-structured meeting minutes. Include: meeting info, agenda, discussion points, decisions, and action items. Use concise and formal language. Output in Markdown format.",
       },
       {
-        name: "项目提案",
-        description: "项目提案文档模板",
+        name: "Project Proposal",
+        description: "Project proposal document template",
         icon: "📄",
-        content: `# 项目提案
+        content: `# Project Proposal
 
-## 项目概述
+## Overview
 -
 
-## 背景与目标
+## Background & Goals
 -
 
-## 范围与交付物
+## Scope & Deliverables
 -
 
-## 时间线
+## Timeline
 -
 
-## 资源需求
+## Resource Requirements
 -
 
-## 风险评估
+## Risk Assessment
 -
 `,
-        agentPrompt: "你是一个项目管理顾问。请帮助用户撰写完整的项目提案文档。确保包含项目概述、背景与目标、范围与交付物、时间线、资源需求、风险评估等章节。提供专业建议。使用 Markdown 格式输出。",
+        agentPrompt: "You are a project management consultant. Help users write complete project proposal documents. Ensure the document includes overview, background & goals, scope & deliverables, timeline, resource requirements, and risk assessment sections. Provide professional advice. Output in Markdown format.",
       },
       {
-        name: "产品需求",
-        description: "产品需求文档(PRD)模板",
+        name: "Product Requirements",
+        description: "Product Requirements Document (PRD) template",
         icon: "📝",
-        content: `# 产品需求文档
+        content: `# Product Requirements Document
 
-## 概述
+## Overview
 -
 
-## 用户故事
+## User Stories
 -
 
-## 功能需求
+## Functional Requirements
 -
 
-## 非功能需求
+## Non-Functional Requirements
 -
 
-## 验收标准
+## Acceptance Criteria
 -
 
-## 原型/设计稿
+## Prototypes / Designs
 -
 `,
-        agentPrompt: "你是一个产品经理助手。请帮助用户编写产品需求文档(PRD)。确保文档包含概述、用户故事、功能需求、非功能需求、验收标准等部分。以用户价值为导向思考。使用 Markdown 格式输出。",
+        agentPrompt: "You are a product manager assistant. Help users write Product Requirements Documents (PRD). Ensure the document includes overview, user stories, functional requirements, non-functional requirements, and acceptance criteria. Think with a user-value-oriented mindset. Output in Markdown format.",
       },
       {
-        name: "技术方案",
-        description: "技术方案设计模板",
+        name: "Technical Design",
+        description: "Technical design document template",
         icon: "⚙️",
-        content: `# 技术方案
+        content: `# Technical Design
 
-## 背景
+## Background
 -
 
-## 架构设计
+## Architecture Design
 -
 
-## 技术选型
+## Technology Stack
 -
 
-## 接口设计
+## API Design
 -
 
-## 数据库设计
+## Database Design
 -
 
-## 部署方案
+## Deployment Plan
 -
 `,
-        agentPrompt: "你是一个资深架构师。请帮助用户撰写技术方案设计文档。确保包含背景分析、架构设计、技术选型理由、接口设计、数据库设计、部署方案等内容。注重可扩展性和可维护性。使用 Markdown 格式输出。",
+        agentPrompt: "You are a senior architect. Help users write technical design documents. Ensure the document includes background analysis, architecture design, technology stack rationale, API design, database design, and deployment plan. Focus on scalability and maintainability. Output in Markdown format.",
       },
       {
-        name: "博客文章",
-        description: "博客文章模板",
+        name: "Blog Post",
+        description: "Blog post template",
         icon: "✍️",
-        content: `# 文章标题
+        content: `# Blog Title
 
-## 导语
+## Introduction
 -
 
-## 正文
+## Main Content
 -
 
-## 总结
+## Summary
 -
 `,
-        agentPrompt: "你是一个内容创作助手。请帮助用户撰写高质量的博客文章。注重标题吸引力、内容深度、可读性和 SEO 优化。使用清晰的段落结构和适当的 Markdown 格式。",
+        agentPrompt: "You are a content creation assistant. Help users write high-quality blog posts. Focus on headline appeal, content depth, readability, and SEO optimization. Use clear paragraph structure and appropriate Markdown formatting.",
       },
       {
-        name: "发布说明",
-        description: "版本发布说明模板",
+        name: "Release Notes",
+        description: "Version release notes template",
         icon: "🚀",
-        content: `# 发布说明
+        content: `# Release Notes
 
-## 版本号
+## Version
 -
 
-## 发布日期
+## Release Date
 -
 
-## 新增功能
+## New Features
 -
 
-## 修复问题
+## Bug Fixes
 -
 
-## 已知问题
+## Known Issues
 -
 
-## 升级指南
+## Upgrade Guide
 -
 `,
-        agentPrompt: "你是一个技术文档编写助手。请帮助用户生成规范的版本发布说明。确保包含版本号、发布日期、新增功能、修复问题、已知问题、升级指南等标准章节。使用 Markdown 格式输出。",
+        agentPrompt: "You are a technical documentation assistant. Help users generate standardized release notes. Ensure the document includes version number, release date, new features, bug fixes, known issues, and upgrade guide sections. Output in Markdown format.",
       },
     ];
 
@@ -191,11 +191,11 @@ export async function seed() {
     const now = new Date().toISOString();
     db.insert(systemPrompts).values({
       name: "Wiki",
-      content: `如果涉及到Wiki的增删改查操作，需要使用ChatWiki MCP进行。
-使用ChatWiki MCP前，先检查ChatWiki MCP是否已安装。
-MCP配置是:
+      content: `For Wiki CRUD operations, use the RabbitDocs MCP.
+Before using the RabbitDocs MCP, check if it is already installed.
+MCP configuration:
 {
-  "chatwiki": {
+  "rabbitdocs": {
     "type": "http",
     "url": "http://127.0.0.1:4001/mcp"
   }

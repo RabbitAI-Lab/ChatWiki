@@ -6,12 +6,13 @@ import { registerProjectTools } from "./tools/project";
 import { registerFileTools } from "./tools/file";
 import { registerDirectoryTools } from "./tools/directory";
 import { registerTemplateTools } from "./tools/template";
+import { validateApiKey } from "@/lib/auth/api-key";
 
 const PORT = parseInt(process.env.MCP_PORT || "4001");
 const transports = new Map<string, NodeStreamableHTTPServerTransport>();
 
 function createMcpServer(): McpServer {
-  const server = new McpServer({ name: "chatwiki-mcp", version: "1.0.0" });
+  const server = new McpServer({ name: "rabbitdocs-mcp", version: "1.0.0" });
   registerProjectTools(server);
   registerFileTools(server);
   registerDirectoryTools(server);
@@ -24,6 +25,18 @@ export function startMcpServer() {
 
   // POST /mcp — 处理 MCP 请求（新 session 或已有 session）
   app.post("/mcp", async (req, res) => {
+    // API Key 认证（可选：如果提供了 Bearer token 则验证）
+    const authHeader = req.headers["authorization"] as string | undefined;
+    if (authHeader?.startsWith("Bearer atm_")) {
+      const key = authHeader.slice(7);
+      const validated = validateApiKey(key);
+      if (!validated) {
+        res.status(401).json({ error: "Invalid API key" });
+        return;
+      }
+      // 认证通过，继续处理
+    }
+
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     let transport: NodeStreamableHTTPServerTransport;
 
@@ -69,7 +82,7 @@ export function startMcpServer() {
 
   app.listen(PORT, "127.0.0.1", () => {
     console.log(
-      `[MCP] ChatWiki MCP Server running on http://127.0.0.1:${PORT}/mcp`
+      `[MCP] RabbitDocs MCP Server running on http://127.0.0.1:${PORT}/mcp`
     );
   });
 }

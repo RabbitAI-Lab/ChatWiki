@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { App } from "antd";
 import type { TreeNode } from "@/lib/tree";
 import { stripTreePrefix, computeDefaultDirName, computeDefaultFileName, findChildren, findNodeByPath, renameNodeInTree, insertNode } from "@/lib/tree";
@@ -25,6 +26,7 @@ export function useProjectFileTree({
   onFileCreated,
 }: UseProjectFileTreeOptions) {
   const [tree, setTree] = useState<TreeNode[]>(initialTreeProp ?? []);
+  const { authFetch } = useAuth();
   const [treeLoading, setTreeLoading] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
@@ -36,7 +38,7 @@ export function useProjectFileTree({
     setTreeLoading(true);
     const prefix = `personal/default/projects/${pid}/docs`;
     try {
-      const res = await fetch(`/api/fs/tree?path=${prefix}`);
+      const res = await authFetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();
       setTree(Array.isArray(data) ? stripTreePrefix(data, prefix) : []);
     } catch {
@@ -53,7 +55,7 @@ export function useProjectFileTree({
     const fullPath = parentPath
       ? `${projectPath}/${parentPath}/${defaultName}`
       : `${projectPath}/${defaultName}`;
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: fullPath, content: `# ${baseName}\n\n` }),
@@ -80,7 +82,7 @@ export function useProjectFileTree({
     const fullPath = parentPath
       ? `${projectPath}/${parentPath}/${defaultName}`
       : `${projectPath}/${defaultName}`;
-    await fetch("/api/fs/directory", {
+    await authFetch("/api/fs/directory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: fullPath }),
@@ -120,13 +122,13 @@ export function useProjectFileTree({
 
     let res: Response;
     if (node.type === "file") {
-      res = await fetch("/api/fs/document", {
+      res = await authFetch("/api/fs/document", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: `${projectPath}/${currentPath}`, newTitle: finalName }),
       });
     } else {
-      res = await fetch("/api/fs/directory", {
+      res = await authFetch("/api/fs/directory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: `${projectPath}/${currentPath}`, newName: finalName }),
@@ -167,7 +169,7 @@ export function useProjectFileTree({
   }, [tree]);
 
   const handleDeleteDir = useCallback(async (dirPath: string) => {
-    await fetch("/api/fs/directory", {
+    await authFetch("/api/fs/directory", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${projectPath}/${dirPath}` }),
@@ -176,7 +178,7 @@ export function useProjectFileTree({
   }, [projectPath, refreshTree]);
 
   const handleDeleteFile = useCallback(async (filePath: string) => {
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${projectPath}/${filePath}` }),

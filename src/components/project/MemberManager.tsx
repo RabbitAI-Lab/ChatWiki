@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Input, Button, Modal } from "antd";
 import type { ProjectMember } from "@/lib/fs";
 
@@ -25,6 +26,7 @@ export default function MemberManager({
   onMembersChange,
 }: MemberManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const { authFetch } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [formAccountName, setFormAccountName] = useState("");
 
@@ -50,7 +52,7 @@ export default function MemberManager({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/fs/project-members", {
+      const res = await authFetch("/api/fs/project-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dirSegments, member }),
@@ -69,7 +71,7 @@ export default function MemberManager({
   const handleDelete = async (memberId: string) => {
     if (!confirm("Are you sure you want to remove this member?")) return;
 
-    const res = await fetch("/api/fs/project-members", {
+    const res = await authFetch("/api/fs/project-members", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dirSegments, memberId }),
@@ -94,7 +96,7 @@ export default function MemberManager({
 
     setEditSubmitting(true);
     try {
-      const res = await fetch("/api/fs/project-members", {
+      const res = await authFetch("/api/fs/project-members", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

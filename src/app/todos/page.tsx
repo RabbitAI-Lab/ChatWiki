@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal, Input, Form, App } from "antd";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface Todo {
   id: number;
@@ -14,6 +15,7 @@ interface Todo {
 
 export default function TodosPage() {
   const { message } = App.useApp();
+  const { user, isLoading: authLoading, authFetch } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -23,18 +25,39 @@ export default function TodosPage() {
   const [form] = Form.useForm();
 
   const fetchTodos = () => {
-    fetch("/api/todos")
-      .then((res) => res.json())
-      .then((data: Todo[]) => {
-        setTodos(data);
+    if (!user) return;
+    authFetch("/api/todos")
+      .then((res) => {
+        if (!res.ok) {
+          setTodos([]);
+          setLoading(false);
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTodos(data);
+        } else {
+          setTodos([]);
+        }
         setLoading(false);
         window.dispatchEvent(new Event("todos-changed"));
+      })
+      .catch(() => {
+        setTodos([]);
+        setLoading(false);
       });
   };
 
   useEffect(() => {
+    if (authLoading || !user) {
+      setTodos([]);
+      setLoading(false);
+      return;
+    }
     fetchTodos();
-  }, []);
+  }, [authLoading, user]);
 
   const handleSave = async () => {
     try {
@@ -46,7 +69,7 @@ export default function TodosPage() {
 
       if (editingTodo) {
         // Edit mode
-        const res = await fetch("/api/todos", {
+        const res = await authFetch("/api/todos", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editingTodo.id, title, description }),
@@ -63,7 +86,7 @@ export default function TodosPage() {
         }
       } else {
         // Add mode
-        const res = await fetch("/api/todos", {
+        const res = await authFetch("/api/todos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, description }),
@@ -85,7 +108,7 @@ export default function TodosPage() {
   };
 
   const handleToggle = async (todo: Todo) => {
-    const res = await fetch("/api/todos", {
+    const res = await authFetch("/api/todos", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: todo.id, completed: !todo.completed }),
@@ -94,7 +117,7 @@ export default function TodosPage() {
   };
 
   const handleDelete = async (id: number) => {
-    await fetch("/api/todos", {
+    await authFetch("/api/todos", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),

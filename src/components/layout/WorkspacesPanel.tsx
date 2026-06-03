@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface WorkspaceMeta {
   id: string;
@@ -28,6 +29,7 @@ export default function WorkspacesPanel() {
   const router = useRouter();
   const pathname = usePathname();
   const { collapsed } = useSidebar();
+  const { user, isLoading, authFetch } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspaceMeta[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -40,14 +42,24 @@ export default function WorkspacesPanel() {
   const dragNodeRef = useRef<HTMLDivElement | null>(null);
 
   const fetchWorkspaces = useCallback(async () => {
-    const res = await fetch("/api/fs/workspaces?type=personal&accountId=default");
-    const data = await res.json();
-    setWorkspaces(data);
-  }, []);
+    if (!user) return;
+    try {
+      const res = await authFetch("/api/fs/workspaces?type=personal&accountId=default");
+      if (!res.ok) return;
+      const data = await res.json();
+      setWorkspaces(Array.isArray(data) ? data : []);
+    } catch {
+      setWorkspaces([]);
+    }
+  }, [user, authFetch]);
 
   useEffect(() => {
+    if (isLoading || !user) {
+      setWorkspaces([]);
+      return;
+    }
     fetchWorkspaces();
-  }, [fetchWorkspaces, pathname]);
+  }, [isLoading, user, fetchWorkspaces, pathname]);
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -59,7 +71,7 @@ export default function WorkspacesPanel() {
   const handleRename = async (id: string) => {
     const trimmed = editName.trim();
     if (trimmed) {
-      await fetch("/api/fs/workspaces", {
+      await authFetch("/api/fs/workspaces", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "personal", accountId: "default", id, name: trimmed }),
@@ -72,11 +84,12 @@ export default function WorkspacesPanel() {
 
   const handleCreateWorkspace = async () => {
     const name = computeDefaultName(workspaces);
-    const res = await fetch("/api/fs/workspaces", {
+    const res = await authFetch("/api/fs/workspaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "personal", accountId: "default", name }),
     });
+    if (!res.ok) return;
     const meta = await res.json();
     await fetchWorkspaces();
     setEditingId(meta.id);
@@ -140,7 +153,7 @@ export default function WorkspacesPanel() {
     setWorkspaces(withoutDrag.map((w, i) => ({ ...w, sortOrder: i })));
 
     // Persist
-    await fetch("/api/fs/workspaces", {
+    await authFetch("/api/fs/workspaces", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "personal", accountId: "default", orders }),

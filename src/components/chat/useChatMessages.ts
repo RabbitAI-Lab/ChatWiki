@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { Message } from "./chat-workspace-ref";
 import type { TemplateItem } from "./useChatSelectors";
@@ -22,6 +23,7 @@ function updateMessageById(
  * 提取自 handleSend / handleRegenerate 的重复 SSE 解析逻辑。
  */
 async function streamAiResponse(params: {
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
   tempAiMsgId: number;
   chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -31,6 +33,7 @@ async function streamAiResponse(params: {
   onToolCall?: (toolCall: { toolName: string; args: Record<string, unknown> }) => void;
 }): Promise<{ aiContent: string; aiThinking: string; aiSignature: string | undefined; hasError: boolean }> {
   const {
+    authFetch,
     tempAiMsgId,
     chatMessages,
     setMessages,
@@ -49,7 +52,7 @@ async function streamAiResponse(params: {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const res = await fetch("/api/chat/completions", {
+    const res = await authFetch("/api/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -168,6 +171,7 @@ export function useChatMessages({
   const creatingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [messages, setMessages] = useState<Message[]>(initialMessages || []);
+  const { authFetch } = useAuth();
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [mentionedFiles, setMentionedFiles] = useState<string[]>([]);
@@ -226,7 +230,7 @@ export function useChatMessages({
       }
       creatingRef.current = true;
       try {
-        const chatRes = await fetch("/api/chats", {
+        const chatRes = await authFetch("/api/chats", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -262,7 +266,7 @@ export function useChatMessages({
 
     // 3. Save user message to DB
     try {
-      const userRes = await fetch(`/api/chats/${currentChatId}/messages`, {
+      const userRes = await authFetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: "user", content: trimmed }),
@@ -309,6 +313,7 @@ export function useChatMessages({
     ];
 
     const result = await streamAiResponse({
+      authFetch,
       tempAiMsgId: tempAiMsg.id,
       chatMessages: allMessages,
       setMessages,
@@ -325,7 +330,7 @@ export function useChatMessages({
       const finalSignature = result.aiSignature ?? null;
       // 检查当前消息是否被标记为 isError
       const isErrorMessage = result.hasError;
-      const aiRes = await fetch(`/api/chats/${currentChatId}/messages`, {
+      const aiRes = await authFetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -374,7 +379,7 @@ export function useChatMessages({
 
     setMessages((prev) => prev.filter((m) => m.id !== aiMsg.id));
 
-    fetch(`/api/chats/${effectiveChatId}/messages/${aiMsg.id}`, {
+    authFetch(`/api/chats/${effectiveChatId}/messages/${aiMsg.id}`, {
       method: "DELETE",
     }).catch(() => {});
 
@@ -407,6 +412,7 @@ export function useChatMessages({
     ];
 
     const result = await streamAiResponse({
+      authFetch,
       tempAiMsgId: tempAiMsg.id,
       chatMessages: historyMsgs,
       setMessages,
@@ -435,7 +441,7 @@ export function useChatMessages({
       );
 
       try {
-        const aiRes = await fetch(`/api/chats/${effectiveChatId}/messages`, {
+        const aiRes = await authFetch(`/api/chats/${effectiveChatId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface EditorToolbarProps {
   docPath: string;
@@ -17,11 +18,12 @@ export default function EditorToolbar({
   onSave,
   pathSegments,
 }: EditorToolbarProps) {
+  const { authFetch } = useAuth();
   const router = useRouter();
 
   const handleDelete = async () => {
     if (!confirm(`确认删除文档 "${title}"?`)) return;
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: docPath }),
@@ -30,7 +32,7 @@ export default function EditorToolbar({
   };
 
   const handlePublish = async () => {
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: docPath, content: "__PUBLISH__" }),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 
 export interface ModelItem {
   id: number;
@@ -42,6 +43,7 @@ export function useChatSelectors({
   effectiveChatId,
 }: UseChatSelectorsOptions) {
   const [models, setModels] = useState<ModelItem[]>([]);
+  const { authFetch } = useAuth();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -57,7 +59,7 @@ export function useChatSelectors({
   // Persist model/template selection to DB (only when chat exists)
   const updateChatSelection = (field: string, value: number | undefined) => {
     if (!effectiveChatId) return;
-    fetch(`/api/chats/${effectiveChatId}`, {
+    authFetch(`/api/chats/${effectiveChatId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value ?? null }),
@@ -73,7 +75,7 @@ export function useChatSelectors({
     if (id) setSelectedWorkspace(undefined);
     setSelectedProject(id);
     if (!effectiveChatId) return;
-    fetch(`/api/chats/${effectiveChatId}`, {
+    authFetch(`/api/chats/${effectiveChatId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ projectId: id ?? null, workspaceId: null }),
@@ -84,7 +86,7 @@ export function useChatSelectors({
     if (id) setSelectedProject(undefined);
     setSelectedWorkspace(id);
     if (!effectiveChatId) return;
-    fetch(`/api/chats/${effectiveChatId}`, {
+    authFetch(`/api/chats/${effectiveChatId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId: id ?? null, projectId: null }),
@@ -102,7 +104,7 @@ export function useChatSelectors({
   };
 
   useEffect(() => {
-    fetch("/api/models")
+    authFetch("/api/models")
       .then((r) => r.json())
       .then((data) => {
         setModels(data);
@@ -113,15 +115,15 @@ export function useChatSelectors({
           }
         }
       });
-    fetch("/api/fs/projects?type=personal&accountId=default")
+    authFetch("/api/fs/projects?type=personal&accountId=default")
       .then((r) => r.json())
       .then((data) => setProjects(Array.isArray(data) ? data : []));
-    fetch("/api/fs/workspaces?type=personal&accountId=default")
+    authFetch("/api/fs/workspaces?type=personal&accountId=default")
       .then((r) => r.json())
       .then((data) => setWorkspaces(
         Array.isArray(data) ? data.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })) : []
       ));
-    fetch("/api/templates")
+    authFetch("/api/templates")
       .then((r) => r.json())
       .then((data) => {
         setTemplates(data);

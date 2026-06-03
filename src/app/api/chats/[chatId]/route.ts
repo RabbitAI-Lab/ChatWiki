@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { chats } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -19,6 +20,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
   const body = await req.json();
   const { title, modelId, templateId, projectId, workspaceId } = body;

@@ -1,4 +1,5 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { streamModelResponse } from "@/lib/model-service";
 import type { ChatCompletionRequest } from "@/lib/types";
 import { ModelError } from "@/lib/types";
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 // POST /api/chat/completions — SSE streaming endpoint
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body: Partial<ChatCompletionRequest> = await req.json();
   const { modelId, messages, systemPrompt, projectId } = body;
 

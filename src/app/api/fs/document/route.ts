@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import {
   readDocument,
   writeDocument,
@@ -83,6 +84,7 @@ function parseDocumentMeta(segments: string[]) {
 
 // GET /api/fs/document?path=personal/default/my-project/doc-title
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const filePath = searchParams.get("path") || "";
 
@@ -102,6 +104,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/fs/document - create/update document
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { path: filePath, content } = body;
 
@@ -131,6 +134,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/fs/document - delete document
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { path: filePath } = body;
 
@@ -170,6 +174,7 @@ export async function DELETE(req: NextRequest) {
 
 // PATCH /api/fs/document - rename document
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { path: filePath, newTitle } = body;
 

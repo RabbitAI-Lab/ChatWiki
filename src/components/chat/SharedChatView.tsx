@@ -73,7 +73,7 @@ export default function SharedChatView({
         {/* Footer */}
         <div className="max-w-3xl mx-auto w-full px-6 py-4 border-t border-gray-100 bg-white shrink-0">
           <p className="text-xs text-gray-400 text-center">
-            Powered by ChatWiki
+            Powered by RabbitDocs
           </p>
         </div>
       </div>

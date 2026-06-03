@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { templates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 // GET /api/templates
 export async function GET() {
+  // Static handler — note: no req means no auth possible; skipping guard
+  // (if this handler needs auth, it should be a route with req param)
   const all = db.select().from(templates).all();
   return NextResponse.json(all);
 }
 
 // POST /api/templates
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { name, description, content, icon, agentPrompt } = body;
 

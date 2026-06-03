@@ -90,10 +90,10 @@ export default function SidebarShell({ children, initialWidth, initialCollapsed 
         {/* Logo + collapse toggle */}
         <div className={`border-b border-gray-100 flex items-center justify-between ${collapsed ? "px-0 py-2.5" : "px-3 py-3"}`}>
           {collapsed ? (
-            <span className="text-sm font-bold text-gray-800 mx-auto cursor-pointer select-none" onClick={toggleCollapsed}>CW</span>
+            <span className="text-sm font-bold text-gray-800 mx-auto cursor-pointer select-none" onClick={toggleCollapsed}>🐰</span>
           ) : (
             <div>
-              <h1 className="text-lg font-bold text-gray-800">ChatWiki</h1>
+              <h1 className="text-lg font-bold text-gray-800">Rabbit Docs</h1>
               <p className="text-xs text-gray-400 mt-0.5">Document Management & Publishing</p>
             </div>
           )}

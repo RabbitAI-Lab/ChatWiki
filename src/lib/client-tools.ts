@@ -1,7 +1,7 @@
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod/v4";
 
-export const CLIENT_TOOL_PREFIX = "mcp__chatwiki_client__";
+export const CLIENT_TOOL_PREFIX = "mcp__rabbitdocs_client__";
 
 const refreshFileTree = tool(
   "refresh_file_tree",
@@ -44,7 +44,7 @@ const previewHtml = tool(
 
 export function createClientToolsMcpServer() {
   return createSdkMcpServer({
-    name: "chatwiki_client",
+    name: "rabbitdocs_client",
     version: "1.0.0",
     tools: [refreshFileTree, previewHtml],
   });

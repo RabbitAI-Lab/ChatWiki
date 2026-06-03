@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Modal } from "antd";
 import type { SandboxStatus } from "@/lib/fs";
 
@@ -16,13 +17,14 @@ export default function SandboxManager({
   onSandboxChange,
 }: SandboxManagerProps) {
   const [loading, setLoading] = useState(false);
+  const { authFetch } = useAuth();
 
   const dirSegments = projectPath.split(",");
 
   const handleRequest = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/fs/project-sandbox", {
+      const res = await authFetch("/api/fs/project-sandbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -45,7 +47,7 @@ export default function SandboxManager({
   const doRelease = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/fs/project-sandbox", {
+      const res = await authFetch("/api/fs/project-sandbox", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -22,6 +23,7 @@ const COMMAND_TIMEOUT = 120_000;
 
 // GET /api/fs/project-skills - 获取项目 Skills 状态
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegments = searchParams.get("dirSegments");
 
@@ -62,6 +64,7 @@ export async function GET(req: NextRequest) {
 
 // PUT /api/fs/project-skills - 启用/禁用 Skill
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, skillId, enabled } = body as {
     dirSegments: string[];

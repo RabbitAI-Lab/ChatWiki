@@ -170,3 +170,98 @@ export const todos = sqliteTable("todos", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+// ── 认证相关表 ──
+
+// users: 用户账号
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name"),
+  emailVerified: integer("email_verified").notNull().default(0),
+  accountType: text("account_type").notNull().default("personal"),
+  enterpriseId: text("enterprise_id"),
+  positions: text("positions"),  // JSON string
+  satokenLoginId: text("satoken_login_id").unique(),
+  disabled: integer("disabled").notNull().default(0),  // 0=启用, 1=禁用（软删除）
+  role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// system_settings: 系统设置（key-value）
+export const systemSettings = sqliteTable("system_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// invite_codes: 邀请码
+export const inviteCodes = sqliteTable("invite_codes", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  createdById: text("created_by_id").references(() => users.id),
+  usedById: text("used_by_id").unique().references(() => users.id),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+// email_verifications: 邮箱验证令牌
+export const emailVerifications = sqliteTable("email_verifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  code: text("code").unique(), // 6 位数字验证码（可选，仅在邮件中发送时存在）
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// passkeys: WebAuthn 凭证
+export const passkeys = sqliteTable("passkeys", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  credentialId: text("credential_id").notNull().unique(),
+  publicKey: text("public_key").notNull(),
+  signCount: integer("sign_count").notNull().default(0),
+  transports: text("transports"),  // JSON string
+  deviceName: text("device_name"),
+  aaguid: text("aaguid"),
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+});
+
+// cli_authorization_codes: CLI OAuth 授权码
+export const cliAuthorizationCodes = sqliteTable("cli_authorization_codes", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  codeChallenge: text("code_challenge").notNull(),
+  codeChallengeMethod: text("code_challenge_method").notNull().default("S256"),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  redirectUri: text("redirect_uri").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// cli_tokens: CLI 长期令牌
+export const cliTokens = sqliteTable("cli_tokens", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().default("CLI Token"),
+  token: text("token").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastUsedAt: text("last_used_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+// api_keys: API 密钥
+export const apiKeys = sqliteTable("api_keys", {
+  id: text("id").primaryKey(),
+  name: text("name"),
+  keyField: text("key_field").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  isSystem: integer("is_system").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+});

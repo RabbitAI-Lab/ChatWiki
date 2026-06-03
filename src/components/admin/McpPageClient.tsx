@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Button, Input, App, Typography, Space } from "antd";
 import { SaveOutlined, CloudDownloadOutlined } from "@ant-design/icons";
 
@@ -27,29 +28,30 @@ export default function McpPageClient({ initialConfig }: Props) {
   const [configJson, setConfigJson] = useState(
     initialConfig?.configJson || "{}"
   );
+  const { authFetch } = useAuth();
   const [updatedAt, setUpdatedAt] = useState(initialConfig?.updatedAt || null);
   const [isSaving, setIsSaving] = useState(false);
   const { message } = App.useApp();
 
-  const handleInstallChatWiki = () => {
+  const handleInstallRabbitDocs = () => {
     try {
       const parsed = JSON.parse(configJson);
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         message.error("Current JSON is not a valid object, please fix first");
         return;
       }
-      parsed.chatwiki = { type: "http", url: "http://127.0.0.1:4001/mcp" };
+      parsed.rabbitdocs = { type: "http", url: "http://127.0.0.1:4001/mcp" };
       setConfigJson(JSON.stringify(parsed, null, 2));
-      message.success("ChatWiki MCP server config added, click Save to apply");
+      message.success("RabbitDocs MCP server config added, click Save to apply");
     } catch {
       setConfigJson(
         JSON.stringify(
-          { chatwiki: { type: "http", url: "http://127.0.0.1:4001/mcp" } },
+          { rabbitdocs: { type: "http", url: "http://127.0.0.1:4001/mcp" } },
           null,
           2
         )
       );
-      message.success("ChatWiki MCP server config added, click Save to apply");
+      message.success("RabbitDocs MCP server config added, click Save to apply");
     }
   };
 
@@ -74,7 +76,7 @@ export default function McpPageClient({ initialConfig }: Props) {
 
     setIsSaving(true);
     try {
-      const res = await fetch("/api/mcp-config", {
+      const res = await authFetch("/api/mcp-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ configJson }),
@@ -108,9 +110,9 @@ export default function McpPageClient({ initialConfig }: Props) {
         <Space>
           <Button
             icon={<CloudDownloadOutlined />}
-            onClick={handleInstallChatWiki}
+            onClick={handleInstallRabbitDocs}
           >
-            Install ChatWiki MCP
+            Install RabbitDocs MCP
           </Button>
           <Button
             type="primary"

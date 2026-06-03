@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Input, Select, Button } from "antd";
 import type { Repository, RepositoryCredentials } from "@/lib/fs";
 import RepositorySyncStatus from "./RepositorySyncStatus";
@@ -46,6 +47,7 @@ export default function RepositoryManager({
   onRepositoriesChange,
 }: RepositoryManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const { authFetch } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [syncingRepos, setSyncingRepos] = useState<SyncingState>({});
 
@@ -92,7 +94,7 @@ export default function RepositoryManager({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/fs/project-repositories", {
+      const res = await authFetch("/api/fs/project-repositories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dirSegments, repository }),
@@ -111,7 +113,7 @@ export default function RepositoryManager({
   const handleDelete = async (repoId: string) => {
     if (!confirm("Are you sure you want to delete this repository?")) return;
 
-    const res = await fetch("/api/fs/project-repositories", {
+    const res = await authFetch("/api/fs/project-repositories", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dirSegments, repoId }),
@@ -128,7 +130,7 @@ export default function RepositoryManager({
     setSyncingRepos((prev) => ({ ...prev, [repo.id]: true }));
 
     try {
-      const res = await fetch("/api/fs/project-repositories/sync", {
+      const res = await authFetch("/api/fs/project-repositories/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

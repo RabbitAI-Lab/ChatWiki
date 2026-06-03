@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/components/auth/useAuth";
 
 import { useState } from "react";
 import { Modal } from "antd";
@@ -16,6 +17,7 @@ export default function WorkspaceSandboxManager({
   onSandboxChange,
 }: WorkspaceSandboxManagerProps) {
   const [loading, setLoading] = useState(false);
+  const { authFetch } = useAuth();
 
   // 修复 bug: 实际是 "/" 分隔
   const dirSegments = workspacePath.split("/").filter(Boolean);
@@ -23,7 +25,7 @@ export default function WorkspaceSandboxManager({
   const handleRequest = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/fs/workspace-sandbox", {
+      const res = await authFetch("/api/fs/workspace-sandbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -46,7 +48,7 @@ export default function WorkspaceSandboxManager({
   const doRelease = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/fs/workspace-sandbox", {
+      const res = await authFetch("/api/fs/workspace-sandbox", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

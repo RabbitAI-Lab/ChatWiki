@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface ProjectMeta {
   id: string;
@@ -28,6 +29,7 @@ export default function ProjectsPanel() {
   const router = useRouter();
   const pathname = usePathname();
   const { collapsed } = useSidebar();
+  const { user, isLoading, authFetch } = useAuth();
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -39,14 +41,24 @@ export default function ProjectsPanel() {
   const [dropPosition, setDropPosition] = useState<"before" | "after">("before");
 
   const fetchProjects = useCallback(async () => {
-    const res = await fetch("/api/fs/projects?type=personal&accountId=default");
-    const data = await res.json();
-    setProjects(data);
-  }, []);
+    if (!user) return;
+    try {
+      const res = await authFetch("/api/fs/projects?type=personal&accountId=default");
+      if (!res.ok) return;
+      const data = await res.json();
+      setProjects(Array.isArray(data) ? data : []);
+    } catch {
+      setProjects([]);
+    }
+  }, [user, authFetch]);
 
   useEffect(() => {
+    if (isLoading || !user) {
+      setProjects([]);
+      return;
+    }
     fetchProjects();
-  }, [fetchProjects, pathname]);
+  }, [isLoading, user, fetchProjects, pathname]);
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -58,7 +70,7 @@ export default function ProjectsPanel() {
   const handleRename = async (id: string) => {
     const trimmed = editName.trim();
     if (trimmed) {
-      await fetch("/api/fs/projects", {
+      await authFetch("/api/fs/projects", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "personal", accountId: "default", id, name: trimmed }),
@@ -71,11 +83,12 @@ export default function ProjectsPanel() {
 
   const handleCreateProject = async () => {
     const name = computeDefaultName(projects);
-    const res = await fetch("/api/fs/projects", {
+    const res = await authFetch("/api/fs/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "personal", accountId: "default", name }),
     });
+    if (!res.ok) return;
     const meta = await res.json();
     await fetchProjects();
     setEditingId(meta.id);
@@ -129,7 +142,7 @@ export default function ProjectsPanel() {
     const orders = withoutDrag.map((p, i) => ({ id: p.id, sortOrder: i }));
     setProjects(withoutDrag.map((p, i) => ({ ...p, sortOrder: i })));
 
-    await fetch("/api/fs/projects", {
+    await authFetch("/api/fs/projects", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "personal", accountId: "default", orders }),

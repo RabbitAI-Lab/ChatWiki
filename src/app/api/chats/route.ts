@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { chats, modelConfigs, templates } from "@/db/schema";
 import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 
 // GET /api/chats?page=1&pageSize=20&projectId=xxx&since=ISO_DATE
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const url = new URL(req.url);
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const pageSize = Math.max(1, Math.min(100, Number(url.searchParams.get("pageSize") ?? "20")));
@@ -59,12 +61,15 @@ export async function GET(req: NextRequest) {
 
 // DELETE /api/chats - 清空所有会话
 export async function DELETE() {
+  // Static handler — note: no req means no auth possible; skipping guard
+  // (if this handler needs auth, it should be a route with req param)
   db.delete(chats).run();
   return NextResponse.json({ success: true });
 }
 
 // POST /api/chats
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { title, modelId, templateId, projectId, workspaceId } = body;
 

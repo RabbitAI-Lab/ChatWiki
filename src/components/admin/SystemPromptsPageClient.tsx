@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import {
   Button,
   Form,
@@ -40,13 +41,14 @@ interface Props {
 
 export default function SystemPromptsPageClient({ initialPrompts }: Props) {
   const [prompts, setPrompts] = useState<SystemPrompt[]>(initialPrompts);
+  const { authFetch } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<SystemPrompt | null>(null);
   const [form] = Form.useForm();
   const { modal, message } = App.useApp();
 
   const refreshList = useCallback(async () => {
-    const res = await fetch("/api/system-prompts");
+    const res = await authFetch("/api/system-prompts");
     const data = await res.json();
     setPrompts(data);
   }, []);
@@ -75,14 +77,14 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
     try {
       const values = await form.validateFields();
       if (editingPrompt) {
-        await fetch(`/api/system-prompts/${editingPrompt.id}`, {
+        await authFetch(`/api/system-prompts/${editingPrompt.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(values),
         });
         message.success("System prompt updated");
       } else {
-        await fetch("/api/system-prompts", {
+        await authFetch("/api/system-prompts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(values),
@@ -101,7 +103,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
   const handleToggleEnabled = useCallback(
     (record: SystemPrompt) => {
       const newEnabled = record.enabled ? 0 : 1;
-      fetch(`/api/system-prompts/${record.id}`, {
+      authFetch(`/api/system-prompts/${record.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: newEnabled }),
@@ -122,7 +124,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
         cancelText: "Cancel",
         okButtonProps: { danger: true },
         onOk: async () => {
-          await fetch(`/api/system-prompts/${id}`, { method: "DELETE" });
+          await authFetch(`/api/system-prompts/${id}`, { method: "DELETE" });
           await refreshList();
           message.success("Deleted");
         },

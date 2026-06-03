@@ -210,7 +210,7 @@ export async function* streamModelResponse(
       ANTHROPIC_MODEL: config.modelName,
       CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY: "1",
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
-      CLAUDE_AGENT_SDK_CLIENT_APP: "ChatWiki/0.1.0",
+      CLAUDE_AGENT_SDK_CLIENT_APP: "RabbitDocs/0.1.0",
     } as Record<string, string | undefined>,
   };
 
@@ -239,11 +239,11 @@ export async function* streamModelResponse(
   sdkOptions.mcpServers = {
     ...withAlwaysLoad(globalMcpServers),
     ...withAlwaysLoad(projectMcpServers),
-    chatwiki_client: clientToolsServer,
+    rabbitdocs_client: clientToolsServer,
   };
   sdkOptions.allowedTools = [
-    "mcp__chatwiki_client__*",
-    "mcp__chatwiki__*",
+    "mcp__rabbitdocs_client__*",
+    "mcp__rabbitdocs__*",
     "mcp__gitnexus__*",
     "mcp__zhipu-web-search-sse__*",
     "Read", "Write", "Edit",

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { readWorkspaceMeta, writeWorkspaceMeta, type SandboxStatus } from "@/lib/fs";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
 
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/fs/workspace-sandbox - 获取工作区沙盒状态
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirSegments = searchParams.get("dirSegments");
 
@@ -25,6 +27,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/fs/workspace-sandbox - 申请沙盒
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, sandbox } = body as {
     dirSegments: string[];
@@ -55,6 +58,7 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/fs/workspace-sandbox - 释放沙盒
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { dirSegments, sandbox } = body as {
     dirSegments: string[];

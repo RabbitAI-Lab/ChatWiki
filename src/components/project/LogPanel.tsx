@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 
 type LogCategory = "repository" | "sandbox" | "skills" | "mcp" | "member";
 
@@ -79,6 +80,7 @@ function CategoryIcon({ category }: { category: LogCategory }) {
 
 export default function LogPanel({ projectPath }: LogPanelProps) {
   const projectId = projectPath.split(",").pop() || "";
+  const { authFetch } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -98,7 +100,7 @@ export default function LogPanel({ projectPath }: LogPanelProps) {
       if (category !== "all") {
         params.set("category", category);
       }
-      const res = await fetch(`/api/fs/project-logs?${params}`);
+      const res = await authFetch(`/api/fs/project-logs?${params}`);
       if (res.ok) {
         const data = await res.json();
         if (pageNum === 1) {
@@ -114,7 +116,7 @@ export default function LogPanel({ projectPath }: LogPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, authFetch]);
 
   useEffect(() => {
     fetchLogs(1, selectedCategory);

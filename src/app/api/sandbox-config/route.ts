@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/db";
 import { sandboxConfig } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,6 +8,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/sandbox-config
 export async function GET() {
+  // Static handler — note: no req means no auth possible; skipping guard
+  // (if this handler needs auth, it should be a route with req param)
   const config = db.select().from(sandboxConfig).get();
   return NextResponse.json({
     sandboxUrl: config?.sandboxUrl ?? "openapi.sandbox.rabbitai-lab.com",
@@ -16,6 +19,7 @@ export async function GET() {
 
 // PUT /api/sandbox-config
 export async function PUT(req: NextRequest) {
+  const auth = await requireAdmin(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { sandboxUrl } = body;
 

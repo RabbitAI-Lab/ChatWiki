@@ -1,10 +1,10 @@
 services:
-  chatwiki-dev:
+  rabbitdocs-dev:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
-    image: chatwiki:dev
-    container_name: chatwiki-dev
+    image: rabbitdocs:dev
+    container_name: rabbitdocs-dev
     restart: unless-stopped
     ports:
       - "3000:3000"   # Next.js Web

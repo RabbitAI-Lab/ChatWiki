@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Modal, Input, Spin, message } from "antd";
 
 interface TreeNode {
@@ -26,6 +27,7 @@ export default function SaveToDocumentModal({
   onSaved,
 }: SaveToDocumentModalProps) {
   const [tree, setTree] = useState<TreeNode[]>([]);
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedDir, setSelectedDir] = useState<string>("");
@@ -60,7 +62,7 @@ export default function SaveToDocumentModal({
       setOverwriteTarget(null);
       setFilename("");
 
-      return fetch(`/api/fs/tree?path=personal/default/projects/${projectId}/docs`)
+      return authFetch(`/api/fs/tree?path=personal/default/projects/${projectId}/docs`)
         .then((r) => {
           if (!r.ok) throw new Error("Failed to load file tree");
           return r.json();
@@ -111,7 +113,7 @@ export default function SaveToDocumentModal({
     }
 
     try {
-      const res = await fetch("/api/fs/document", {
+      const res = await authFetch("/api/fs/document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: docPath, content }),
@@ -282,7 +284,7 @@ export default function SaveToDocumentModal({
                   if (!projectId) return;
                   setLoading(true);
                   setError(null);
-                  fetch(`/api/fs/tree?path=personal/default/projects/${projectId}/docs`)
+                  authFetch(`/api/fs/tree?path=personal/default/projects/${projectId}/docs`)
                     .then((r) => {
                       if (!r.ok) throw new Error("Failed");
                       return r.json();

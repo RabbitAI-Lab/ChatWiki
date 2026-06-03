@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { todos } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { withAuth } from "@/lib/auth/with-auth";
 
 // GET /api/todos
-export async function GET() {
+export const GET = withAuth(async () => {
   const all = db.select().from(todos).orderBy(desc(todos.createdAt)).all();
   return NextResponse.json(all);
-}
+});
 
 // POST /api/todos
-export async function POST(req: NextRequest) {
+export const POST = withAuth(async (req) => {
   const body = await req.json();
   const { title, description } = body;
 
@@ -35,10 +36,10 @@ export async function POST(req: NextRequest) {
 
   const newTodo = db.select().from(todos).where(eq(todos.id, Number(result.lastInsertRowid))).get();
   return NextResponse.json(newTodo);
-}
+});
 
 // PUT /api/todos
-export async function PUT(req: NextRequest) {
+export const PUT = withAuth(async (req) => {
   const body = await req.json();
   const { id, title, description, completed } = body;
 
@@ -76,10 +77,10 @@ export async function PUT(req: NextRequest) {
   db.update(todos).set(updates).where(eq(todos.id, id)).run();
   const updated = db.select().from(todos).where(eq(todos.id, id)).get();
   return NextResponse.json(updated);
-}
+});
 
 // DELETE /api/todos
-export async function DELETE(req: NextRequest) {
+export const DELETE = withAuth(async (req) => {
   const body = await req.json();
   const { id } = body;
 
@@ -89,4 +90,4 @@ export async function DELETE(req: NextRequest) {
 
   db.delete(todos).where(eq(todos.id, id)).run();
   return NextResponse.json({ success: true });
-}
+});

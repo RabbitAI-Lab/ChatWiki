@@ -16,6 +16,8 @@ export interface UseMcpConfigParams {
   dirSegments: string[];
   // API base path; e.g. "/api/fs/project-mcp" or "/api/fs/workspace-mcp".
   apiBase: string;
+  // Auth-aware fetch function
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 export interface McpRenderEntry {
@@ -68,6 +70,7 @@ export interface UseMcpConfigResult {
 export function useMcpConfig({
   dirSegments,
   apiBase,
+  authFetch,
 }: UseMcpConfigParams): UseMcpConfigResult {
   const [mcpJson, setMcpJson] = useState<McpJson>(emptyMcpJson);
   const [loading, setLoading] = useState(true);
@@ -97,7 +100,7 @@ export function useMcpConfig({
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${apiBase}?dirSegments=${dirSegmentsRef.current.join(",")}`,
       );
       if (!res.ok) return;
@@ -128,7 +131,7 @@ export function useMcpConfig({
     } finally {
       setLoading(false);
     }
-  }, [apiBase, dirKey]);
+  }, [apiBase, dirKey, authFetch]);
 
   useEffect(() => {
     fetchConfig();
@@ -143,7 +146,7 @@ export function useMcpConfig({
       setMcpJson(next);
       setSaving(true);
       try {
-        const res = await fetch(apiBase, {
+        const res = await authFetch(apiBase, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -183,7 +186,7 @@ export function useMcpConfig({
         setSaving(false);
       }
     },
-    [apiBase, dirKey, fetchConfig, message],
+    [apiBase, dirKey, fetchConfig, message, authFetch],
   );
 
   // Toggle enabled/disabled; rebuild zhipu URL on enable if a stored key exists.

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { listDocuments, listTree } from "@/lib/fs";
 
 // GET /api/fs/documents?path=personal/default/my-project
 // GET /api/fs/documents?path=personal/default/my-project&tree=true
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const dirPath = searchParams.get("path") || "";
   const tree = searchParams.get("tree") === "true";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth/useAuth";
 import { Button, Input, App, Typography, Space } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 
@@ -21,6 +22,7 @@ export default function SandboxPageClient({ initialConfig }: Props) {
   const [sandboxUrl, setSandboxUrl] = useState(
     initialConfig?.sandboxUrl || DEFAULT_URL
   );
+  const { authFetch } = useAuth();
   const [updatedAt, setUpdatedAt] = useState(initialConfig?.updatedAt || null);
   const [isSaving, setIsSaving] = useState(false);
   const { message } = App.useApp();
@@ -33,7 +35,7 @@ export default function SandboxPageClient({ initialConfig }: Props) {
 
     setIsSaving(true);
     try {
-      const res = await fetch("/api/sandbox-config", {
+      const res = await authFetch("/api/sandbox-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sandboxUrl }),

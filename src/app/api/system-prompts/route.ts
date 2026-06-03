@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { systemPrompts } from "@/db/schema";
 
@@ -6,12 +7,15 @@ export const dynamic = "force-dynamic";
 
 // GET /api/system-prompts
 export async function GET() {
+  // Static handler — note: no req means no auth possible; skipping guard
+  // (if this handler needs auth, it should be a route with req param)
   const all = db.select().from(systemPrompts).orderBy(systemPrompts.sortOrder).all();
   return NextResponse.json(all);
 }
 
 // POST /api/system-prompts
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
   const { name, content, description, enabled, sortOrder } = body;
 

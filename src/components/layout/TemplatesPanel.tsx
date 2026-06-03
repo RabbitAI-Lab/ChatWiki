@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import CollapsibleGroup from "@/components/ui/CollapsibleGroup";
+import { useAuth } from "@/components/auth/useAuth";
 
 interface Template {
   id: number;
@@ -15,27 +16,31 @@ interface TemplatesPanelProps {
 
 export default function TemplatesPanel({ templates }: TemplatesPanelProps) {
   const router = useRouter();
+  const { authFetch } = useAuth();
 
   const handleCreate = async (template: Template) => {
     // Ensure "uncategorized" project exists, get or create it
-    const projectsRes = await fetch("/api/fs/projects?type=personal&accountId=default");
+    const projectsRes = await authFetch("/api/fs/projects?type=personal&accountId=default");
+    if (!projectsRes.ok) return;
     const projects = await projectsRes.json();
     let uncategorized = projects.find((p: { name: string }) => p.name === "uncategorized");
 
     if (!uncategorized) {
-      const createRes = await fetch("/api/fs/projects", {
+      const createRes = await authFetch("/api/fs/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "personal", accountId: "default", name: "uncategorized" }),
       });
+      if (!createRes.ok) return;
       uncategorized = await createRes.json();
     }
 
     const docPath = `personal/default/projects/${uncategorized.id}/docs/${template.name}`;
-    const res = await fetch(`/api/templates/${template.id}`);
+    const res = await authFetch(`/api/templates/${template.id}`);
+    if (!res.ok) return;
     const tmpl = await res.json();
 
-    await fetch("/api/fs/document", {
+    await authFetch("/api/fs/document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: docPath, content: tmpl.content || "" }),
