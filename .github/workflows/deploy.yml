@@ -1,0 +1,167 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: '镜像 tag（留空使用 latest）'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: rabbitdocs
+
+jobs:
+  prepare:
+    name: Prepare server matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        env:
+          SERVERS: '${{ vars.SERVERS }}'
+        run: printf '%s\n' "matrix=$SERVERS" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        server: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+    env:
+      SERVER_ENV_FILE: '${{ vars.SERVER_ENV_FILE }}'
+      REGISTRY_OWNER: ${{ github.repository_owner }}
+      IMAGE_NAME: ${{ env.IMAGE_NAME }}
+      IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ matrix.server.host }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Server environment init
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ matrix.server.host }}
+          username: ${{ matrix.server.user }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          envs: REGISTRY_OWNER,IMAGE_NAME,IMAGE_TAG
+          script: |
+            set -e
+
+            # ===== Phase 1: 环境初始化 (幂等) =====
+            if ! command -v docker &> /dev/null; then
+              echo "[Deploy] Installing Docker..."
+              curl -fsSL https://get.docker.com | sudo sh
+              sudo usermod -aG docker "$USER"
+              echo "[Deploy] Docker installed. Re-run this workflow after re-login."
+              exit 0
+            fi
+
+            if ! docker compose version &> /dev/null; then
+              echo "[Deploy] Installing docker-compose-plugin..."
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq docker-compose-plugin
+            fi
+
+            # 镜像包需在 GHCR 设为 Public，pull 阶段无需登录
+
+            # 创建部署目录
+            mkdir -p /home/"$USER"/deploy/data
+
+      - name: Copy docker-compose.yml
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ matrix.server.host }}
+          username: ${{ matrix.server.user }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker/docker-compose.prod.yml"
+          target: "/home/${{ matrix.server.user }}/deploy"
+
+      - name: Deploy service
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ matrix.server.host }}
+          username: ${{ matrix.server.user }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          envs: SERVER_ENV_FILE,IMAGE_NAME,IMAGE_TAG,REGISTRY_OWNER
+          script: |
+            set -e
+            cd /home/"$USER"/deploy
+
+            # 归位 compose 文件
+            cp docker/docker-compose.prod.yml docker-compose.yml 2>/dev/null || true
+
+            # 写入 .env 文件
+            printf '%s' "$SERVER_ENV_FILE" > .env
+
+            # 将镜像 tag 写入 compose 覆盖层（不改原文件）
+            cat > docker-compose.override.yml <<EOF
+            services:
+              ${IMAGE_NAME}-prod:
+                image: ghcr.io/${REGISTRY_OWNER}/${IMAGE_NAME}:${IMAGE_TAG}
+            EOF
+
+            # ===== Phase 2: 拉取镜像并启动 =====
+            echo "[Deploy] Pulling image: ghcr.io/${REGISTRY_OWNER}/${IMAGE_NAME}:${IMAGE_TAG}"
+            docker compose pull
+
+            echo "[Deploy] Starting service..."
+            docker compose up -d --remove-orphans
+
+            # ===== Phase 3: 健康检查 =====
+            echo "[Deploy] Running health checks..."
+            sleep 10
+
+            # Web 根路径（3000）：状态 < 500 即视为可达
+            for i in $(seq 1 12); do
+              if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null | grep -qE "^[1-4][0-9][0-9]$"; then
+                echo "[Deploy] Web (3000) OK"
+                break
+              fi
+              echo "[Deploy] Waiting for web... attempt $i/12"
+              sleep 10
+            done
+
+            if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null | grep -qE "^[1-4][0-9][0-9]$"; then
+              echo "[Deploy] FAIL: Web not responding on :3000"
+              docker compose logs --tail 50
+              exit 1
+            fi
+
+            # MCP 端口（4001）：TCP 探测
+            for i in $(seq 1 6); do
+              if (echo > /dev/tcp/127.0.0.1/4001) 2>/dev/null; then
+                echo "[Deploy] MCP (4001) OK"
+                break
+              fi
+              echo "[Deploy] Waiting for MCP... attempt $i/6"
+              sleep 5
+            done
+
+            if ! (echo > /dev/tcp/127.0.0.1/4001) 2>/dev/null; then
+              echo "[Deploy] FAIL: MCP not responding on :4001"
+              docker compose logs --tail 50
+              exit 1
+            fi
+
+            echo "[Deploy] All services healthy!"
+            docker compose ps
