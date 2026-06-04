@@ -42,7 +42,7 @@ jobs:
     env:
       SERVER_ENV_FILE: '${{ vars.SERVER_ENV_FILE }}'
       REGISTRY_OWNER: ${{ github.repository_owner }}  # lowercased in scripts
-      IMAGE_NAME: ${{ env.IMAGE_NAME }}
+      IMAGE_NAME: rabbitdocs
       IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
     steps:
       - name: Checkout
