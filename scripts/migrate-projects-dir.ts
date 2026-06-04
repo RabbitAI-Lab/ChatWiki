@@ -10,12 +10,13 @@
  * This script is idempotent - safe to run multiple times.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 
-const DATA_ROOT = path.join(process.cwd(), "data");
-const DB_PATH = path.join(process.cwd(), "data.db");
+const DATA_ROOT = path.join(os.homedir(), ".rabbitdocs", "data");
+const DB_PATH = path.join(os.homedir(), ".rabbitdocs", "data.db");
 const RESERVED_DIRS = new Set(["projects", "workspace"]);
 
 interface ProjectMapping {

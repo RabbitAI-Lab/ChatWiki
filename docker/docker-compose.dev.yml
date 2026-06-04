@@ -12,6 +12,8 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
+      - DATA_ROOT=/app/data
+      - RABBITDOCS_HOME=/app
     volumes:
       # 源码热更新（容器内 node_modules 仍用镜像中已安装的版本）
       # 注意：相对路径基于 compose 文件所在目录（docker/），故使用 ../ 指代项目根

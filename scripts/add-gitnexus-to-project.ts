@@ -11,12 +11,13 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const PROJECT_ID = "74ea3479-c1d1-47f4-909e-67369bf444b7";
 const DIR_SEGMENTS = ["personal", "default", "projects", PROJECT_ID];
 
-const DATA_ROOT = path.join(process.cwd(), "data");
+const DATA_ROOT = path.join(os.homedir(), ".rabbitdocs", "data");
 const CONFIG_PATH = path.join(DATA_ROOT, ...DIR_SEGMENTS, ".mcp.json");
 const TMP_PATH = CONFIG_PATH + ".tmp";
 

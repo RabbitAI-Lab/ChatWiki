@@ -42,11 +42,9 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   JPY: "¥",
 };
 
-function formatPrice(currency: string, cents: number): string {
+function formatPrice(currency: string, amount: string | number): string {
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
-  // JPY is 0-decimal currency, others are 2-decimal
-  if (currency === "JPY") return `${symbol}${cents}`;
-  return `${symbol}${(cents / 100).toFixed(2)}`;
+  return `${symbol}${amount}`;
 }
 
 interface PlanFeature {
@@ -56,8 +54,8 @@ interface PlanFeature {
 
 interface PlanPrice {
   currency: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
+  monthlyPrice: string;
+    yearlyPrice: string;
 }
 
 interface Plan {
@@ -355,7 +353,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
         }}
         okText={editingPlan ? "Save" : "Create"}
         cancelText="Cancel"
-        maskClosable={false}
+        mask={{ closable: false }}
         width={720}
       >
         <Form
@@ -399,14 +397,22 @@ export default function PlansPageClient({ initialPlans }: Props) {
           {/* Dynamic Pricing Editor */}
           <Form.List name="priceList">
             {(fields, { add, remove }) => (
-              <div className="space-y-3">
-                {fields.map((field) => (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-3 text-xs font-medium text-gray-400">
+                  <span className="w-28">Currency</span>
+                  <span className="flex-1">Monthly Price (¥)</span>
+                  <span className="flex-1">Yearly Price (¥)</span>
+                  <span className="w-6" />
+                </div>
+                {fields.map((field) => {
+                  const { key: _k, ...fieldProps } = field;
+                  return (
                   <div
                     key={field.key}
                     className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg"
                   >
                     <Form.Item
-                      {...field}
+                      {...fieldProps}
                       name={[field.name, "currency"]}
                       rules={[{ required: true, message: "Required" }]}
                       className="w-28 mb-0"
@@ -417,27 +423,25 @@ export default function PlansPageClient({ initialPlans }: Props) {
                       />
                     </Form.Item>
                     <Form.Item
-                      {...field}
+                      {...fieldProps}
                       name={[field.name, "monthlyPrice"]}
                       rules={[{ required: true, message: "Required" }]}
                       className="flex-1 mb-0"
                     >
-                      <InputNumber
-                        min={0}
+                      <Input
                         className="w-full"
-                        placeholder="Monthly (cents)"
+                        placeholder="Monthly Price (¥)"
                       />
                     </Form.Item>
                     <Form.Item
-                      {...field}
+                      {...fieldProps}
                       name={[field.name, "yearlyPrice"]}
                       rules={[{ required: true, message: "Required" }]}
                       className="flex-1 mb-0"
                     >
-                      <InputNumber
-                        min={0}
+                      <Input
                         className="w-full"
-                        placeholder="Yearly (cents)"
+                        placeholder="Yearly Price (¥)"
                       />
                     </Form.Item>
                     <Button
@@ -449,11 +453,11 @@ export default function PlansPageClient({ initialPlans }: Props) {
                       className="mt-1"
                     />
                   </div>
-                ))}
+                )})}
                 <Button
                   type="dashed"
                   onClick={() =>
-                    add({ currency: "CNY", monthlyPrice: 0, yearlyPrice: 0 })
+                    add({ currency: "CNY", monthlyPrice: "", yearlyPrice: "" })
                   }
                   icon={<PlusCircleOutlined />}
                   className="w-full"
@@ -512,10 +516,12 @@ export default function PlansPageClient({ initialPlans }: Props) {
           <Form.List name="featureList">
             {(fields, { add, remove }) => (
               <div className="space-y-2">
-                {fields.map((field) => (
+                {fields.map((field) => {
+                  const { key: _k, ...fieldProps } = field;
+                  return (
                   <div key={field.key} className="flex items-start gap-2">
                     <Form.Item
-                      {...field}
+                      {...fieldProps}
                       name={[field.name, "name"]}
                       rules={[
                         {
@@ -528,7 +534,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
                       <Input placeholder="Feature name" />
                     </Form.Item>
                     <Form.Item
-                      {...field}
+                      {...fieldProps}
                       name={[field.name, "included"]}
                       valuePropName="checked"
                       className="mb-0 mt-1"
@@ -548,7 +554,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
                       className="mt-1"
                     />
                   </div>
-                ))}
+                );})}
                 <Button
                   type="dashed"
                   onClick={() => add({ name: "", included: true })}

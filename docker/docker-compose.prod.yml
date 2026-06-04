@@ -15,6 +15,8 @@ services:
       - PORT=3000
       - MCP_PORT=4001
       - HOSTNAME=0.0.0.0
+      - DATA_ROOT=/app/data
+      - RABBITDOCS_HOME=/app
     volumes:
       # 生产数据使用命名卷，独立于宿主机目录
       - rabbitdocs_data:/app/data

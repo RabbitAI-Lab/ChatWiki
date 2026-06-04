@@ -40,8 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# database
+# database (now stored in ~/.rabbitdocs/)
 data.db
 data.db-journal
 data.db-shm
 data.db-wal
+
+# runtime data directory (now in ~/.rabbitdocs/data)
+/data/

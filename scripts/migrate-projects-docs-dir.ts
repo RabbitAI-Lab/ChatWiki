@@ -18,9 +18,10 @@
  * Files and directories that are already inside docs/ are left untouched.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
-const DATA_ROOT = path.join(process.cwd(), "data");
+const DATA_ROOT = path.join(os.homedir(), ".rabbitdocs", "data");
 const RESERVED_FILES = new Set([".project.json"]);
 const DOCS_DIR_NAME = "docs";
 

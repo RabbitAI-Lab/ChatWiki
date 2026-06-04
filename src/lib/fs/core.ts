@@ -3,11 +3,14 @@
  * directory operations, and tree listing.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import type { TreeNode } from "../tree";
 
-const DEFAULT_DATA_ROOT = path.join(process.cwd(), "data");
+const DEFAULT_DATA_ROOT =
+  process.env.DATA_ROOT ||
+  path.join(os.homedir(), ".rabbitdocs", "data");
 
 /**
  * Get the data root directory.

@@ -2,9 +2,13 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 import fs from "fs";
+import os from "os";
 import path from "path";
 
-const DB_PATH = "./data.db";
+const RABBITDOCS_HOME =
+  process.env.RABBITDOCS_HOME ||
+  path.join(os.homedir(), ".rabbitdocs");
+const DB_PATH = path.join(RABBITDOCS_HOME, "data.db");
 const WAL_PATH = DB_PATH + "-wal";
 const SHM_PATH = DB_PATH + "-shm";
 const MIGRATIONS_DIR = path.join(process.cwd(), "drizzle");
@@ -92,6 +96,11 @@ function tryApplyPragmas(db: Database.Database): boolean {
 
 // ── Initialize database ──
 function initDatabase(): Database.Database {
+  // Ensure ~/.rabbitdocs directory exists
+  if (!fs.existsSync(RABBITDOCS_HOME)) {
+    fs.mkdirSync(RABBITDOCS_HOME, { recursive: true });
+  }
+
   const db = new Database(DB_PATH);
 
   if (tryApplyPragmas(db) && checkIntegrity(db) && hasSchema(db)) {
