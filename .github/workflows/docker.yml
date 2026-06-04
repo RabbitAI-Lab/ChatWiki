@@ -43,25 +43,19 @@ jobs:
           OWNER="${{ github.repository_owner }}"
           NAME="${{ env.IMAGE_NAME }}"
 
-          # 始终打 latest 和 sha-short 两个标签
-          TAGS_JSON=$(jq -nc \
-            --arg owner "$OWNER" \
-            --arg name "$NAME" \
-            --arg sha "$SHA_SHORT" \
-            '[
-              "ghcr.io/\($owner)/\($name):latest",
-              "ghcr.io/\($owner)/\($name):\($sha)"
-            ]')
+          TAGS="ghcr.io/${OWNER}/${NAME}:latest"
+          TAGS="${TAGS}"$'\n'"ghcr.io/${OWNER}/${NAME}:${SHA_SHORT}"
 
-          # 命中 tag 推送（vX.Y.Z）时再追加一个语义化标签
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             VERSION="${{ github.ref_name }}"
-            TAGS_JSON=$(echo "$TAGS_JSON" | jq \
-              --arg t "ghcr.io/${OWNER}/${NAME}:${VERSION}" \
-              '. + [$t]')
+            TAGS="${TAGS}"$'\n'"ghcr.io/${OWNER}/${NAME}:${VERSION}"
           fi
 
-          echo "tags=$TAGS_JSON" >> "$GITHUB_OUTPUT"
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
           echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push
