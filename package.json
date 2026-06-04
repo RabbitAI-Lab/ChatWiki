@@ -28,7 +28,6 @@
     "@modelcontextprotocol/node": "^2.0.0-alpha.2",
     "@modelcontextprotocol/server": "^2.0.0-alpha.2",
     "@monaco-editor/react": "^4.7.0",
-    "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.1",
     "antd": "^6.4.3",
     "bcrypt": "^6.0.0",
