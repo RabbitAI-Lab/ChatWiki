@@ -12,8 +12,8 @@ const defaultToolbar = [
 
 interface CherryEditorProps {
   initialValue: string;
-  onChange: (markdown: string) => void;
-  onSave: () => void;
+  onChange?: (markdown: string) => void;
+  onSave?: () => void;
   editorId?: string;
   defaultModel?: "editOnly" | "previewOnly" | "edit&preview";
   toolbarItems?: string[];
@@ -62,12 +62,12 @@ export default function CherryEditor({
         },
         callback: {
           afterChange: (text: string) => {
-            onChange(text);
+            onChange?.(text);
             if (saveTimerRef.current) {
               clearTimeout(saveTimerRef.current);
             }
             saveTimerRef.current = setTimeout(() => {
-              onSave();
+              onSave?.();
             }, 2000);
           },
         },
