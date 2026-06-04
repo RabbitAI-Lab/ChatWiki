@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           SHA_SHORT=$(git rev-parse --short HEAD)
-          OWNER="${{ github.repository_owner }}"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           NAME="${{ env.IMAGE_NAME }}"
 
           TAGS="ghcr.io/${OWNER}/${NAME}:latest"
