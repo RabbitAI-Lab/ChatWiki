@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/useAuth";
 import { Card, Button, Typography, Descriptions, App } from "antd";
@@ -13,6 +14,16 @@ export default function CliConsentPage() {
   const { authFetch, user } = useAuth();
   const { message } = App.useApp();
   const router = useRouter();
+  const [brandName, setBrandName] = useState("RabbitDocs");
+
+  useEffect(() => {
+    fetch("/api/brand")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.brandName) setBrandName(data.brandName);
+      })
+      .catch(() => {});
+  }, []);
 
   const codeChallenge = searchParams.get("code_challenge");
   const codeChallengeMethod = searchParams.get("code_challenge_method") || "S256";
@@ -73,7 +84,7 @@ export default function CliConsentPage() {
           CLI 授权请求
         </Title>
         <p className="text-gray-500">
-          一个 CLI 工具请求访问您的 RabbitDocs 账号
+          一个 CLI 工具请求访问您的 {brandName} 账号
         </p>
       </div>
 

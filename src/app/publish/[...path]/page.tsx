@@ -1,6 +1,7 @@
 import { readDocument } from "@/lib/fs";
 import { notFound } from "next/navigation";
 import PublishedView from "@/components/viewer/PublishedView";
+import { getBrandName } from "@/lib/auth/settings";
 
 export default async function PublishPage({
   params,
@@ -20,6 +21,7 @@ export default async function PublishPage({
       content={content}
       publishPath={path.join("/")}
       segments={path}
+      brandName={getBrandName()}
     />
   );
 }

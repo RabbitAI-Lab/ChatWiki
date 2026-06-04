@@ -179,7 +179,7 @@ export default function UsersPageClient() {
     });
   };
 
-  const handleSaveEdit = async (values: { name?: string }) => {
+  const handleSaveEdit = async (values: { name?: string; role?: "admin" | "user" }) => {
     if (!editing) return;
     try {
       const res = await authFetch(`/api/auth/admin/users/${editing.id}`, {
@@ -409,13 +409,13 @@ export default function UsersPageClient() {
         }}
         okText="Save"
         cancelText="Cancel"
-        destroyOnClose
+        destroyOnHidden
       >
         {editing && (
           <Form
             id="edit-user-form"
             layout="vertical"
-            initialValues={{ name: editing.name || "" }}
+            initialValues={{ name: editing.name || "", role: editing.role }}
             onFinish={handleSaveEdit}
           >
             <Form.Item label="Email">
@@ -430,6 +430,15 @@ export default function UsersPageClient() {
               rules={[{ max: 50, message: "Name must be at most 50 characters" }]}
             >
               <Input placeholder="User name" maxLength={50} />
+            </Form.Item>
+            <Form.Item name="role" label="Role">
+              <Select
+                disabled={isSelf(editing.id)}
+                options={[
+                  { value: "admin", label: "Admin" },
+                  { value: "user", label: "User" },
+                ]}
+              />
             </Form.Item>
           </Form>
         )}

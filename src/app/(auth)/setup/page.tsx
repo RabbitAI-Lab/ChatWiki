@@ -16,6 +16,16 @@ export default function SetupPage() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [alreadyInitialized, setAlreadyInitialized] = useState(false);
+  const [brandName, setBrandName] = useState("RabbitDocs");
+
+  useEffect(() => {
+    fetch("/api/brand")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.brandName) setBrandName(data.brandName);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/init-status")
@@ -42,10 +52,10 @@ export default function SetupPage() {
       <Card className="shadow-lg">
         <div className="text-center py-6">
           <RocketOutlined style={{ fontSize: 48, color: "#52c41a" }} />
-          <h2 className="mt-4 text-xl font-semibold">系统已初始化</h2>
-          <p className="text-gray-500 mt-2 mb-4">系统已经完成初始化，请直接登录</p>
+          <h2 className="mt-4 text-xl font-semibold">System Already Initialized</h2>
+          <p className="text-gray-500 mt-2 mb-4">The system has been initialized. Please log in directly.</p>
           <Button type="primary" onClick={() => router.push("/login")}>
-            前往登录
+            Go to Login
           </Button>
         </div>
       </Card>
@@ -65,7 +75,7 @@ export default function SetupPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        message.error(data.error || "初始化失败");
+        message.error(data.error || "Setup failed");
         return;
       }
 
@@ -78,13 +88,13 @@ export default function SetupPage() {
       if (data.inviteCode) {
         setInviteCode(data.inviteCode);
         message.success(
-          `系统初始化成功！初始邀请码: ${data.inviteCode}`
+          `Setup successful! Initial invite code: ${data.inviteCode}`
         );
       }
 
       router.push("/");
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "初始化失败");
+      message.error(err instanceof Error ? err.message : "Setup failed");
     } finally {
       setLoading(false);
     }
@@ -94,9 +104,9 @@ export default function SetupPage() {
     <Card className="shadow-lg">
       <div className="text-center mb-6">
         <RocketOutlined style={{ fontSize: 48, color: "#1677ff" }} />
-        <h2 className="mt-4 text-xl font-semibold">初始化 RabbitDocs</h2>
+        <h2 className="mt-4 text-xl font-semibold">Initialize {brandName}</h2>
         <p className="text-gray-500 mt-2">
-          创建管理员账号以开始使用系统
+          Create an admin account to get started
         </p>
       </div>
 
@@ -104,23 +114,23 @@ export default function SetupPage() {
         <Form.Item
           name="email"
           rules={[
-            { required: true, message: "请输入管理员邮箱" },
-            { type: "email", message: "请输入有效的邮箱地址" },
+            { required: true, message: "Please enter admin email" },
+            { type: "email", message: "Please enter a valid email address" },
           ]}
         >
-          <Input prefix={<MailOutlined />} placeholder="管理员邮箱" autoComplete="email" />
+          <Input prefix={<MailOutlined />} placeholder="Admin Email" autoComplete="email" />
         </Form.Item>
 
         <Form.Item
           name="password"
           rules={[
-            { required: true, message: "请输入密码" },
-            { min: 6, message: "密码至少 6 个字符" },
+            { required: true, message: "Please enter password" },
+            { min: 6, message: "Password must be at least 6 characters" },
           ]}
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="管理员密码"
+            placeholder="Admin Password"
             autoComplete="new-password"
           />
         </Form.Item>
@@ -129,34 +139,34 @@ export default function SetupPage() {
           name="confirmPassword"
           dependencies={["password"]}
           rules={[
-            { required: true, message: "请确认密码" },
+            { required: true, message: "Please confirm password" },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue("password") === value) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error("两次输入的密码不一致"));
+                return Promise.reject(new Error("Passwords do not match"));
               },
             }),
           ]}
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="确认密码"
+            placeholder="Confirm Password"
             autoComplete="new-password"
           />
         </Form.Item>
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading} block>
-            初始化系统
+            Initialize System
           </Button>
         </Form.Item>
       </Form>
 
       {inviteCode && (
         <div className="mt-4 p-3 bg-blue-50 rounded-lg text-center">
-          <Text type="secondary">初始邀请码：</Text>
+          <Text type="secondary">Initial Invite Code:</Text>
           <Text strong copyable className="ml-2">
             {inviteCode}
           </Text>

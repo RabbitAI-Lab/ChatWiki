@@ -63,12 +63,8 @@ export default function EmailPageClient() {
   const { message } = App.useApp();
   const [smtp, setSmtp] = useState<SmtpSettings | null>(null);
   const [draft, setDraft] = useState<SmtpSettings | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Brand name
-  const [brandName, setBrandName] = useState("RabbitDocs");
-  const [brandNameDraft, setBrandNameDraft] = useState("RabbitDocs");
 
   // Email templates
   const [templates, setTemplates] = useState<EmailTemplateSettings | null>(null);
@@ -105,10 +101,6 @@ export default function EmailPageClient() {
       setSmtp(normalized);
       setDraft(normalized);
 
-      const bn = data.brandName || "RabbitDocs";
-      setBrandName(bn);
-      setBrandNameDraft(bn);
-
       const tpl = data.emailTemplates || emptyTemplateDraft();
       setTemplates(tpl);
       setTemplateDraft(tpl);
@@ -141,9 +133,6 @@ export default function EmailPageClient() {
     }
     if (draft.pass.length > 0) return true;
 
-    // Brand name dirty
-    if (brandNameDraft !== brandName) return true;
-
     // Email templates dirty
     if (templates) {
       if (templateDraft.verifySubject !== templates.verifySubject) return true;
@@ -153,7 +142,7 @@ export default function EmailPageClient() {
     }
 
     return false;
-  }, [smtp, draft, brandName, brandNameDraft, templates, templateDraft]);
+  }, [smtp, draft, templates, templateDraft]);
 
   const handleSave = async () => {
     if (!draft) return;
@@ -172,7 +161,6 @@ export default function EmailPageClient() {
 
       const payload: Record<string, unknown> = {
         smtp: smtpPayload,
-        brandName: brandNameDraft,
         emailTemplates: {
           verifySubject: templateDraft.verifySubject,
           verifyHtml: templateDraft.verifyHtml,
@@ -194,7 +182,6 @@ export default function EmailPageClient() {
       const next: SmtpSettings = { ...draft, pass: "", hasPassword: true };
       setSmtp(next);
       setDraft(next);
-      setBrandName(brandNameDraft);
       setTemplates({ ...templateDraft });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Failed to save";
@@ -291,7 +278,7 @@ export default function EmailPageClient() {
     setPreviewSubject(null);
   };
 
-  if (loading || !draft) {
+  if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
         <Spin size="large" />
@@ -332,29 +319,6 @@ export default function EmailPageClient() {
           onClear={clearSmtp}
           onTest={handleTestSmtp}
         />
-
-        <Card
-          title={
-            <Space>
-              <span className="text-sm">Brand Name</span>
-            </Space>
-          }
-        >
-          <FieldRow label="Brand Name">
-            <Input
-              value={brandNameDraft}
-              placeholder="RabbitDocs"
-              allowClear
-              onChange={(e) => setBrandNameDraft(e.target.value)}
-            />
-          </FieldRow>
-          <Alert
-            type="info"
-            showIcon
-            className="!mt-3"
-            title="This name is used in email subjects, email body, and other system displays."
-          />
-        </Card>
 
         <EmailTemplateCard
           templateDraft={templateDraft}
@@ -606,6 +570,7 @@ function SmtpCard(props: {
         />
       )}
 
+      {smtp && (
       <div className="space-y-3">
         <FieldRow label="SMTP Host">
           <Input
@@ -718,6 +683,7 @@ function SmtpCard(props: {
           )}
         </div>
       </div>
+      )}
     </Card>
   );
 }

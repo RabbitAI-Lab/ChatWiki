@@ -15,9 +15,10 @@ import MyAccountMenu from "./MyAccountMenu";
 interface SidebarProps {
   initialWidth?: string;
   initialCollapsed?: string;
+  brandName: string;
 }
 
-export default function Sidebar({ initialWidth, initialCollapsed }: SidebarProps) {
+export default function Sidebar({ initialWidth, initialCollapsed, brandName }: SidebarProps) {
   let recentChats: Array<typeof chats.$inferSelect> = [];
   try {
     recentChats = db.select().from(chats).orderBy(desc(chats.updatedAt)).all();
@@ -26,7 +27,7 @@ export default function Sidebar({ initialWidth, initialCollapsed }: SidebarProps
   }
 
   return (
-    <SidebarShell initialWidth={initialWidth} initialCollapsed={initialCollapsed}>
+    <SidebarShell initialWidth={initialWidth} initialCollapsed={initialCollapsed} brandName={brandName}>
       {/* New Chat Button */}
       <div className="px-2 pt-2 pb-1">
         <NewChatButton />

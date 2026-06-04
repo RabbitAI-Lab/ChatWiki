@@ -265,3 +265,19 @@ export const apiKeys = sqliteTable("api_keys", {
   isSystem: integer("is_system").notNull().default(0),
   createdAt: text("created_at").notNull(),
 });
+
+// plans: 套餐计划
+export const plans = sqliteTable("plans", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  description: text("description"),
+  defaultCurrency: text("default_currency").notNull().default("CNY"), // 默认货币
+  prices: text("prices").notNull().default("[]"),                   // JSON: [{currency, monthlyPrice, yearlyPrice}]
+  discountType: text("discount_type", { enum: ["none", "percentage", "fixed"] }).notNull().default("none"),
+  discountValue: integer("discount_value").notNull().default(0),    // percentage: 85=8.5折; fixed: 分
+  features: text("features").notNull().default("[]"),              // JSON: [{name, included}]
+  enabled: integer("enabled").notNull().default(1),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

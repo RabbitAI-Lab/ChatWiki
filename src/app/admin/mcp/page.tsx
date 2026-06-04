@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { mcpConfig } from "@/db/schema";
 import McpPageClient from "@/components/admin/McpPageClient";
+import { getBrandName } from "@/lib/auth/settings";
 
 export default function McpPage() {
   const config = db.select().from(mcpConfig).get();
@@ -15,6 +16,7 @@ export default function McpPage() {
             }
           : undefined
       }
+      brandName={getBrandName()}
     />
   );
 }

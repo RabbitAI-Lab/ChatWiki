@@ -4,9 +4,10 @@ interface PublishedViewProps {
   content: string;
   publishPath: string;
   segments: string[];
+  brandName: string;
 }
 
-export default function PublishedView({ content, publishPath, segments }: PublishedViewProps) {
+export default function PublishedView({ content, publishPath, segments, brandName }: PublishedViewProps) {
   const fileName = segments[segments.length - 1] || "Untitled";
   const fileTitle = fileName.endsWith(".md") ? fileName.slice(0, -3) : fileName;
 
@@ -37,7 +38,7 @@ export default function PublishedView({ content, publishPath, segments }: Publis
       {/* Footer */}
       <div className="max-w-3xl mx-auto px-6 py-8 mt-8 border-t border-gray-100">
         <p className="text-xs text-gray-400 text-center">
-          Path: {publishPath} &nbsp;|&nbsp; Powered by RabbitDocs
+          Path: {publishPath} &nbsp;|&nbsp; Powered by {brandName}
         </p>
       </div>
     </div>

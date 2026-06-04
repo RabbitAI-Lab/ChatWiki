@@ -15,6 +15,7 @@ interface SharedMessage {
 interface SharedChatViewProps {
   title: string;
   messages: SharedMessage[];
+  brandName: string;
 }
 
 const roles = {
@@ -39,6 +40,7 @@ const roles = {
 export default function SharedChatView({
   title,
   messages,
+  brandName,
 }: SharedChatViewProps) {
   const bubbleItems: BubbleItemType[] = messages.map((msg) => ({
     key: msg.id.toString(),
@@ -73,7 +75,7 @@ export default function SharedChatView({
         {/* Footer */}
         <div className="max-w-3xl mx-auto w-full px-6 py-4 border-t border-gray-100 bg-white shrink-0">
           <p className="text-xs text-gray-400 text-center">
-            Powered by RabbitDocs
+            Powered by {brandName}
           </p>
         </div>
       </div>

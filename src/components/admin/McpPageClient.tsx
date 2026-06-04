@@ -14,6 +14,7 @@ interface McpConfigData {
 
 interface Props {
   initialConfig?: McpConfigData;
+  brandName: string;
 }
 
 const EXAMPLE_JSON = `{
@@ -24,7 +25,7 @@ const EXAMPLE_JSON = `{
   }
 }`;
 
-export default function McpPageClient({ initialConfig }: Props) {
+export default function McpPageClient({ initialConfig, brandName }: Props) {
   const [configJson, setConfigJson] = useState(
     initialConfig?.configJson || "{}"
   );
@@ -42,7 +43,7 @@ export default function McpPageClient({ initialConfig }: Props) {
       }
       parsed.rabbitdocs = { type: "http", url: "http://127.0.0.1:4001/mcp" };
       setConfigJson(JSON.stringify(parsed, null, 2));
-      message.success("RabbitDocs MCP server config added, click Save to apply");
+      message.success(`${brandName} MCP server config added, click Save to apply`);
     } catch {
       setConfigJson(
         JSON.stringify(
@@ -51,7 +52,7 @@ export default function McpPageClient({ initialConfig }: Props) {
           2
         )
       );
-      message.success("RabbitDocs MCP server config added, click Save to apply");
+      message.success(`${brandName} MCP server config added, click Save to apply`);
     }
   };
 
@@ -112,7 +113,7 @@ export default function McpPageClient({ initialConfig }: Props) {
             icon={<CloudDownloadOutlined />}
             onClick={handleInstallRabbitDocs}
           >
-            Install RabbitDocs MCP
+            Install {brandName} MCP
           </Button>
           <Button
             type="primary"

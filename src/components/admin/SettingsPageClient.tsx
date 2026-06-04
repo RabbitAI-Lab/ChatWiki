@@ -202,7 +202,7 @@ export default function SettingsPageClient() {
         </Card>
 
         <Card title="Current Configuration">
-          <Space direction="vertical" size="small">
+          <Space orientation="vertical" size="small">
             <div>
               <Text type="secondary">Registration: </Text>
               {settings.openRegistration ? (

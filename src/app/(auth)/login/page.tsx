@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [checkingInit, setCheckingInit] = useState(true);
   const [passkeyEnabled, setPasskeyEnabled] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [brandName, setBrandName] = useState("RabbitDocs");
 
   // Check if system is initialized; redirect to /setup if not
   useEffect(() => {
@@ -43,6 +44,16 @@ export default function LoginPage() {
         setCheckingInit(false);
       });
   }, [router]);
+
+  // Fetch brand name
+  useEffect(() => {
+    fetch("/api/brand")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.brandName) setBrandName(data.brandName);
+      })
+      .catch(() => {});
+  }, []);
 
   // Check if Passkey is enabled (public endpoint)
   useEffect(() => {
@@ -162,7 +173,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Card title="Login to RabbitDocs" className="shadow-lg">
+    <Card title={`Login to ${brandName}`} className="shadow-lg">
       <Form onFinish={onFinish} layout="vertical" size="large">
         <Form.Item
           name="email"

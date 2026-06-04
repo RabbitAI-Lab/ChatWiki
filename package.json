@@ -28,6 +28,7 @@
     "@modelcontextprotocol/node": "^2.0.0-alpha.2",
     "@modelcontextprotocol/server": "^2.0.0-alpha.2",
     "@monaco-editor/react": "^4.7.0",
+    "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.1",
     "antd": "^6.4.3",
     "bcrypt": "^6.0.0",
@@ -46,6 +47,9 @@
     "tailwind-merge": "^3.6.0",
     "uuid": "^14.0.0",
     "zod": "^4.4.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["bcrypt", "better-sqlite3", "esbuild", "sharp", "unrs-resolver"]
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

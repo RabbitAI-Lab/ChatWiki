@@ -26,9 +26,10 @@ interface SidebarShellProps {
   children: ReactNode;
   initialWidth?: string;
   initialCollapsed?: string;
+  brandName: string;
 }
 
-export default function SidebarShell({ children, initialWidth, initialCollapsed }: SidebarShellProps) {
+export default function SidebarShell({ children, initialWidth, initialCollapsed, brandName }: SidebarShellProps) {
   const initWidth = parseInitialWidth(initialWidth);
   const initCollapsed = parseInitialCollapsed(initialCollapsed);
 
@@ -93,7 +94,7 @@ export default function SidebarShell({ children, initialWidth, initialCollapsed 
             <span className="text-sm font-bold text-gray-800 mx-auto cursor-pointer select-none" onClick={toggleCollapsed}>🐰</span>
           ) : (
             <div>
-              <h1 className="text-lg font-bold text-gray-800">Rabbit Docs</h1>
+              <h1 className="text-lg font-bold text-gray-800">{brandName}</h1>
               <p className="text-xs text-gray-400 mt-0.5">Document Management & Publishing</p>
             </div>
           )}

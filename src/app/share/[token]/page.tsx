@@ -3,6 +3,7 @@ import { sharedChats, chats, chatMessages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import SharedChatView from "@/components/chat/SharedChatView";
+import { getBrandName } from "@/lib/auth/settings";
 
 export default async function SharedChatPage({
   params,
@@ -36,6 +37,7 @@ export default async function SharedChatPage({
         content: m.content,
         createdAt: m.createdAt,
       }))}
+      brandName={getBrandName()}
     />
   );
 }

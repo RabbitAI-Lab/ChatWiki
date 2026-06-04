@@ -182,7 +182,7 @@ export default function InviteCodesPageClient() {
               dataIndex: "creator",
               render: (creator: InviteCode["creator"]) =>
                 creator ? (
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text>{creator.name || "—"}</Text>
                     <Text type="secondary" className="text-xs">
                       {creator.email}

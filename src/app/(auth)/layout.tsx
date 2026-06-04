@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { getBrandName } from "@/lib/auth/settings";
 
-export const metadata: Metadata = {
-  title: "RabbitDocs - 认证",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brandName = getBrandName();
+  return {
+    title: `${brandName} - Auth`,
+  };
+}
 
 export default function AuthLayout({
   children,

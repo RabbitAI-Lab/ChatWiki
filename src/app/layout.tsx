@@ -7,6 +7,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import ShareLayoutGuard from "@/components/layout/ShareLayoutGuard";
 import FloatingChatProvider from "@/components/chat/FloatingChatProvider";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { getBrandName } from "@/lib/auth/settings";
 
 const geistSans = localFont({
   src: [
@@ -42,10 +43,13 @@ const geistMono = localFont({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "RabbitDocs - 文档管理与发布",
-  description: "基于文件系统的文档管理与发布平台",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brandName = getBrandName();
+  return {
+    title: `${brandName} - 文档管理与发布`,
+    description: "基于文件系统的文档管理与发布平台",
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -55,6 +59,7 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const savedWidth = cookieStore.get("sidebar-width")?.value;
   const savedCollapsed = cookieStore.get("sidebar-collapsed")?.value;
+  const brandName = getBrandName();
 
   return (
     <html lang="zh-CN" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
@@ -64,7 +69,7 @@ export default async function RootLayout({
             <FloatingChatProvider>
               <ShareLayoutGuard />
               <div data-sidebar>
-                <Sidebar initialWidth={savedWidth} initialCollapsed={savedCollapsed} />
+                <Sidebar initialWidth={savedWidth} initialCollapsed={savedCollapsed} brandName={brandName} />
               </div>
               <main className="flex-1 h-full overflow-y-auto bg-gray-50">
                 {children}

@@ -21,11 +21,21 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [regStatus, setRegStatus] = useState<RegistrationStatus | null>(null);
+  const [brandName, setBrandName] = useState("RabbitDocs");
   const [devHint, setDevHint] = useState<{
     verificationUrl?: string;
     verificationCode?: string;
     hint?: string;
   } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/brand")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.brandName) setBrandName(data.brandName);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/registration-status")
@@ -153,7 +163,7 @@ export default function RegisterPage() {
   const showGeneralKey = prefillGeneralKey || generalKeyEnabled || requireInviteCode;
 
   return (
-    <Card title="Register for RabbitDocs" className="shadow-lg">
+    <Card title={`Register for ${brandName}`} className="shadow-lg">
       <Form
         onFinish={onFinish}
         layout="vertical"
