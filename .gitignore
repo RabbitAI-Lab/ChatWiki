@@ -48,3 +48,6 @@ data.db-wal
 
 # runtime data directory (now in ~/.rabbitdocs/data)
 /data/
+
+# vendor
+/vendor/

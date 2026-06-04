@@ -62,7 +62,7 @@ export default function EmailPageClient() {
   const { authFetch } = useAuth();
   const { message } = App.useApp();
   const [smtp, setSmtp] = useState<SmtpSettings | null>(null);
-  const [draft, setDraft] = useState<SmtpSettings | null>(null);
+  const [draft, setDraft] = useState<SmtpSettings>(emptySmtpDraft());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -99,7 +99,7 @@ export default function EmailPageClient() {
         ? { ...emptySmtpDraft(), ...data.smtp, pass: "" }
         : null;
       setSmtp(normalized);
-      setDraft(normalized);
+      setDraft(normalized ?? emptySmtpDraft());
 
       const tpl = data.emailTemplates || emptyTemplateDraft();
       setTemplates(tpl);
@@ -203,7 +203,7 @@ export default function EmailPageClient() {
 
   const clearSmtp = () => {
     setSmtp(null);
-    setDraft(null);
+    setDraft(emptySmtpDraft());
   };
 
   const initSmtp = () => {

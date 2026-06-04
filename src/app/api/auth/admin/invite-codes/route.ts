@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const totalRow = db
     .select({ count: sql<number>`count(*)` })
     .from(inviteCodes)
-    .where(where as any)
+    .where(where as unknown as undefined)
     .get();
   const total = totalRow?.count ?? 0;
 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     })
     .from(inviteCodes)
     .leftJoin(users, eq(inviteCodes.createdById, users.id))
-    .where(where as any)
+    .where(where as unknown as undefined)
     .orderBy(desc(inviteCodes.createdAt))
     .limit(pageSize)
     .offset(offset)

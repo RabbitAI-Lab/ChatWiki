@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import crypto from "crypto";
 import { getSmtpConfig, getAppUrl } from "./env";
 import { getSetting, getBrandName } from "./settings";
 
@@ -162,10 +163,8 @@ export function generateVerificationCode(): string {
   // 6 位数字，crypto.randomInt 拒绝模数偏差
   // 取 0..999999 然后格式化；为简单起见直接拼接 6 个 0-9 数字
   const digits: string[] = [];
-  const buf = new Uint32Array(6);
-  // Node 22 全局 crypto；如不可用回退到 require
-  const nodeCrypto = require("crypto") as typeof import("crypto");
-  const randInt = (max: number) => nodeCrypto.randomInt(0, max);
+  // Node 22 全局 crypto
+  const randInt = (max: number) => crypto.randomInt(0, max);
   for (let i = 0; i < 6; i++) {
     digits.push(String(randInt(10)));
   }

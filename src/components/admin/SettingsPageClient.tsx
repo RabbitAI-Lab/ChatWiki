@@ -237,7 +237,7 @@ export default function SettingsPageClient() {
             )}
           </Space>
           <Text type="secondary" className="mt-3 text-xs block">
-            Changes take effect after clicking "Save". The system super admin (first registered account) can always log in regardless of these settings. Configure email service in the "Email" menu.
+            Changes take effect after clicking &quot;Save&quot;. The system super admin (first registered account) can always log in regardless of these settings. Configure email service in the &quot;Email&quot; menu.
           </Text>
         </Card>
       </div>

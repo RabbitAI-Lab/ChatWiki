@@ -37,8 +37,8 @@ const WORKSPACE_STRATEGY: EntityStrategy = {
 
 const workspaceEntityCrud = createEntityCrud(WORKSPACE_STRATEGY);
 
-export const listWorkspaces: (type: "personal" | "enterprise", accountId: string, orgId?: string) => WorkspaceMeta[] = workspaceEntityCrud.list as any;
-export const createWorkspace: (type: "personal" | "enterprise", accountId: string, name: string, orgId?: string) => WorkspaceMeta = workspaceEntityCrud.create as any;
+export const listWorkspaces: (type: "personal" | "enterprise", accountId: string, orgId?: string) => WorkspaceMeta[] = workspaceEntityCrud.list as unknown as typeof listWorkspaces;
+export const createWorkspace: (type: "personal" | "enterprise", accountId: string, name: string, orgId?: string) => WorkspaceMeta = workspaceEntityCrud.create as unknown as typeof createWorkspace;
 export const deleteWorkspace = workspaceEntityCrud.remove;
 
 // ────────────────────────────────────────────────────────────

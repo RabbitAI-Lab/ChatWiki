@@ -42,6 +42,7 @@ export default function ChatInputFooter({
   onWorkspaceChange,
   onTemplateChange,
 }: ChatInputFooterProps) {
+  // eslint-disable-next-line react/display-name
   return (oriNode: React.ReactNode) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
       <div style={{ display: 'flex' }}>

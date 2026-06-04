@@ -16,7 +16,8 @@
     "docker:prod:build": "docker compose -f docker/docker-compose.prod.yml build",
     "docker:prod:up": "docker compose -f docker/docker-compose.prod.yml up -d",
     "docker:prod:down": "docker compose -f docker/docker-compose.prod.yml down",
-    "docker:prod:logs": "docker compose -f docker/docker-compose.prod.yml logs -f"
+    "docker:prod:logs": "docker compose -f docker/docker-compose.prod.yml logs -f",
+    "prepare": "husky"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.5",
@@ -49,7 +50,13 @@
     "zod": "^4.4.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["bcrypt", "better-sqlite3", "esbuild", "sharp", "unrs-resolver"]
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "better-sqlite3",
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -64,6 +71,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "husky": "^9.1.7",
     "playwright-core": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "^5"
