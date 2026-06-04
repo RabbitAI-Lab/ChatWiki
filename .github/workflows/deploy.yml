@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
     env:
       SERVER_ENV_FILE: '${{ vars.SERVER_ENV_FILE }}'
-      REGISTRY_OWNER: ${{ github.repository_owner }}
+      REGISTRY_OWNER: ${{ github.repository_owner }}  # lowercased in scripts
       IMAGE_NAME: ${{ env.IMAGE_NAME }}
       IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
     steps:
@@ -105,6 +105,7 @@ jobs:
           envs: SERVER_ENV_FILE,IMAGE_NAME,IMAGE_TAG,REGISTRY_OWNER
           script: |
             set -e
+            REGISTRY_OWNER=$(echo "$REGISTRY_OWNER" | tr '[:upper:]' '[:lower:]')
             cd /home/"$USER"/deploy
 
             # 归位 compose 文件
