@@ -63,7 +63,7 @@ function main() {
 
   mcpServers["gitnexus"] = GITNEXUS_ENTRY;
 
-  const next = {
+  const next: Record<string, unknown> = {
     ...existing,
     mcpServers,
   };
