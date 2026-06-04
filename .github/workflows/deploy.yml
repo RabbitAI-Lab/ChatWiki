@@ -1,7 +1,9 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ['Build & Push Image']
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -34,6 +36,7 @@ jobs:
   deploy:
     name: Deploy
     needs: [prepare]
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
