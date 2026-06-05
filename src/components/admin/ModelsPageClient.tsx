@@ -48,7 +48,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     const res = await authFetch("/api/models");
     const data = await res.json();
     setModels(data);
-  }, []);
+  }, [authFetch]);
 
   // --- CRUD handlers ---
 
@@ -62,7 +62,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
       setCreateOpen(false);
       await refreshList();
     },
-    [refreshList]
+    [refreshList, authFetch]
   );
 
   const handleSaveEdit = useCallback(
@@ -77,7 +77,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
       setEditingModel(null);
       await refreshList();
     },
-    [editingModel, refreshList]
+    [editingModel, refreshList, authFetch]
   );
 
   const handleSetDefault = useCallback(
@@ -96,7 +96,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         );
       });
     },
-    [refreshList, message]
+    [refreshList, message, authFetch, t]
   );
 
   const handleDelete = useCallback(
@@ -117,7 +117,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         },
       });
     },
-    [modal, refreshList]
+    [modal, refreshList, authFetch, t]
   );
 
   const handleStartEdit = useCallback((model: ModelConfig) => {
@@ -147,7 +147,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
       return;
     }
     const exportData = models.map(
-      ({ id, createdAt, updatedAt, isDefault, ...rest }) => rest
+      ({ id: _id, createdAt: _createdAt, updatedAt: _updatedAt, isDefault: _isDefault, ...rest }) => rest
     );
     const blob = new Blob(
       [JSON.stringify({ version: 2, models: exportData }, null, 2)],
@@ -162,7 +162,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     message.success(t('modelsPage.msgExported', { count: models.length }));
-  }, [models, message]);
+  }, [models, message, t]);
 
   const handleImport = useCallback(() => {
     fileInputRef.current?.click();
@@ -196,7 +196,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
 
         const validProtocols = PROTOCOLS as readonly string[];
         const validItems = importList
-          .map(({ isDefault, ...item }) => ({
+          .map(({ isDefault: _isDefault, ...item }) => ({
             ...item,
             protocol: item.protocol || "openai",
           }))
@@ -244,7 +244,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
         message.error(t('modelsPage.msgFileParsingFailed'));
       }
     },
-    [modal, message, refreshList]
+    [modal, message, refreshList, authFetch, t]
   );
 
   // --- API Key toggle ---

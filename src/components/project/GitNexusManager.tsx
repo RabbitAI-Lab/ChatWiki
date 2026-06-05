@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/components/auth/useAuth";
 import { Modal } from "antd";
 import { useTranslations } from "next-intl";
@@ -79,7 +79,7 @@ export default function GitNexusManager({
       }
     }, 2000);
     return () => clearInterval(timer);
-  }, [isInProgress, projectPath, onStatusChange]);
+  }, [isInProgress, projectPath, onStatusChange, authFetch]);
 
   const handleAnalyze = async () => {
     try {

@@ -59,7 +59,7 @@ export default function InviteCodesPageClient() {
     total: 0,
     totalPages: 1,
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
@@ -88,13 +88,41 @@ export default function InviteCodesPageClient() {
         setLoading(false);
       }
     },
-    [authFetch, pagination.pageSize, search, status, message]
+    [authFetch, pagination.pageSize, search, status, message, t]
   );
 
   useEffect(() => {
-    load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+    let cancelled = false;
+    const params = new URLSearchParams({
+      page: "1",
+      pageSize: String(pagination.pageSize),
+      status,
+    });
+    if (search) params.set("search", search);
+    authFetch(`/api/auth/admin/invite-codes?${params.toString()}`)
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().catch(() => ({})).then((err) => {
+            throw new Error(err.error || t('inviteCodesPage.msgFailedToLoad'));
+          });
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setCodes(data.codes);
+        setPagination(data.pagination);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const msg = error instanceof Error ? error.message : t('inviteCodesPage.msgFailedToLoad');
+        message.error(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [status, search, authFetch, pagination.pageSize, t, message]);
 
   const handleDelete = async (id: string) => {
     try {

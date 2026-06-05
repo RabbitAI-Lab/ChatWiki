@@ -44,7 +44,7 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [dirSegments]);
+  }, [dirSegments, authFetch]);
 
   const handleToggle = async (skillId: "ecc" | "huashu", checked: boolean) => {
     setSaving(skillId);

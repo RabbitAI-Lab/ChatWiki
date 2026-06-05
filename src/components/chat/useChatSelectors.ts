@@ -142,7 +142,7 @@ export function useChatSelectors({
           }
         }
       });
-  }, [user?.id]);
+  }, [authFetch, user, initialModelId, initialTemplateId]);
 
   return {
     models,

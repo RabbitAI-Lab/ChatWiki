@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/components/auth/useAuth";
 import { Modal } from "antd";
 import { useTranslations } from "next-intl";
@@ -10,12 +10,6 @@ interface WorkspaceGitNexusManagerProps {
   workspacePath: string; // "/" 分隔的 dirSegments
   status: GitNexusStatus | null;
   onStatusChange: (s: GitNexusStatus | null) => void;
-}
-
-interface PhaseBadge {
-  text: string;
-  color: string;
-  spin: boolean;
 }
 
 const PHASE_BADGE_KEY: Record<GitNexusPhase, string> = {
@@ -88,7 +82,7 @@ export default function WorkspaceGitNexusManager({
       }
     }, 2000);
     return () => clearInterval(timer);
-  }, [isInProgress, workspacePath, onStatusChange]);
+  }, [isInProgress, workspacePath, onStatusChange, authFetch]);
 
   const handleAnalyze = async () => {
     try {

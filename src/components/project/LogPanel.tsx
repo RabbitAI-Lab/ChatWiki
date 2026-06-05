@@ -121,8 +121,28 @@ export default function LogPanel({ projectPath }: LogPanelProps) {
   }, [projectId, authFetch]);
 
   useEffect(() => {
-    fetchLogs(1, selectedCategory);
-  }, [selectedCategory, fetchLogs]);
+    const params = new URLSearchParams({
+      projectId,
+      page: "1",
+      pageSize: String(pageSize),
+    });
+    if (selectedCategory !== "all") {
+      params.set("category", selectedCategory);
+    }
+    Promise.resolve()
+      .then(() => setLoading(true))
+      .then(() => authFetch(`/api/fs/project-logs?${params}`))
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          setLogs(data.logs);
+          setTotal(data.total);
+          setPage(1);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [selectedCategory, projectId, authFetch]);
 
   const handleCategoryChange = (category: LogCategory | "all") => {
     setSelectedCategory(category);

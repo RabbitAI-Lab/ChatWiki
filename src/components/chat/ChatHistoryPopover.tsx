@@ -79,9 +79,11 @@ export default function ChatHistoryPopover({
 
   useEffect(() => {
     if (open) {
-      setPage(1);
-      setChats([]);
-      fetchChats(1);
+      Promise.resolve().then(() => {
+        setPage(1);
+        setChats([]);
+        fetchChats(1);
+      });
     }
   }, [open, fetchChats]);
 

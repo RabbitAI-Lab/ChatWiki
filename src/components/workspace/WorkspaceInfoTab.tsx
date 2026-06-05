@@ -117,7 +117,7 @@ export default function WorkspaceInfoTab({
   // 检查同步状态
   useEffect(() => {
     if (repositories.length === 0) {
-      setHasUnsynced(false);
+      Promise.resolve().then(() => setHasUnsynced(false));
       return;
     }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, forwardRef, useImperativeHandle } from "react";
+import { useState, forwardRef, useImperativeHandle, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Bubble, Sender, XProvider } from "@ant-design/x";
@@ -37,6 +37,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
   floating = false,
   showProjectSelector = false,
   workspaceId,
+  onRefStateChange,
 }, ref) {
   const router = useRouter();
   const t = useTranslations("chat");
@@ -100,14 +101,6 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveModalContent, setSaveModalContent] = useState("");
 
-  const handleSaveToDocument = () => {
-    const content = messagesApi.messages
-      .map((m) => `### ${m.role === "user" ? t("roleLabels.user") : t("roleLabels.assistant")}\n\n${m.content}`)
-      .join("\n\n");
-    setSaveModalContent(content);
-    setSaveModalOpen(true);
-  };
-
   const handleSaveSingleMessage = (msg: Message) => {
     const roleLabel = msg.role === "user" ? t("roleLabels.user") : t("roleLabels.assistant");
     const content = `### ${roleLabel}\n\n${msg.content}`;
@@ -115,7 +108,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
     setSaveModalOpen(true);
   };
 
-  const handleSaved = (docPath: string) => {
+  const handleSaved = (_docPath: string) => {
     setSaveModalOpen(false);
     onDocumentSaved?.();
   };
@@ -134,7 +127,12 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
     handleCopyLink: share.handleCopyLink,
     handleRegenerateLink: share.handleRegenerateLink,
     handleCancelShare: share.handleCancelShare,
-  }), [floating, selectors.selectedProject, selectors.selectedWorkspace, effectiveChatId, share.shareOpen, share.shareToken, share.shareLoading]);
+  }), [effectiveChatId, share.shareOpen, share.shareToken, share.shareLoading, share.handleShare, share.setShareOpen, share.handleCopyLink, share.handleRegenerateLink, share.handleCancelShare, navigation.handleNewChat, navigation.handleHistorySelect, messagesApi.handleClear]);
+
+  // Notify parent of state changes for floating window
+  useEffect(() => {
+    onRefStateChange?.({ effectiveChatId, shareOpen: share.shareOpen, shareToken: share.shareToken, shareLoading: share.shareLoading });
+  }, [onRefStateChange, effectiveChatId, share.shareOpen, share.shareToken, share.shareLoading]);
 
   // Footer renderer
   const renderFooter = ChatInputFooter({

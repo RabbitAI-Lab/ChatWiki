@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import NavLink from "./NavLink";
 import { useAuth } from "@/components/auth/useAuth";
@@ -10,9 +10,9 @@ export default function TodoNavLink() {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const t = useTranslations("sidebar");
 
-  const fetchPendingCount = () => {
+  const fetchPendingCount = useCallback(() => {
     if (!user) return;
-    authFetch("/api/todos")
+    return authFetch("/api/todos")
       .then((res) => {
         if (!res.ok) return;
         return res.json();
@@ -22,18 +22,15 @@ export default function TodoNavLink() {
         setPendingCount(todos.filter((t) => t.completed === 0).length);
       })
       .catch(() => {});
-  };
+  }, [user, authFetch]);
 
   useEffect(() => {
-    if (isLoading || !user) {
-      setPendingCount(0);
-      return;
-    }
+    if (isLoading || !user) return;
     fetchPendingCount();
     const handler = () => fetchPendingCount();
     window.addEventListener("todos-changed", handler);
     return () => window.removeEventListener("todos-changed", handler);
-  }, [isLoading, user]);
+  }, [isLoading, user, fetchPendingCount]);
 
   return (
     <NavLink

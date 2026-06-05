@@ -53,7 +53,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
     const res = await authFetch("/api/system-prompts");
     const data = await res.json();
     setPrompts(data);
-  }, []);
+  }, [authFetch]);
 
   const handleCreate = useCallback(() => {
     setEditingPrompt(null);
@@ -100,7 +100,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
     } catch {
       // validation failed
     }
-  }, [editingPrompt, form, refreshList, message]);
+  }, [editingPrompt, form, refreshList, message, authFetch, t]);
 
   const handleToggleEnabled = useCallback(
     (record: SystemPrompt) => {
@@ -114,7 +114,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
         message.success(newEnabled ? t('systemPromptsPage.msgEnabled', { name: record.name }) : t('systemPromptsPage.msgDisabled', { name: record.name }));
       });
     },
-    [refreshList, message]
+    [refreshList, message, authFetch, t]
   );
 
   const handleDelete = useCallback(
@@ -132,7 +132,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
         },
       });
     },
-    [modal, refreshList, message]
+    [modal, refreshList, message, authFetch, t]
   );
 
   const columns: ColumnsType<SystemPrompt> = [

@@ -116,11 +116,47 @@ export default function EmailPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [authFetch, message]);
+  }, [authFetch, message, t]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    authFetch("/api/auth/admin/system-settings")
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().catch(() => ({})).then((err) => {
+            throw new Error(err.error || t('emailPage.msgFailedToLoad'));
+          });
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const typed = data as {
+          smtp: Omit<SmtpSettings, "pass"> | null;
+          brandName: string;
+          emailTemplates: EmailTemplateSettings;
+        };
+        const normalized: SmtpSettings | null = typed.smtp
+          ? { ...emptySmtpDraft(), ...typed.smtp, pass: "" }
+          : null;
+        setSmtp(normalized);
+        setDraft(normalized ?? emptySmtpDraft());
+        const tpl = typed.emailTemplates || emptyTemplateDraft();
+        setTemplates(tpl);
+        setTemplateDraft(tpl);
+        setPreviewHtml(null);
+        setPreviewSubject(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const msg = error instanceof Error ? error.message : t('emailPage.msgFailedToLoad');
+        message.error(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [authFetch, t, message]);
 
   const dirty = useMemo(() => {
     if (!draft) return false;

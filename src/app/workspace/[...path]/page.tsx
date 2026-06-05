@@ -1,4 +1,4 @@
-import { readWorkspaceMeta, listWorkspaceProjects, listTree, stripTreePrefix, readDocument, TreeNode } from "@/lib/fs";
+import { readWorkspaceMeta, listWorkspaceProjects, listTree, stripTreePrefix, readDocument } from "@/lib/fs";
 import { db } from "@/db";
 import { chats, documentActivities } from "@/db/schema";
 import { gte, desc, eq, and, inArray } from "drizzle-orm";
@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/tokens";
 import WorkspaceDetail from "@/components/workspace/WorkspaceDetail";
+import { getRecentCutoff } from "@/lib/time";
 
 export default async function WorkspacePage({
   params,
@@ -28,6 +29,7 @@ export default async function WorkspacePage({
       currentUserId = payload.sub;
     }
   }
+  void currentUserId; // reserved for future workspace-level access control
 
   // urlPath = ["personal", "{accountId}", "{workspaceId}"]
   if (urlPath.length < 3) notFound();
@@ -67,9 +69,7 @@ export default async function WorkspacePage({
   }
 
   // 预取最近 20 天的聊天（跟着 workspace 走：所有成员可见）
-  const twentyDaysAgo = new Date(
-    Date.now() - 20 * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const twentyDaysAgo = getRecentCutoff();
 
   const chatConditions = [
     eq(chats.workspaceId, workspaceId),

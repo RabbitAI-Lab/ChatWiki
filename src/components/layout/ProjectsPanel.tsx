@@ -56,12 +56,16 @@ export default function ProjectsPanel() {
   }, [user, authFetch]);
 
   useEffect(() => {
-    if (isLoading || !user) {
-      setProjects([]);
-      return;
-    }
-    fetchProjects();
-  }, [isLoading, user, fetchProjects, pathname]);
+    if (isLoading || !user) return;
+    authFetch(`/api/fs/projects?type=personal&accountId=${user.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        setProjects(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        setProjects([]);
+      });
+  }, [isLoading, user, authFetch, pathname]);
 
   useEffect(() => {
     if (editingId && inputRef.current) {

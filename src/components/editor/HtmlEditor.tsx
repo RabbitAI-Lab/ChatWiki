@@ -36,6 +36,7 @@ export default function HtmlEditor({
   const [mode, setMode] = useState<ViewMode>("edit");
   const [saving, setSaving] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   // Snapshot of the last persisted content, used to compute the dirty flag.
   const persistedRef = useRef<string>(initialValue);
   const lastLoadedRef = useRef<string | null>(null);
@@ -56,15 +57,15 @@ export default function HtmlEditor({
     lastLoadedRef.current = filePath;
     setContent(initialValue);
     persistedRef.current = initialValue;
+    setIsDirty(false);
     setMode("edit");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, initialValue, filePath]);
 
-  const isDirty = content !== persistedRef.current;
-
   const handleChange = (next: string | undefined) => {
     if (typeof next !== "string") return;
     setContent(next);
+    setIsDirty(next !== persistedRef.current);
     onContentChange(next);
   };
 
@@ -74,7 +75,7 @@ export default function HtmlEditor({
     try {
       await onSave(content);
       persistedRef.current = content;
-      setContent((c) => c); // force re-render of dirty flag
+      setIsDirty(false);
     } finally {
       setSaving(false);
     }

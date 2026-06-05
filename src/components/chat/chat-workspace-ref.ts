@@ -32,6 +32,7 @@ export interface ChatWorkspaceProps {
   floating?: boolean;
   showProjectSelector?: boolean;
   workspaceId?: string;
+  onRefStateChange?: (state: { effectiveChatId: number | null; shareOpen: boolean; shareToken: string | null; shareLoading: boolean }) => void;
 }
 
 export interface ChatWorkspaceRef {

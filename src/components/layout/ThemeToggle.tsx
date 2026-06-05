@@ -65,7 +65,7 @@ export default function ThemeToggle() {
   const t = useTranslations("theme");
 
   useEffect(() => {
-    setMounted(true);
+    Promise.resolve().then(() => setMounted(true));
   }, []);
 
   if (!mounted) {

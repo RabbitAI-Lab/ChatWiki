@@ -23,7 +23,7 @@ interface UseChatNavigationOptions {
 }
 
 export function useChatNavigation({
-  effectiveChatId,
+  effectiveChatId: _effectiveChatId,
   setEffectiveChatId,
   setEffectiveChatTitle,
   setMessages,

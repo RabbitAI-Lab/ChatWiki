@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
 import {
@@ -43,7 +43,7 @@ export default function AccountPage() {
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [loadingCodes, setLoadingCodes] = useState(false);
 
-  const loadInviteCodes = async () => {
+  const loadInviteCodes = useCallback(async () => {
     if (!user) return;
     setLoadingCodes(true);
     try {
@@ -59,11 +59,24 @@ export default function AccountPage() {
     } finally {
       setLoadingCodes(false);
     }
-  };
+  }, [user, authFetch]);
 
   useEffect(() => {
-    loadInviteCodes();
-  }, [loadInviteCodes]);
+    if (!user) return;
+    let cancelled = false;
+    authFetch("/api/auth/invite-codes")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.codes)) {
+          setInviteCodes(data.codes);
+        }
+        if (!cancelled) setLoadingCodes(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadingCodes(false);
+      });
+    return () => { cancelled = true; };
+  }, [user, authFetch]);
 
   const handleChangePassword = async (values: {
     currentPassword: string;

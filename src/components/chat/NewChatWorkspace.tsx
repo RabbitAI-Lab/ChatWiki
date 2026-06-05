@@ -74,25 +74,6 @@ export default function NewChatWorkspace() {
 
   const chatSwitching = useChatSwitching({ setActiveTabId: tabSystem.setActiveTabId });
 
-  // --- Project list fetch ---
-
-  useEffect(() => {
-    authFetch(`/api/fs/projects?type=personal&accountId=${user?.id ?? ''}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [];
-        setProjects(list);
-        // Auto-select project from URL param
-        if (preselectProjectId && !autoSelectedRef.current) {
-          const found = list.find((p: ProjectMeta) => p.id === preselectProjectId);
-          if (found) {
-            autoSelectedRef.current = true;
-            handleSelectProject(found);
-          }
-        }
-      });
-  }, [user?.id]);
-
   // --- Refresh recent chats & documents ---
 
   const refreshRecentChats = useCallback(async (projectId: string) => {
@@ -104,7 +85,7 @@ export default function NewChatWorkspace() {
     } catch {
       setRecentChats([]);
     }
-  }, []);
+  }, [authFetch]);
 
   const refreshRecentDocuments = useCallback(async (projectId: string) => {
     const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
@@ -115,11 +96,11 @@ export default function NewChatWorkspace() {
     } catch {
       setRecentDocuments([]);
     }
-  }, []);
+  }, [authFetch]);
 
   // --- Project selection handlers ---
 
-  const handleSelectProject = async (project: ProjectMeta) => {
+  const handleSelectProject = useCallback(async (project: ProjectMeta) => {
     setSelectedProjectId(project.id);
     setSelectedProjectName(project.name);
     setProjectMeta(project);
@@ -144,7 +125,26 @@ export default function NewChatWorkspace() {
     refreshRecentChats(project.id);
     refreshRecentDocuments(project.id);
     window.history.replaceState(null, "", `/chat/new?project=${project.id}`);
-  };
+  }, [authFetch, user?.id, fileTree, tabSystem, chatSwitching, refreshRecentChats, refreshRecentDocuments]);
+
+  // --- Project list fetch ---
+
+  useEffect(() => {
+    authFetch(`/api/fs/projects?type=personal&accountId=${user?.id ?? ''}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setProjects(list);
+        // Auto-select project from URL param
+        if (preselectProjectId && !autoSelectedRef.current) {
+          const found = list.find((p: ProjectMeta) => p.id === preselectProjectId);
+          if (found) {
+            autoSelectedRef.current = true;
+            handleSelectProject(found);
+          }
+        }
+      });
+  }, [authFetch, user?.id, handleSelectProject, preselectProjectId]);
 
   const handleBack = () => {
     setSelectedProjectId(null);
@@ -179,7 +179,7 @@ export default function NewChatWorkspace() {
     }
     const node: TreeNode = { name: documentPath.split("/").pop() || documentPath, type: "file", path: documentPath };
     tabSystem.handleFileClick(node);
-  }, [projectPath, tabSystem.handleFileClick]);
+  }, [authFetch, t, projectPath, tabSystem]);
 
 
 
@@ -434,7 +434,7 @@ export default function NewChatWorkspace() {
                       editorId={"cherry-" + tab.filePath.replace(/\//g, "-")}
                       initialValue={tab.content}
                       onChange={(markdown) => tabSystem.handleFileChange(tab.filePath, markdown)}
-                      onSave={() => tabSystem.handleFileSave(tab.filePath, tabSystem.contentCache.current[tab.filePath] ?? tab.content)}
+                      onSave={() => tabSystem.handleFileSave(tab.filePath, tabSystem.getCachedContent(tab.filePath) ?? tab.content)}
                       defaultModel="editOnly"
                     />
                   ) : (

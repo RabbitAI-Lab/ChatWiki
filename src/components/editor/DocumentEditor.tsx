@@ -43,7 +43,7 @@ export default function DocumentEditor({
     });
     setContent(markdown);
     setTimeout(() => setSaving(false), 500);
-  }, [docPath]);
+  }, [docPath, authFetch]);
 
   const handleChange = useCallback(
     (markdown: string) => {

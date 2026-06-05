@@ -91,7 +91,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
     const res = await authFetch("/api/plans");
     const data = await res.json();
     setPlans(data);
-  }, []);
+  }, [authFetch]);
 
   const handleCreate = useCallback(() => {
     setEditingPlan(null);
@@ -164,7 +164,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
     } catch {
       // validation failed
     }
-  }, [editingPlan, form, refreshList, message]);
+  }, [editingPlan, form, refreshList, message, authFetch, t]);
 
   const handleToggleEnabled = useCallback(
     (record: Plan) => {
@@ -182,7 +182,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
         );
       });
     },
-    [refreshList, message]
+    [refreshList, message, authFetch, t]
   );
 
   const handleDelete = useCallback(
@@ -200,7 +200,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
         },
       });
     },
-    [modal, refreshList, message]
+    [modal, refreshList, message, authFetch, t]
   );
 
   const columns: ColumnsType<Plan> = [
@@ -407,7 +407,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
                   <span className="w-6" />
                 </div>
                 {fields.map((field) => {
-                  const { key: _k, ...fieldProps } = field;
+                  const { key: _, ...fieldProps } = field;
                   return (
                   <div
                     key={field.key}
@@ -519,7 +519,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
             {(fields, { add, remove }) => (
               <div className="space-y-2">
                 {fields.map((field) => {
-                  const { key: _k, ...fieldProps } = field;
+                  const { key: _, ...fieldProps } = field;
                   return (
                   <div key={field.key} className="flex items-start gap-2">
                     <Form.Item

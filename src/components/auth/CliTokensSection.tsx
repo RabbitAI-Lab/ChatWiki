@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "./useAuth";
 import {
   Button,
   Table,
-  Space,
   App,
   Empty,
   Typography,
@@ -31,11 +30,7 @@ export default function CliTokensSection() {
   const [tokens, setTokens] = useState<CliToken[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadTokens();
-  }, []);
-
-  const loadTokens = async () => {
+  const loadTokens = useCallback(async () => {
     setLoading(true);
     try {
       const res = await authFetch("/api/auth/cli/tokens");
@@ -48,7 +43,11 @@ export default function CliTokensSection() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authFetch]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => loadTokens());
+  }, [loadTokens]);
 
   const handleRevoke = async (id: string) => {
     try {

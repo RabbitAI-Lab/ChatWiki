@@ -85,7 +85,7 @@ export default function SaveToDocumentModal({
     return () => {
       cancelled = true;
     };
-  }, [open, projectId]);
+  }, [open, projectId, authFetch, t, user?.id]);
 
   const handleDirClick = (node: TreeNode) => {
     setSelectedDir(node.path);

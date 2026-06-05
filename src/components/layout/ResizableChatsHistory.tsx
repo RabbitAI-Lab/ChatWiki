@@ -54,9 +54,11 @@ export default function ResizableChatsHistory() {
 
   // Load saved state after mount (localStorage not available during SSR)
   useEffect(() => {
-    setHeight(loadSavedHeight());
-    setCollapsed(loadSavedCollapsed());
-    setMounted(true);
+    Promise.resolve().then(() => {
+      setHeight(loadSavedHeight());
+      setCollapsed(loadSavedCollapsed());
+      setMounted(true);
+    });
   }, []);
 
   // Fetch chats from API (user-isolated)

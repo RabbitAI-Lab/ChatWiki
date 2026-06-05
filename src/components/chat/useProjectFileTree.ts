@@ -45,7 +45,7 @@ export function useProjectFileTree({
       setTree([]);
     }
     setTreeLoading(false);
-  }, [projectId]);
+  }, [authFetch, projectId, user?.id]);
 
   const handleCreateFile = useCallback(async (parentPath: string) => {
     if (!projectId) return;
@@ -73,7 +73,7 @@ export function useProjectFileTree({
       onFileCreated(relativePath, `# ${baseName}\n\n`);
     }
     refreshTree();
-  }, [tree, projectId, projectPath, refreshTree, onFileCreated]);
+  }, [tree, projectId, projectPath, refreshTree, onFileCreated, authFetch]);
 
   const handleCreateDir = useCallback(async (parentPath: string) => {
     if (!projectId) return;
@@ -97,7 +97,7 @@ export function useProjectFileTree({
     setRenamingName(defaultName);
     setTimeout(() => renameInputRef.current?.select(), 0);
     refreshTree();
-  }, [tree, projectId, projectPath, refreshTree]);
+  }, [tree, projectId, projectPath, refreshTree, authFetch]);
 
   const handleRenameConfirm = useCallback(async () => {
     const currentPath = renamingPath;
@@ -155,7 +155,7 @@ export function useProjectFileTree({
     setTree((prev) => renameNodeInTree(prev, currentPath, finalName));
     setRenamingPath(null);
     refreshTree();
-  }, [renamingPath, renamingName, tree, projectPath, message, onUpdateTabPaths, refreshTree]);
+  }, [renamingPath, renamingName, tree, projectPath, message, onUpdateTabPaths, refreshTree, authFetch]);
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
@@ -176,7 +176,7 @@ export function useProjectFileTree({
       body: JSON.stringify({ path: `${projectPath}/${dirPath}` }),
     });
     refreshTree();
-  }, [projectPath, refreshTree]);
+  }, [projectPath, refreshTree, authFetch]);
 
   const handleDeleteFile = useCallback(async (filePath: string) => {
     await authFetch("/api/fs/document", {
@@ -186,7 +186,7 @@ export function useProjectFileTree({
     });
     onCloseTab(filePath);
     refreshTree();
-  }, [projectPath, onCloseTab, refreshTree]);
+  }, [projectPath, onCloseTab, refreshTree, authFetch]);
 
   const reset = useCallback(() => {
     setTree([]);

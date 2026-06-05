@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { App, Form } from "antd";
 import type { FormInstance } from "antd";
 import {
@@ -87,21 +87,15 @@ export function useMcpConfig({
 
   const { message } = App.useApp();
 
-  // Stable entry ordering across toggles; must live inside the hook to
-  // survive re-renders and keep a single source of truth.
-  const entryOrderRef = useRef<string[]>([]);
-
   // Serialize dirSegments to a stable string key so that useCallback
   // dependencies do not change on every render (array reference instability
   // was causing an infinite fetch → setState → re-render loop).
   const dirKey = dirSegments.join(",");
-  const dirSegmentsRef = useRef(dirSegments);
-  dirSegmentsRef.current = dirSegments;
 
   const fetchConfig = useCallback(async () => {
     try {
       const res = await authFetch(
-        `${apiBase}?dirSegments=${dirSegmentsRef.current.join(",")}`,
+        `${apiBase}?dirSegments=${dirKey}`,
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -150,7 +144,7 @@ export function useMcpConfig({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            dirSegments: dirSegmentsRef.current,
+            dirSegments: dirKey.split(","),
             mcpJson: {
               mcpServers: next.mcpServers,
               disabled: next.disabled || {},
@@ -354,30 +348,19 @@ export function useMcpConfig({
   }, [addForm, mcpJson, writeBack, message]);
 
   // Merge enabled + disabled servers, preserving a stable display order.
-  // Newly seen keys are appended; deleted keys are pruned.
   const allEntries = useMemo<McpRenderEntry[]>(() => {
-    const existing = new Set(entryOrderRef.current);
     const disabled = mcpJson.disabled || {};
-    Object.keys(mcpJson.mcpServers).forEach((k) => {
-      if (!existing.has(k)) {
-        entryOrderRef.current.push(k);
-        existing.add(k);
-      }
-    });
-    Object.keys(disabled).forEach((k) => {
-      if (!existing.has(k)) {
-        entryOrderRef.current.push(k);
-        existing.add(k);
-      }
-    });
-    const currentKeys = new Set([
+    const allKeys = [
       ...Object.keys(mcpJson.mcpServers),
       ...Object.keys(disabled),
-    ]);
-    entryOrderRef.current = entryOrderRef.current.filter((k) =>
-      currentKeys.has(k),
-    );
-    return entryOrderRef.current.map((name) => {
+    ];
+    const seen = new Set<string>();
+    const uniqueKeys = allKeys.filter((k) => {
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return uniqueKeys.map((name) => {
       const isEnabled = !!mcpJson.mcpServers[name];
       const entry = isEnabled ? mcpJson.mcpServers[name] : disabled[name];
       return { name, entry, isEnabled };

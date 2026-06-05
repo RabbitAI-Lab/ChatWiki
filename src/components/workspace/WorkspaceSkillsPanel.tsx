@@ -47,7 +47,7 @@ export default function WorkspaceSkillsPanel({
     return () => {
       cancelled = true;
     };
-  }, [dirSegments]);
+  }, [dirSegments, authFetch]);
 
   const handleToggle = async (
     skillId: "ecc" | "huashu",

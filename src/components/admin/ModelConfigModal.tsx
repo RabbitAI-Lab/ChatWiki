@@ -52,7 +52,15 @@ export default function ModelConfigModal({
   onCancel,
 }: ModelConfigModalProps) {
   const [form] = Form.useForm();
-  const [customProvider, setCustomProvider] = useState("");
+  const [customProvider, setCustomProvider] = useState(() => {
+    if (mode === "edit" && initialValues) {
+      const provider = initialValues.provider as string;
+      if (provider === CUSTOM_PROVIDER_KEY) {
+        return (initialValues as Record<string, string>)._realProvider || "";
+      }
+    }
+    return "";
+  });
   const userEditedRef = useRef<Set<string>>(new Set());
   const { message } = App.useApp();
   const t = useTranslations('admin');
@@ -61,7 +69,6 @@ export default function ModelConfigModal({
   useEffect(() => {
     if (!open) return;
     userEditedRef.current.clear();
-    setCustomProvider("");
 
     if (mode === "create") {
       const defaults = getProviderDefaults("GLM", "openai");
@@ -74,11 +81,6 @@ export default function ModelConfigModal({
       });
     } else if (initialValues) {
       form.setFieldsValue(initialValues);
-      // Restore custom provider name for edit mode
-      const provider = initialValues.provider as string;
-      if (provider === CUSTOM_PROVIDER_KEY) {
-        setCustomProvider((initialValues as Record<string, string>)._realProvider || "");
-      }
     }
   }, [open, mode, initialValues, form]);
 
@@ -177,7 +179,7 @@ export default function ModelConfigModal({
     } catch {
       // validation failed, antd will show errors
     }
-  }, [form, customProvider, onSubmit, message]);
+  }, [form, customProvider, onSubmit, message, t]);
 
   const handleCancel = useCallback(() => {
     form.resetFields();

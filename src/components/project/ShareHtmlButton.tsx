@@ -34,31 +34,29 @@ export default function ShareHtmlButton({
     .map(encodeURIComponent)
     .join("/")}`;
 
-  const refresh = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(apiUrl, { method: "GET" });
-      if (!res.ok) {
-        setStatus({ isShared: false });
-        return;
-      }
-      const data = await res.json();
-      setStatus({
-        token: data.token,
-        url: data.url,
-        createdAt: data.createdAt,
-        isShared: !!data.isShared,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('shareHtml.queryFailed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    void refresh();
+    fetch(apiUrl, { method: "GET" })
+      .then((res) => {
+        if (!res.ok) {
+          setStatus({ isShared: false });
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data) {
+          setStatus({
+            token: data.token,
+            url: data.url,
+            createdAt: data.createdAt,
+            isShared: !!data.isShared,
+          });
+        }
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : t('shareHtml.queryFailed'));
+      })
+      .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

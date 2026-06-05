@@ -4,26 +4,6 @@ import { requireAdmin } from "@/lib/auth/session";
 import { bulkSetSettings, getSetting } from "@/lib/auth/settings";
 import { getApiT } from "@/lib/i18n-api";
 
-// Settings keys managed by this route (used for reference)
-const _SETTING_KEYS = [
-  "open_registration",
-  "require_invite_code",
-  "require_email_verification",
-  "passkey_enabled",
-  "passkey_rp_id",
-  "passkey_rp_name",
-  "smtp_host",
-  "smtp_port",
-  "smtp_user",
-  "smtp_pass",
-  "smtp_secure",
-  "smtp_from_email",
-  "brand_name",
-  "email_verify_subject",
-  "email_verify_html",
-  "site_url",
-] as const;
-
 const updateSettingsSchema = z.object({
   openRegistration: z.boolean().optional(),
   requireInviteCode: z.boolean().optional(),

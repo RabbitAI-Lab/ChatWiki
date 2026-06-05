@@ -95,7 +95,7 @@ export default function WorkspaceDetail({
   // Sync tree when server props change (after router.refresh())
   useEffect(() => {
     if (renamingPath === null) {
-      setTree(initialTree);
+      Promise.resolve().then(() => setTree(initialTree));
     }
   }, [initialTree, renamingPath]);
 
@@ -127,7 +127,7 @@ export default function WorkspaceDetail({
     setTabs((prev) => [...prev, { filePath: relativePath, content: fileContent, loaded: true, type: "markdown" }]);
     setActiveTabId(relativePath);
     router.refresh();
-  }, [tree, docsPath, router]);
+  }, [tree, docsPath, router, authFetch]);
 
   const handleCreateDir = useCallback(async (parentPath: string) => {
     const children = parentPath ? findChildren(tree, parentPath) : tree;
@@ -150,7 +150,18 @@ export default function WorkspaceDetail({
     setRenamingName(defaultName);
     setTimeout(() => renameInputRef.current?.select(), 0);
     router.refresh();
-  }, [tree, docsPath, router]);
+  }, [tree, docsPath, router, authFetch]);
+
+  // Helper to update tab paths when a file is renamed
+  const updateTabPaths = (oldPath: string, newPath: string) => {
+    setTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
+    setActiveTabId((prev) => prev === oldPath ? newPath : prev);
+    const cached = contentCache.current[oldPath];
+    if (cached !== undefined) {
+      contentCache.current[newPath] = cached;
+      delete contentCache.current[oldPath];
+    }
+  };
 
   const handleRenameConfirm = useCallback(async () => {
     const currentPath = renamingPath;
@@ -207,7 +218,7 @@ export default function WorkspaceDetail({
     setTree((prev) => renameNodeInTree(prev, currentPath, finalName));
     setRenamingPath(null);
     router.refresh();
-  }, [renamingPath, renamingName, tree, docsPath, router, message]);
+  }, [renamingPath, renamingName, tree, docsPath, router, message, authFetch, t]);
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
@@ -240,17 +251,6 @@ export default function WorkspaceDetail({
       handleTabClose(filePath);
     }
     router.refresh();
-  };
-
-  // Helper to update tab paths when a file is renamed
-  const updateTabPaths = (oldPath: string, newPath: string) => {
-    setTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
-    setActiveTabId((prev) => prev === oldPath ? newPath : prev);
-    const cached = contentCache.current[oldPath];
-    if (cached !== undefined) {
-      contentCache.current[newPath] = cached;
-      delete contentCache.current[oldPath];
-    }
   };
 
   // --- Tab system functions ---
@@ -298,7 +298,7 @@ export default function WorkspaceDetail({
 
       return [...prev, newTab];
     });
-  }, [docsPath]);
+  }, [docsPath, authFetch]);
 
   // Open (or switch to) an HTML file in a tab. Triggered by preview_html client tool.
   const handlePreviewHtml = useCallback(async (filePath: string) => {
@@ -347,7 +347,7 @@ export default function WorkspaceDetail({
         });
       return [...prev, { filePath, content: "", loaded: false, type: "html" }];
     });
-  }, [docsPath, message]);
+  }, [docsPath, message, authFetch, tc]);
 
   const handleTabClose = useCallback((tabId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -374,7 +374,7 @@ export default function WorkspaceDetail({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${docsPath}/${filePath}`, content: markdown }),
     });
-  }, [docsPath]);
+  }, [docsPath, authFetch]);
 
   const handleFileChange = useCallback((filePath: string, markdown: string) => {
     contentCache.current[filePath] = markdown;
@@ -383,7 +383,7 @@ export default function WorkspaceDetail({
   // --- Chat navigation ---
 
   const handleSwitchToChat = useCallback(
-    async (chatId: number, projectId: string | null) => {
+    async (chatId: number, _projectId: string | null) => {
       try {
         const [chatRes, msgRes] = await Promise.all([
           authFetch(`/api/chats/${chatId}`),
@@ -410,7 +410,7 @@ export default function WorkspaceDetail({
         setActiveTabId(CHAT_TAB);
       }
     },
-    [],
+    [authFetch],
   );
 
   const handleNewChat = useCallback(() => {
@@ -421,7 +421,7 @@ export default function WorkspaceDetail({
     setActiveChatTemplateId(undefined);
     setChatKey((k) => k + 1);
     setActiveTabId(CHAT_TAB);
-  }, []);
+  }, [t]);
 
   // 点击 Activity 标签中的 document：跳转到 document 所属 project 的 ProjectWorkspace
   const handleNavigateToDocument = useCallback(
@@ -442,7 +442,7 @@ export default function WorkspaceDetail({
   // 如果从 URL 参数传入 chatId，自动加载该 chat
   useEffect(() => {
     if (initialChatId) {
-      handleSwitchToChat(initialChatId, null);
+      Promise.resolve().then(() => handleSwitchToChat(initialChatId, null));
     }
   }, [initialChatId]); // eslint-disable-line react-hooks/exhaustive-deps
 

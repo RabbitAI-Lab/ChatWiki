@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "./useAuth";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@ant-design/icons";
 import {
   startRegistration,
-  startAuthentication,
 } from "@simplewebauthn/browser";
 
 const { Text } = Typography;
@@ -43,11 +42,7 @@ export default function PasskeySection() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
-  useEffect(() => {
-    loadPasskeys();
-  }, []);
-
-  const loadPasskeys = async () => {
+  const loadPasskeys = useCallback(async () => {
     setLoading(true);
     try {
       const res = await authFetch("/api/passkey/list");
@@ -60,7 +55,11 @@ export default function PasskeySection() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authFetch]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => loadPasskeys());
+  }, [loadPasskeys]);
 
   const handleRegister = async () => {
     setRegistering(true);

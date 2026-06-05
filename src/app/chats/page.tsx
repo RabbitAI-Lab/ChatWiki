@@ -66,10 +66,8 @@ export default function ChatsPageClient() {
       });
   }, [authLoading, user, authFetch]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- setLoading is necessary before async fetch; cascading render is intentional to show loading state
   useEffect(() => {
     if (authLoading || !user) return;
-    setLoading(true);
     authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
       .then((res) => res.json())
       .then((json) => {
@@ -250,7 +248,7 @@ export default function ChatsPageClient() {
           {data.totalPages > 1 && (
             <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-zinc-700">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => { setLoading(true); setPage((p) => Math.max(1, p - 1)); }}
                 disabled={page <= 1}
                 className="px-4 py-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
@@ -260,7 +258,7 @@ export default function ChatsPageClient() {
                 {t('pageInfo', { page, totalPages: data.totalPages })}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                onClick={() => { setLoading(true); setPage((p) => Math.min(data.totalPages, p + 1)); }}
                 disabled={page >= data.totalPages}
                 className="px-4 py-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { App, Button, Input, Space, Tag, Typography, Alert } from "antd";
 import {
@@ -38,7 +38,7 @@ export default function GeneralRegistrationKeySection() {
 
   const isAdmin = !!user?.isAdmin;
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!isAdmin) return;
     setLoading(true);
     try {
@@ -56,12 +56,11 @@ export default function GeneralRegistrationKeySection() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, authFetch]);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+    Promise.resolve().then(() => load());
+  }, [load]);
 
   if (!isAdmin) {
     return (

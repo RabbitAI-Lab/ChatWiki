@@ -143,8 +143,11 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<number | null>(null);
 
+  // loadData is for button handlers (onOk refresh after subscribe).
+  // Initial data fetch is done inline in useEffect below.
   const loadData = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
     try {
       const [plansRes, subRes] = await Promise.all([
         authFetch("/api/plans"),
@@ -165,10 +168,30 @@ export default function BillingPage() {
     }
   }, [user, authFetch]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- loadData is a stable callback; state updates happen inside async fetch, not synchronously in the effect body
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([
+      authFetch("/api/plans"),
+      authFetch("/api/subscriptions"),
+    ]).then(([plansRes, subRes]) => {
+      if (cancelled) return;
+      if (plansRes.ok) {
+        plansRes.json().then((plansData: Plan[]) => {
+          if (!cancelled) setPlans(plansData.filter((p) => p.enabled === 1));
+        });
+      }
+      if (subRes.ok) {
+        subRes.json().then((subData) => {
+          if (!cancelled) setSubscription(subData.subscription);
+        });
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [user, authFetch]);
 
   const handleSubscribe = (plan: Plan) => {
     const isUpgrade = subscription && subscription.planId !== plan.id;

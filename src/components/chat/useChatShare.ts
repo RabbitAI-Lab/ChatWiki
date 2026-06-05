@@ -20,7 +20,7 @@ export function useChatShare({ effectiveChatId }: UseChatShareOptions) {
   // 查询当前会话的分享状态
   useEffect(() => {
     if (!effectiveChatId) {
-      setShareToken(null);
+      Promise.resolve().then(() => setShareToken(null));
       return;
     }
     authFetch(`/api/chats/${effectiveChatId}/share`)
@@ -28,7 +28,7 @@ export function useChatShare({ effectiveChatId }: UseChatShareOptions) {
       .then((data) => {
         setShareToken(data.token);
       });
-  }, [effectiveChatId]);
+  }, [effectiveChatId, authFetch]);
 
   const handleShare = async () => {
     if (!effectiveChatId) return;

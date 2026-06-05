@@ -57,12 +57,16 @@ export default function WorkspacesPanel() {
   }, [user, authFetch]);
 
   useEffect(() => {
-    if (isLoading || !user) {
-      setWorkspaces([]);
-      return;
-    }
-    fetchWorkspaces();
-  }, [isLoading, user, fetchWorkspaces, pathname]);
+    if (isLoading || !user) return;
+    authFetch(`/api/fs/workspaces?type=personal&accountId=${user.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        setWorkspaces(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        setWorkspaces([]);
+      });
+  }, [isLoading, user, authFetch, pathname]);
 
   useEffect(() => {
     if (editingId && inputRef.current) {

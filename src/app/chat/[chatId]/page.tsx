@@ -7,6 +7,7 @@ import { verifyToken } from "@/lib/auth/tokens";
 import { listTree, readProjectMeta, stripTreePrefix, type TreeNode, type ProjectMeta } from "@/lib/fs";
 import ChatPageContent from "@/components/chat/ChatPageContent";
 import { canAccessChat } from "@/lib/auth/chat-access";
+import { getRecentCutoff } from "@/lib/time";
 
 /**
  * 根据项目 ID 查找项目的实际目录段。
@@ -80,8 +81,7 @@ export default async function ChatPage({
     }
 
     // recentChats: 跟着项目走，该项目下所有 chat 对所有人可见
-    // eslint-disable-next-line react-hooks/purity -- Server Component: Date.now() is stable per request
-    const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+    const twentyDaysAgo = getRecentCutoff();
     const chatFilterConditions = [
       gte(chats.updatedAt, twentyDaysAgo),
       eq(chats.projectId, chat.projectId!),

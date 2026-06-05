@@ -103,7 +103,7 @@ export default function WorkspaceActivityPanel({
   recentChats,
   recentDocuments,
   onSwitchToChat,
-  onNewChat,
+  onNewChat: _onNewChat,
   onNavigateToDocument,
 }: WorkspaceActivityPanelProps) {
   const t = useTranslations('workspace');

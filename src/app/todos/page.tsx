@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Modal, Input, Form, App } from "antd";
 import { useAuth } from "@/components/auth/useAuth";
@@ -26,7 +26,7 @@ export default function TodosPage() {
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchTodos = () => {
+  const fetchTodos = useCallback(() => {
     if (!user) return;
     authFetch("/api/todos")
       .then((res) => {
@@ -50,16 +50,12 @@ export default function TodosPage() {
         setTodos([]);
         setLoading(false);
       });
-  };
+  }, [user, authFetch]);
 
   useEffect(() => {
-    if (authLoading || !user) {
-      setTodos([]);
-      setLoading(false);
-      return;
-    }
+    if (authLoading || !user) return;
     fetchTodos();
-  }, [authLoading, user]);
+  }, [authLoading, user, fetchTodos]);
 
   const handleSave = async () => {
     try {

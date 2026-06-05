@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const accessTokenRef = useRef<string | null>(null);
 
   // 同步 ref 辅助函数 - 同时更新 state 和 ref
-  const setToken = useCallback((token: string | null) => {
+  const _setToken = useCallback((token: string | null) => {
     accessTokenRef.current = token;
     setAccessToken(token);
   }, []);
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 初始化：尝试用 refresh token 恢复会话
   useEffect(() => {
-    refreshAccessToken();
+    Promise.resolve().then(() => refreshAccessToken());
   }, [refreshAccessToken]);
 
   const loginWithTokens = useCallback(

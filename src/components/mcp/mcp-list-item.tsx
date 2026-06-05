@@ -10,7 +10,6 @@ import {
 import type { McpServerEntry } from "./types";
 import {
   describeServer,
-  hasAuthorization,
   inferType,
   isSystemMcp,
   needsApiKey,
@@ -53,7 +52,6 @@ export default function McpListItem({
   const t = useTranslations('workspace');
   const type = inferType(entry);
   const tagColor = TYPE_TAG_COLOR[type] || "default";
-  const hasAuth = hasAuthorization(entry);
   const showKey = needsApiKey(name, entry);
   const system = isSystemMcp(name);
   const description = describeServer(entry);

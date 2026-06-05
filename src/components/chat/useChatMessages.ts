@@ -182,11 +182,13 @@ export function useChatMessages({
 
   useEffect(() => {
     if (mentionFile) {
-      setMentionedFiles((prev) => {
-        if (prev.includes(mentionFile)) return prev;
-        return [...prev, mentionFile];
+      Promise.resolve().then(() => {
+        setMentionedFiles((prev) => {
+          if (prev.includes(mentionFile)) return prev;
+          return [...prev, mentionFile];
+        });
+        onMentionConsumed?.();
       });
-      onMentionConsumed?.();
     }
   }, [mentionFile, onMentionConsumed]);
 
@@ -367,7 +369,7 @@ export function useChatMessages({
     }
 
     setLoading(false);
-  }, [loading, selectedModelId, selectedProject, selectedTemplateId, selectedWorkspace, workspaceId, effectiveChatId, embedded, floating, mentionedFiles, messages, templates, projectName, openFileTabs, router, onChatCreated, onToolCall, setEffectiveChatId]);
+  }, [loading, selectedModelId, selectedProject, selectedTemplateId, selectedWorkspace, workspaceId, effectiveChatId, embedded, floating, mentionedFiles, messages, templates, projectName, openFileTabs, router, onChatCreated, onToolCall, setEffectiveChatId, authFetch, t]);
 
   const handleRegenerate = useCallback(async (aiMsg: Message) => {
     if (!effectiveChatId || loading || !selectedModelId) return;
@@ -482,7 +484,7 @@ export function useChatMessages({
     }
 
     setLoading(false);
-  }, [effectiveChatId, loading, selectedModelId, messages, selectedTemplateId, templates, selectedProject, projectName, openFileTabs, onToolCall]);
+  }, [effectiveChatId, loading, selectedModelId, messages, selectedTemplateId, templates, selectedProject, projectName, openFileTabs, onToolCall, authFetch, t]);
 
   const handleCancel = useCallback(() => {
     abortControllerRef.current?.abort();

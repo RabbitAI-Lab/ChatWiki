@@ -15,7 +15,7 @@ function AntdThemeSync({ children, locale }: { children: ReactNode; locale: stri
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    Promise.resolve().then(() => setMounted(true));
   }, []);
 
   const antdLocale = useMemo(() => antLocales[locale] || zhCN, [locale]);

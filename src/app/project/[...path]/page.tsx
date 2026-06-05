@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/tokens";
 import ProjectWorkspace from "@/components/project/ProjectWorkspace";
+import { getRecentCutoff } from "@/lib/time";
 
 export default async function ProjectPage({
   params,
@@ -78,8 +79,7 @@ export default async function ProjectPage({
 
   // Fetch recent chats for this project (last 20 days)
   // 跟着项目走：该项目下所有 chat 对所有访问者可见
-  // eslint-disable-next-line react-hooks/purity -- Server Component: Date.now() is stable per request
-  const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+  const twentyDaysAgo = getRecentCutoff();
   const chatConditions = [
     gte(chats.updatedAt, twentyDaysAgo),
     eq(chats.projectId, projectId),

@@ -99,13 +99,12 @@ export default function UsersPageClient() {
         setLoading(false);
       }
     },
-    [authFetch, pagination.pageSize, search, status, message]
+    [authFetch, pagination.pageSize, search, status, message, t]
   );
 
   useEffect(() => {
-    loadUsers(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+    Promise.resolve().then(() => loadUsers(1));
+  }, [status, loadUsers]);
 
   const isSelf = (id: string) => currentUser?.id === id;
 
@@ -151,7 +150,7 @@ export default function UsersPageClient() {
     }
   };
 
-  const handleDelete = (record: AdminUser) => {
+  const _handleDelete = (record: AdminUser) => {
     if (isSelf(record.id)) {
       message.warning(t('usersPage.msgCannotDisableSelf'));
       return;
@@ -344,7 +343,7 @@ export default function UsersPageClient() {
               title: t('usersPage.columnStatus'),
               dataIndex: "disabled",
               width: 110,
-              render: (v: boolean, record: AdminUser) =>
+              render: (v: boolean, _record: AdminUser) =>
                 v ? (
                   <Tag color="red" icon={<StopOutlined />}>
                     {t('usersPage.tagDisabled')}

@@ -58,10 +58,10 @@ export default function SettingsPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [authFetch, message]);
+  }, [authFetch, message, t]);
 
   useEffect(() => {
-    load();
+    Promise.resolve().then(() => load());
   }, [load]);
 
   const dirty = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "@/components/auth/useAuth";
 import type { TreeNode } from "@/lib/tree";
 
@@ -22,7 +22,7 @@ interface UseFileTabSystemOptions {
   closeFallbackTab?: string;
 }
 
-export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PROJECT_INFO_TAB }: UseFileTabSystemOptions) {
+export function useFileTabSystem({ projectId: _projectId, projectPath, closeFallbackTab = PROJECT_INFO_TAB }: UseFileTabSystemOptions) {
   const [tabs, setTabs] = useState<FileTab[]>([]);
   const { authFetch } = useAuth();
   const [activeTabId, setActiveTabId] = useState<string>(CHAT_TAB);
@@ -30,7 +30,14 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
 
   // Use ref to track activeTabId to avoid stale closure in handleTabClose
   const activeTabIdRef = useRef(activeTabId);
-  activeTabIdRef.current = activeTabId;
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId;
+  });
+
+  const cacheContent = useCallback((filePath: string, content: string) => {
+    contentCache.current[filePath] = content;
+  }, []);
 
   const updateTabPaths = useCallback((oldPath: string, newPath: string) => {
     setTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
@@ -41,6 +48,8 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
       delete contentCache.current[oldPath];
     }
   }, []);
+
+  const getCachedContent = useCallback((filePath: string) => contentCache.current[filePath], []);
 
   const handleFileClick = useCallback(async (node: TreeNode) => {
     const filePath = node.path;
@@ -87,7 +96,7 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
 
       return [...prev, newTab];
     });
-  }, [projectId]);
+  }, [authFetch, projectPath]);
 
   const handleTabClose = useCallback((tabId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -105,7 +114,7 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
       }
       return newTabs;
     });
-  }, []);
+  }, [closeFallbackTab]);
 
   const handleFileSave = useCallback(async (filePath: string, markdown: string) => {
     contentCache.current[filePath] = markdown;
@@ -114,7 +123,7 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${projectPath}/${filePath}`, content: markdown }),
     });
-  }, [projectPath]);
+  }, [authFetch, projectPath]);
 
   const handleFileChange = useCallback((filePath: string, markdown: string) => {
     contentCache.current[filePath] = markdown;
@@ -131,7 +140,8 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
     setTabs,
     activeTabId,
     setActiveTabId,
-    contentCache,
+    cacheContent,
+    getCachedContent,
     handleFileClick,
     handleTabClose,
     handleFileSave,

@@ -7,9 +7,7 @@ import { useRouter } from "next/navigation";
 import { App } from "antd";
 import { useFloatingChat } from "@/components/chat/FloatingChatContext";
 import { TreeNode, computeDefaultDirName, computeDefaultFileName, findChildren, findNodeByPath, renameNodeInTree, insertNode } from "@/lib/tree";
-import type { DocumentActivity } from "@/lib/types";
-
-import type { FileTab, ProjectMeta, RecentChat, ProjectWorkspaceProps } from "./types";
+import type { FileTab, ProjectWorkspaceProps } from "./types";
 import { PROJECT_INFO_TAB, CHAT_TAB } from "./types";
 import ProjectSidebar from "./ProjectSidebar";
 import ProjectTabBar from "./ProjectTabBar";
@@ -50,7 +48,7 @@ export default function ProjectWorkspace({
   // Sync tree when server props change (after router.refresh())
   useEffect(() => {
     if (renamingPath === null) {
-      setTree(initialTree);
+      Promise.resolve().then(() => setTree(initialTree));
     }
   }, [initialTree, renamingPath]);
 
@@ -99,7 +97,7 @@ export default function ProjectWorkspace({
     setTabs((prev) => [...prev, { filePath: relativePath, content: fileContent, loaded: true, type: "markdown" }]);
     setActiveTabId(relativePath);
     router.refresh();
-  }, [tree, docsPath, router]);
+  }, [tree, docsPath, router, authFetch]);
 
   const handleCreateDir = useCallback(async (parentPath: string) => {
     const children = parentPath ? findChildren(tree, parentPath) : tree;
@@ -122,7 +120,18 @@ export default function ProjectWorkspace({
     setRenamingName(defaultName);
     setTimeout(() => renameInputRef.current?.select(), 0);
     router.refresh();
-  }, [tree, docsPath, router]);
+  }, [tree, docsPath, router, authFetch]);
+
+  // Helper to update tab paths when a file is renamed
+  const updateTabPaths = (oldPath: string, newPath: string) => {
+    setTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
+    setActiveTabId((prev) => prev === oldPath ? newPath : prev);
+    const cached = contentCache.current[oldPath];
+    if (cached !== undefined) {
+      contentCache.current[newPath] = cached;
+      delete contentCache.current[oldPath];
+    }
+  };
 
   const handleRenameConfirm = useCallback(async () => {
     const currentPath = renamingPath;
@@ -179,7 +188,7 @@ export default function ProjectWorkspace({
     setTree((prev) => renameNodeInTree(prev, currentPath, finalName));
     setRenamingPath(null);
     router.refresh();
-  }, [renamingPath, renamingName, tree, docsPath, router]);
+  }, [renamingPath, renamingName, tree, docsPath, router, authFetch, message, t]);
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
@@ -212,17 +221,6 @@ export default function ProjectWorkspace({
       handleTabClose(filePath);
     }
     router.refresh();
-  };
-
-  // Helper to update tab paths when a file is renamed
-  const updateTabPaths = (oldPath: string, newPath: string) => {
-    setTabs((prev) => prev.map((t) => t.filePath === oldPath ? { ...t, filePath: newPath } : t));
-    setActiveTabId((prev) => prev === oldPath ? newPath : prev);
-    const cached = contentCache.current[oldPath];
-    if (cached !== undefined) {
-      contentCache.current[newPath] = cached;
-      delete contentCache.current[oldPath];
-    }
   };
 
   // --- Tab system functions ---
@@ -270,7 +268,7 @@ export default function ProjectWorkspace({
 
       return [...prev, newTab];
     });
-  }, [docsPath]);
+  }, [docsPath, authFetch]);
 
   // Open (or switch to) an HTML file in a tab. Triggered by preview_html client tool.
   const handlePreviewHtml = useCallback(async (filePath: string) => {
@@ -319,7 +317,7 @@ export default function ProjectWorkspace({
         });
       return [...prev, { filePath, content: "", loaded: false, type: "html" }];
     });
-  }, [docsPath, message]);
+  }, [docsPath, message, authFetch, t]);
 
   const handleTabClose = useCallback((tabId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -346,7 +344,7 @@ export default function ProjectWorkspace({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: `${docsPath}/${filePath}`, content: markdown }),
     });
-  }, [docsPath]);
+  }, [docsPath, authFetch]);
 
   const handleFileChange = useCallback((filePath: string, markdown: string) => {
     contentCache.current[filePath] = markdown;
@@ -380,7 +378,7 @@ export default function ProjectWorkspace({
     } catch {
       setActiveTabId(CHAT_TAB);
     }
-  }, []);
+  }, [authFetch, t]);
 
   const handleNewChat = useCallback(() => {
     router.push(`/chat/new?project=${projectId}`);
@@ -399,7 +397,7 @@ export default function ProjectWorkspace({
     }
     const node: TreeNode = { name: documentPath.split("/").pop() || documentPath, type: "file", path: documentPath };
     handleFileClick(node);
-  }, [docsPath, handleFileClick]);
+  }, [docsPath, handleFileClick, authFetch, t]);
 
   // --- Derived state ---
 

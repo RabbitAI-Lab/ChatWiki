@@ -97,7 +97,7 @@ export default function ProjectInfoTab({
   // 检查同步状态
   useEffect(() => {
     if (repositories.length === 0) {
-      setHasUnsynced(false);
+      Promise.resolve().then(() => setHasUnsynced(false));
       return;
     }
 
@@ -142,7 +142,7 @@ export default function ProjectInfoTab({
     };
 
     checkStatus();
-  }, [repositories.length]); // 只在仓库数量变化时检查
+  }, [repositories.length, authFetch, dirSegments, repositories]);
 
   // 切换到 Integration tab 时隐藏小红点
   const handleTabChange = (tab: SubTab) => {

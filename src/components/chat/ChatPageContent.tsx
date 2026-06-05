@@ -15,7 +15,6 @@ import EditorTabContent from "@/components/chat/EditorTabContent";
 import { useChatSwitching } from "./useChatSwitching";
 import type { RecentChat } from "./useChatSwitching";
 import { useFileTabSystem, CHAT_TAB, PROJECT_INFO_TAB } from "./useFileTabSystem";
-import type { FileTab } from "./useFileTabSystem";
 import { useProjectFileTree } from "./useProjectFileTree";
 import type { ProjectMeta as ProjectMetaType } from "@/lib/fs";
 import type { DocumentActivity } from "@/lib/types";
@@ -110,7 +109,7 @@ export default function ChatPageContent({
     initialTree,
     onFileCreated: useCallback((relativePath: string, content: string) => {
       const fileType = relativePath.toLowerCase().endsWith(".html") ? "html" as const : "markdown" as const;
-      tabSystem.contentCache.current[relativePath] = content;
+      tabSystem.cacheContent(relativePath, content);
       tabSystem.setTabs((prev) => [...prev, { filePath: relativePath, content, loaded: true, type: fileType }]);
       tabSystem.setActiveTabId(relativePath);
     }, [tabSystem]),
@@ -148,7 +147,7 @@ export default function ChatPageContent({
     }
     const node = { name: documentPath.split("/").pop() || documentPath, type: "file" as const, path: documentPath };
     tabSystem.handleFileClick(node);
-  }, [projectPath, tabSystem, message, authFetch]);
+  }, [projectPath, tabSystem, message, authFetch, t]);
 
   const handleToolCall = useCallback(({ toolName }: { toolName: string }) => {
     if (toolName === "refresh_file_tree") {
@@ -365,7 +364,7 @@ export default function ChatPageContent({
                 projectId={projectId!}
                 docsPath={projectPath}
                 onChange={(markdown) => tabSystem.handleFileChange(tab.filePath, markdown)}
-                onSave={() => tabSystem.handleFileSave(tab.filePath, tabSystem.contentCache.current[tab.filePath] ?? tab.content)}
+                onSave={() => tabSystem.handleFileSave(tab.filePath, tabSystem.getCachedContent(tab.filePath) ?? tab.content)}
               />
             </div>
           ))}

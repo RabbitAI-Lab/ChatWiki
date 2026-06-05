@@ -2,7 +2,7 @@
  * Workspace-specific functions: CRUD, metadata, repository, member, and MCP config.
  * Uses the generic factories from meta-crud.ts.
  */
-import type { ProjectMeta, WorkspaceMeta, Repository, ProjectMember } from "../types";
+import type { WorkspaceMeta, Repository, ProjectMember } from "../types";
 import {
   readMetaFromDb,
   writeMetaToDb,

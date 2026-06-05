@@ -75,7 +75,7 @@ export default function ActivityPanel({
   recentChats,
   recentDocuments,
   onSwitchToChat,
-  onNewChat,
+  onNewChat: _onNewChat,
   onNavigateToDocument,
 }: ActivityPanelProps) {
   const t = useTranslations('project');

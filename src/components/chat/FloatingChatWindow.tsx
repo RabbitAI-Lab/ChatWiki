@@ -77,6 +77,17 @@ export default function FloatingChatWindow() {
   });
   const [mounted, setMounted] = useState(false);
 
+  // Track workspace state via callback instead of reading refs during render
+  const [wsState, setWsState] = useState<{ effectiveChatId: number | null; shareOpen: boolean; shareToken: string | null; shareLoading: boolean }>({
+    effectiveChatId: null,
+    shareOpen: false,
+    shareToken: null,
+    shareLoading: false,
+  });
+  const handleRefStateChange = useCallback((state: { effectiveChatId: number | null; shareOpen: boolean; shareToken: string | null; shareLoading: boolean }) => {
+    setWsState(state);
+  }, []);
+
   // Initialize position on first open (client-only), restore from localStorage if available
   useEffect(() => {
     if (isOpen && !mounted) {
@@ -84,27 +95,29 @@ export default function FloatingChatWindow() {
       const vh = window.innerHeight;
       const saved = loadSavedState();
 
-      if (saved) {
-        const w = clamp(saved.width, MIN_WIDTH, vw - 16);
-        const h = clamp(saved.height, MIN_HEIGHT, vh - 16);
-        setSize({ width: w, height: h });
-        setPosition({
-          x: clamp(saved.x, 0, Math.max(0, vw - w)),
-          y: clamp(saved.y, 0, Math.max(0, vh - h)),
-        });
-      } else {
-        const w = vw < 500 ? vw - 16 : DEFAULT_WIDTH;
-        const h = vh < 500 ? vh - 16 : DEFAULT_HEIGHT;
-        setSize({ width: w, height: h });
-        setPosition({
-          x: vw < 500 ? 8 : vw - w - EDGE_OFFSET,
-          y: vh < 500 ? 8 : vh - h - EDGE_OFFSET,
-        });
-      }
-      setMounted(true);
+      Promise.resolve().then(() => {
+        if (saved) {
+          const w = clamp(saved.width, MIN_WIDTH, vw - 16);
+          const h = clamp(saved.height, MIN_HEIGHT, vh - 16);
+          setSize({ width: w, height: h });
+          setPosition({
+            x: clamp(saved.x, 0, Math.max(0, vw - w)),
+            y: clamp(saved.y, 0, Math.max(0, vh - h)),
+          });
+        } else {
+          const w = vw < 500 ? vw - 16 : DEFAULT_WIDTH;
+          const h = vh < 500 ? vh - 16 : DEFAULT_HEIGHT;
+          setSize({ width: w, height: h });
+          setPosition({
+            x: vw < 500 ? 8 : vw - w - EDGE_OFFSET,
+            y: vh < 500 ? 8 : vh - h - EDGE_OFFSET,
+          });
+        }
+        setMounted(true);
+      });
     }
     if (!isOpen) {
-      setMounted(false);
+      Promise.resolve().then(() => setMounted(false));
     }
   }, [isOpen, mounted]);
 
@@ -237,8 +250,6 @@ export default function FloatingChatWindow() {
 
   if (!isOpen) return null;
 
-  const ws = workspaceRef.current;
-
   const portal = (
     <>
       <div
@@ -273,14 +284,14 @@ export default function FloatingChatWindow() {
               icon={<PlusOutlined />}
               size="small"
               type="text"
-              onClick={() => ws?.handleNewChat()}
+              onClick={() => workspaceRef.current?.handleNewChat()}
             />
           </Tooltip>
           {/* Share - only when chat exists */}
-          {ws?.effectiveChatId && (
+          {wsState.effectiveChatId && (
             <Popover
-              open={ws.shareOpen}
-              onOpenChange={(open) => ws.setShareOpen(open)}
+              open={wsState.shareOpen}
+              onOpenChange={(open) => workspaceRef.current?.setShareOpen(open)}
               trigger="click"
               placement="bottomRight"
               title={t("header.shareChat")}
@@ -288,7 +299,7 @@ export default function FloatingChatWindow() {
                 <div style={{ width: 280 }}>
                   <Input.TextArea
                     readOnly
-                    value={ws.shareToken ? `${window.location.origin}/share/${ws.shareToken}` : ""}
+                    value={wsState.shareToken ? `${window.location.origin}/share/${wsState.shareToken}` : ""}
                     autoSize={{ minRows: 2, maxRows: 3 }}
                     style={{ fontSize: 12, marginBottom: 12 }}
                   />
@@ -296,7 +307,7 @@ export default function FloatingChatWindow() {
                     <Button
                       icon={<CopyOutlined />}
                       size="small"
-                      onClick={() => ws.handleCopyLink()}
+                      onClick={() => workspaceRef.current?.handleCopyLink()}
                       block
                     >
                       {t("header.copyLink")}
@@ -307,8 +318,8 @@ export default function FloatingChatWindow() {
                       icon={<ReloadOutlined />}
                       size="small"
                       danger
-                      loading={ws.shareLoading}
-                      onClick={() => ws.handleRegenerateLink()}
+                      loading={wsState.shareLoading}
+                      onClick={() => workspaceRef.current?.handleRegenerateLink()}
                       block
                     >
                       {t("header.regenerateLink")}
@@ -317,8 +328,8 @@ export default function FloatingChatWindow() {
                       icon={<StopOutlined />}
                       size="small"
                       danger
-                      loading={ws.shareLoading}
-                      onClick={() => ws.handleCancelShare()}
+                      loading={wsState.shareLoading}
+                      onClick={() => workspaceRef.current?.handleCancelShare()}
                       block
                     >
                       {t("header.cancelShare")}
@@ -332,16 +343,16 @@ export default function FloatingChatWindow() {
                   icon={<ShareAltOutlined />}
                   size="small"
                   type="text"
-                  loading={ws.shareLoading}
-                  onClick={() => ws.handleShare()}
+                  loading={wsState.shareLoading}
+                  onClick={() => workspaceRef.current?.handleShare()}
                 />
               </Tooltip>
             </Popover>
           )}
           {/* History */}
           <ChatHistoryPopover
-            currentChatId={ws?.effectiveChatId ?? null}
-            onSelect={(chatId: number) => ws?.handleHistorySelect(chatId)}
+            currentChatId={wsState.effectiveChatId}
+            onSelect={(chatId: number) => workspaceRef.current?.handleHistorySelect(chatId)}
           />
           {/* Clear */}
           <Tooltip title={t("header.clear")}>
@@ -349,7 +360,7 @@ export default function FloatingChatWindow() {
               icon={<ClearOutlined />}
               size="small"
               type="text"
-              onClick={() => ws?.handleClear()}
+              onClick={() => workspaceRef.current?.handleClear()}
             />
           </Tooltip>
         </Space>
@@ -389,6 +400,7 @@ export default function FloatingChatWindow() {
           workspaceId={workspaceId}
           mentionFile={mentionFile}
           onMentionConsumed={() => setMentionFile(null)}
+          onRefStateChange={handleRefStateChange}
         />
       </div>
 

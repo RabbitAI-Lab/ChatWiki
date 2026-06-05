@@ -22,7 +22,7 @@ import type { GitNexusPhase, GitNexusStatus } from "./types";
 // ========== 进程注册表（globalThis 避免 dev HMR 时丢失） ==========
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __rabbitdocs_gitnexus_tasks__: Map<string, GitNexusTask> | undefined;
 }
 
