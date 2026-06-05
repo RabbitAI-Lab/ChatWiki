@@ -26,7 +26,7 @@ export function useProjectFileTree({
   onFileCreated,
 }: UseProjectFileTreeOptions) {
   const [tree, setTree] = useState<TreeNode[]>(initialTreeProp ?? []);
-  const { authFetch } = useAuth();
+  const { authFetch, user } = useAuth();
   const [treeLoading, setTreeLoading] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
@@ -36,7 +36,7 @@ export function useProjectFileTree({
     const pid = targetProjectId ?? projectId;
     if (!pid) return;
     setTreeLoading(true);
-    const prefix = `personal/default/projects/${pid}/docs`;
+    const prefix = `personal/${user.id}/projects/${pid}/docs`;
     try {
       const res = await authFetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();
