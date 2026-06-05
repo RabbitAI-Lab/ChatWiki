@@ -3,6 +3,8 @@
  * Centralizes all auth-related env var access with sensible defaults.
  */
 
+import { getSetting } from "./settings";
+
 export function getJwtSecret(): string {
   return process.env.JWT_SECRET || "dev-secret-change-in-production";
 }
@@ -34,5 +36,5 @@ export function getSmtpConfig(): {
 }
 
 export function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return getSetting("site_url") || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }

@@ -28,6 +28,7 @@ interface SystemSettings {
   passkeyEnabled: boolean;
   passkeyRpId: string;
   passkeyRpName: string;
+  siteUrl: string;
 }
 
 export default function SettingsPageClient() {
@@ -69,7 +70,8 @@ export default function SettingsPageClient() {
       settings.requireEmailVerification !== draft.requireEmailVerification ||
       settings.passkeyEnabled !== draft.passkeyEnabled ||
       settings.passkeyRpId !== draft.passkeyRpId ||
-      settings.passkeyRpName !== draft.passkeyRpName
+      settings.passkeyRpName !== draft.passkeyRpName ||
+      settings.siteUrl !== draft.siteUrl
     ) {
       return true;
     }
@@ -87,6 +89,7 @@ export default function SettingsPageClient() {
         passkeyEnabled: draft.passkeyEnabled,
         passkeyRpId: draft.passkeyRpId,
         passkeyRpName: draft.passkeyRpName,
+        siteUrl: draft.siteUrl,
       };
 
       const res = await authFetch("/api/auth/admin/system-settings", {
@@ -145,6 +148,17 @@ export default function SettingsPageClient() {
             </Button>
           </Space>
         </div>
+
+        <Card title="Site Configuration">
+          <TextFieldRow
+            title="Site URL"
+            description="The public URL of your site (e.g., https://example.com). Used for email verification links, OAuth callbacks, etc. Leave empty to use the NEXT_PUBLIC_APP_URL environment variable or fall back to http://localhost:3000."
+            value={draft.siteUrl}
+            placeholder="https://example.com"
+            onChange={(v) => update("siteUrl", v)}
+            current={settings.siteUrl || "http://localhost:3000 (default)"}
+          />
+        </Card>
 
         <Card title="Registration & Verification">
           <SettingRow

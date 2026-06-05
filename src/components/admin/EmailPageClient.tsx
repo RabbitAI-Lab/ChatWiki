@@ -450,15 +450,15 @@ function EmailTemplateCard(props: {
           title={
             <span>
               Available variables:{" "}
-              <code className="bg-gray-100 px-1 rounded">{"{{brandName}}"}</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">{"{{code}}"}</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">{"{{verifyUrl}}"}</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">{"{{codeBlock}}"}</code>
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{"{{brandName}}"}</code>{" "}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{"{{code}}"}</code>{" "}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{"{{verifyUrl}}"}</code>{" "}
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{"{{codeBlock}}"}</code>
             </span>
           }
           description={
             <span className="text-xs">
-              <code>{"{{codeBlock}}"}</code> renders a styled verification code
+              <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{"{{codeBlock}}"}</code> renders a styled verification code
               display block. Leave fields empty to use the default template.
             </span>
           }

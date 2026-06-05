@@ -19,6 +19,7 @@ const SETTING_KEYS = [
   "brand_name",
   "email_verify_subject",
   "email_verify_html",
+  "site_url",
 ] as const;
 
 const updateSettingsSchema = z.object({
@@ -29,6 +30,7 @@ const updateSettingsSchema = z.object({
   passkeyRpId: z.string().trim().max(253).optional(),
   passkeyRpName: z.string().trim().max(128).optional(),
   brandName: z.string().trim().max(64).optional(),
+  siteUrl: z.string().trim().max(253).optional(),
   emailTemplates: z
     .object({
       verifySubject: z.string().trim().max(500).optional(),
@@ -88,6 +90,7 @@ export async function GET(req: NextRequest) {
     passkeyEnabled: getSetting("passkey_enabled") === "true",
     passkeyRpId: getSetting("passkey_rp_id") ?? "",
     passkeyRpName: getSetting("passkey_rp_name") ?? "",
+    siteUrl: getSetting("site_url") ?? "",
     brandName: getSetting("brand_name") || "RabbitDocs",
     emailTemplates: {
       verifySubject: getSetting("email_verify_subject") || "",
@@ -149,6 +152,11 @@ export async function PATCH(req: NextRequest) {
         key: "passkey_rp_name",
         value: parsed.data.passkeyRpName,
       });
+    }
+
+    // Site URL
+    if (parsed.data.siteUrl !== undefined) {
+      updates.push({ key: "site_url", value: parsed.data.siteUrl });
     }
 
     // Brand name
