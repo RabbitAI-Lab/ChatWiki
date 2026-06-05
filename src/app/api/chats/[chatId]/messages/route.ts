@@ -3,13 +3,21 @@ import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { chatMessages, chats } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { canAccessChat } from "@/lib/auth/chat-access";
 
 // GET /api/chats/[chatId]/messages
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
+
+  // 校验 chat 访问权限
+  const chat = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  if (!chat) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canAccessChat(auth, chat)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const messages = db
     .select()
     .from(chatMessages)
@@ -26,6 +34,12 @@ export async function POST(
 ) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
+
+  // 校验 chat 访问权限
+  const existing = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canAccessChat(auth, existing)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const body = await req.json();
   const { role, content, thinking, thinkingSignature, isError } = body;
 

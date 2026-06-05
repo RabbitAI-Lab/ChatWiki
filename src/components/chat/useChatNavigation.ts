@@ -1,6 +1,7 @@
 "use client";
 
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { useAuth } from "@/components/auth/useAuth";
 import type { Message } from "./chat-workspace-ref";
 
 interface UseChatNavigationOptions {
@@ -38,6 +39,8 @@ export function useChatNavigation({
   router,
   onSwitchToChat,
 }: UseChatNavigationOptions) {
+  const { user } = useAuth();
+
   const loadChat = async (targetChatId: number) => {
     try {
       const [chatRes, msgsRes] = await Promise.all([
@@ -86,9 +89,9 @@ export function useChatNavigation({
           if (floating) {
             loadChat(chatId);
           } else if (embedded) {
-            window.location.href = `/workspace/personal/default/${chatData.workspaceId}?chatId=${chatId}`;
+            window.location.href = `/workspace/personal/${user?.id ?? ''}/${chatData.workspaceId}?chatId=${chatId}`;
           } else {
-            router.push(`/workspace/personal/default/${chatData.workspaceId}?chatId=${chatId}`);
+            router.push(`/workspace/personal/${user?.id ?? ''}/${chatData.workspaceId}?chatId=${chatId}`);
           }
           return;
         }
@@ -115,7 +118,7 @@ export function useChatNavigation({
     } else if (selectedProject) {
       router.push(`/chat/new?project=${encodeURIComponent(selectedProject)}`);
     } else if (selectedWorkspace) {
-      router.push(`/workspace/personal/default/${selectedWorkspace}`);
+      router.push(`/workspace/personal/${user?.id ?? ''}/${selectedWorkspace}`);
     } else {
       router.push("/chat/new");
     }

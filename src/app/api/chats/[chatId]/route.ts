@@ -3,15 +3,18 @@ import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { chats } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { canAccessChat } from "@/lib/auth/chat-access";
 
 // GET /api/chats/[chatId]
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
   const c = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canAccessChat(auth, c)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return NextResponse.json(c);
 }
 
@@ -22,6 +25,12 @@ export async function PATCH(
 ) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
+
+  // 校验访问权限（所有者或项目/工作空间成员可编辑）
+  const existing = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canAccessChat(auth, existing)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const body = await req.json();
   const { title, modelId, templateId, projectId, workspaceId } = body;
 
@@ -41,10 +50,19 @@ export async function PATCH(
 
 // DELETE /api/chats/[chatId]
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
+
+  // 校验访问权限（仅所有者或 admin 可删除）
+  const existing = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (existing.userId && existing.userId !== auth.id && !auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   db.delete(chats).where(eq(chats.id, parseInt(chatId))).run();
   return NextResponse.json({ success: true });
 }

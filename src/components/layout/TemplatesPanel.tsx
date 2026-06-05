@@ -16,11 +16,12 @@ interface TemplatesPanelProps {
 
 export default function TemplatesPanel({ templates }: TemplatesPanelProps) {
   const router = useRouter();
-  const { authFetch } = useAuth();
+  const { user, authFetch } = useAuth();
 
   const handleCreate = async (template: Template) => {
+    if (!user) return;
     // Ensure "uncategorized" project exists, get or create it
-    const projectsRes = await authFetch("/api/fs/projects?type=personal&accountId=default");
+    const projectsRes = await authFetch(`/api/fs/projects?type=personal&accountId=${user.id}`);
     if (!projectsRes.ok) return;
     const projects = await projectsRes.json();
     let uncategorized = projects.find((p: { name: string }) => p.name === "uncategorized");
@@ -29,13 +30,13 @@ export default function TemplatesPanel({ templates }: TemplatesPanelProps) {
       const createRes = await authFetch("/api/fs/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "personal", accountId: "default", name: "uncategorized" }),
+        body: JSON.stringify({ type: "personal", accountId: user.id, name: "uncategorized" }),
       });
       if (!createRes.ok) return;
       uncategorized = await createRes.json();
     }
 
-    const docPath = `personal/default/projects/${uncategorized.id}/docs/${template.name}`;
+    const docPath = `personal/${user.id}/projects/${uncategorized.id}/docs/${template.name}`;
     const res = await authFetch(`/api/templates/${template.id}`);
     if (!res.ok) return;
     const tmpl = await res.json();

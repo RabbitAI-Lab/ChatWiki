@@ -2,15 +2,27 @@ import { randomUUID } from "crypto";
 import { requireAuth } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { sharedChats } from "@/db/schema";
+import { sharedChats, chats } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { canAccessChat } from "@/lib/auth/chat-access";
+
+/** 校验 chat 访问权限 */
+async function verifyChatAccess(req: NextRequest, chatId: string): Promise<{ ok: true } | NextResponse> {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
+  const chat = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  if (!chat) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canAccessChat(auth, chat)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return { ok: true };
+}
 
 // GET /api/chats/[chatId]/share — 查询是否已分享
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
   const { chatId } = await params;
+  const verify = await verifyChatAccess(req, chatId);
+  if (verify instanceof NextResponse) return verify;
   const share = db
     .select()
     .from(sharedChats)
@@ -25,10 +37,12 @@ export async function GET(
 
 // POST /api/chats/[chatId]/share — 创建分享
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
   const { chatId } = await params;
+  const verify = await verifyChatAccess(req, chatId);
+  if (verify instanceof NextResponse) return verify;
   const chatIdNum = parseInt(chatId);
 
   // 已存在则直接返回
@@ -50,10 +64,12 @@ export async function POST(
 
 // PATCH /api/chats/[chatId]/share — 重新生成 token
 export async function PATCH(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
   const { chatId } = await params;
+  const verify = await verifyChatAccess(req, chatId);
+  if (verify instanceof NextResponse) return verify;
   const chatIdNum = parseInt(chatId);
 
   // 删除旧记录
@@ -69,10 +85,12 @@ export async function PATCH(
 
 // DELETE /api/chats/[chatId]/share — 取消分享
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
   const { chatId } = await params;
+  const verify = await verifyChatAccess(req, chatId);
+  if (verify instanceof NextResponse) return verify;
   db.delete(sharedChats).where(eq(sharedChats.chatId, parseInt(chatId))).run();
   return NextResponse.json({ success: true });
 }

@@ -16,6 +16,15 @@ import type {
   ProjectMember,
 } from "../types";
 import { getDataRoot, getAccountSegments, createDir } from "./core";
+import { db } from "@/db";
+import { entityMembers } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+
+// entityDir -> entityType 映射
+const ENTITY_DIR_TO_TYPE: Record<string, string> = {
+  projects: "project",
+  workspace: "workspace",
+};
 
 // ────────────────────────────────────────────────────────────
 // Strategy interfaces
@@ -79,7 +88,7 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
     if (!fs.existsSync(dirPath)) return [];
     const dirs = fs
       .readdirSync(dirPath, { withFileTypes: true })
-      .filter((d) => d.isDirectory());
+      .filter((d) => d.isDirectory() || d.isSymbolicLink());
 
     const result: ProjectMeta[] = [];
     for (const d of dirs) {
@@ -97,6 +106,7 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
           createdAt: new Date().toISOString(),
           accountId,
           accountType: type,
+          ownerId: accountId,
           sortOrder: 999,
         };
         strategy.writeMeta(fallback, segs);
@@ -131,6 +141,7 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
       createdAt: new Date().toISOString(),
       accountId,
       accountType: type,
+      ownerId: accountId,
       sortOrder: 0,
     };
     strategy.writeMeta(meta, dirSegments);
@@ -140,6 +151,24 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
   function remove(type: "personal" | "enterprise", accountId: string, id: string, orgId?: string): void {
     const accountSegs = getAccountSegments(type, accountId, orgId);
     const dirPath = path.join(getDataRoot(), ...accountSegs, entityDir, id);
+
+    // 删除前清理 entity_members 索引
+    const entityType = ENTITY_DIR_TO_TYPE[entityDir];
+    if (entityType) {
+      try {
+        db.delete(entityMembers)
+          .where(
+            and(
+              eq(entityMembers.entityId, id),
+              eq(entityMembers.entityType, entityType)
+            )
+          )
+          .run();
+      } catch (e) {
+        console.warn(`[MemberDB] Failed to clean up entity_members for ${id}:`, e);
+      }
+    }
+
     if (fs.existsSync(dirPath)) {
       fs.rmSync(dirPath, { recursive: true, force: true });
     }
@@ -205,14 +234,54 @@ export function createMemberCrud(strategy: MetaStrategy): MemberCrud {
     if (!meta.members) meta.members = [];
     meta.members.push(member);
     strategy.writeMeta(meta, dirSegments);
+
+    // 如果成员有 userId，创建 symlink 使其在自己的目录下可见
+    if (member.userId && dirSegments.length >= 4) {
+      try {
+        const [personal, ownerId, entityDir, entityId] = dirSegments;
+        const memberProjectsDir = path.join(getDataRoot(), personal, member.userId, entityDir);
+        if (!fs.existsSync(memberProjectsDir)) {
+          fs.mkdirSync(memberProjectsDir, { recursive: true });
+        }
+        const linkPath = path.join(memberProjectsDir, entityId);
+        // symlink 指向所有者的项目目录: ../../../{ownerId}/{entityDir}/{entityId}/
+        const targetPath = path.join("..", "..", "..", ownerId, entityDir, entityId);
+        if (!fs.existsSync(linkPath)) {
+          fs.symlinkSync(targetPath, linkPath);
+        }
+      } catch (e) {
+        console.warn(`[MemberSymlink] Failed to create symlink for member ${member.userId}:`, e);
+      }
+    }
+
+    // 同步写 DB 索引
+    syncMemberToDb(dirSegments, member);
+
     return meta.members;
   }
 
   function remove(dirSegments: string[], memberId: string): void {
     const meta = strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
+    const removed = (meta.members || []).find((m) => m.id === memberId);
     meta.members = (meta.members || []).filter((m) => m.id !== memberId);
     strategy.writeMeta(meta, dirSegments);
+
+    // 如果成员有 userId，清理 symlink
+    if (removed?.userId && dirSegments.length >= 4) {
+      try {
+        const [personal, _ownerId, entityDir, entityId] = dirSegments;
+        const linkPath = path.join(getDataRoot(), personal, removed.userId, entityDir, entityId);
+        if (fs.existsSync(linkPath) && fs.lstatSync(linkPath).isSymbolicLink()) {
+          fs.unlinkSync(linkPath);
+        }
+      } catch (e) {
+        console.warn(`[MemberSymlink] Failed to remove symlink for member ${removed.userId}:`, e);
+      }
+    }
+
+    // 同步从 DB 索引删除
+    removeMemberFromDb(dirSegments, memberId);
   }
 
   function update(dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>): ProjectMember | null {
@@ -222,6 +291,10 @@ export function createMemberCrud(strategy: MetaStrategy): MemberCrud {
     if (!member) return null;
     Object.assign(member, updates);
     strategy.writeMeta(meta, dirSegments);
+
+    // 同步更新 DB 索引
+    updateMemberInDb(dirSegments, memberId, updates);
+
     return member;
   }
 
@@ -255,4 +328,203 @@ export function createMcpConfigCrud(): McpConfigCrud {
   }
 
   return { read, write };
+}
+
+// ────────────────────────────────────────────────────────────
+// 辅助函数: 查找用户作为成员的实体 ID (DB 优先 + 文件回退)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * 文件系统扫描回退逻辑 — 遍历所有用户目录查找成员关系。
+ * 仅当 DB 查询失败或返回空时调用。
+ */
+function scanFilesystemForMembers(userId: string, entityDir: string, metaFileName: string): string[] {
+  const dataRoot = getDataRoot();
+  const personalDir = path.join(dataRoot, "personal");
+  if (!fs.existsSync(personalDir)) return [];
+
+  const result: string[] = [];
+  const ownerDirs = fs.readdirSync(personalDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory());
+
+  for (const ownerDir of ownerDirs) {
+    const entityPath = path.join(personalDir, ownerDir.name, entityDir);
+    if (!fs.existsSync(entityPath)) continue;
+
+    const entities = fs.readdirSync(entityPath, { withFileTypes: true })
+      .filter((d) => d.isDirectory() || d.isSymbolicLink());
+
+    for (const entity of entities) {
+      const metaPath = path.join(entityPath, entity.name, metaFileName);
+      if (!fs.existsSync(metaPath)) continue;
+      try {
+        const raw = fs.readFileSync(metaPath, "utf-8");
+        const meta = JSON.parse(raw) as ProjectMeta;
+        if (meta.members?.some((m) => m.userId === userId)) {
+          result.push(meta.id);
+        }
+      } catch {
+        // skip invalid meta
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 异步回填 DB 索引 — 将文件系统扫描结果写入 entity_members 表。
+ */
+async function repairMemberIndex(
+  userId: string,
+  entityType: string,
+  entityIds: string[]
+): Promise<void> {
+  for (const entityId of entityIds) {
+    try {
+      db.insert(entityMembers)
+        .values({
+          entityId,
+          entityType,
+          memberId: `repaired-${entityId}-${userId}`,
+          userId,
+          accountName: "repaired",
+          ownerId: "unknown",
+          addedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing()
+        .run();
+    } catch {
+      // duplicate or DB error — skip
+    }
+  }
+}
+
+/**
+ * 查找指定用户作为成员的所有实体（项目/工作空间）ID。
+ *
+ * 优先查询 DB (entity_members 表)，如果 DB 为空则回退到文件系统扫描，
+ * 并在文件扫描发现数据时异步回填 DB。
+ */
+export function findMemberEntityIds(userId: string, entityDir: string, metaFileName: string): string[] {
+  const entityType = ENTITY_DIR_TO_TYPE[entityDir];
+
+  // Phase 1: 尝试 DB 查询
+  if (entityType) {
+    try {
+      const rows = db
+        .select({ entityId: entityMembers.entityId })
+        .from(entityMembers)
+        .where(
+          and(
+            eq(entityMembers.userId, userId),
+            eq(entityMembers.entityType, entityType)
+          )
+        )
+        .all();
+
+      if (rows.length > 0) {
+        return rows.map((r) => r.entityId);
+      }
+    } catch (e) {
+      console.warn("[MemberDB] DB query failed, falling back to filesystem:", e);
+    }
+  }
+
+  // Phase 2: 回退到文件系统扫描
+  const result = scanFilesystemForMembers(userId, entityDir, metaFileName);
+
+  // Phase 3: 文件系统有数据但 DB 为空 → 异步回填
+  if (result.length > 0 && entityType) {
+    repairMemberIndex(userId, entityType, result).catch(() => {});
+  }
+
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────
+// DB 索引辅助函数
+// ────────────────────────────────────────────────────────────
+
+function extractEntityInfo(dirSegments: string[]): {
+  entityId: string;
+  entityType: string;
+  ownerId: string;
+} | null {
+  // dirSegments 格式: [personal|enterprise, ownerId, entityDir, entityId]
+  if (dirSegments.length < 4) return null;
+  const [, ownerId, entityDir, entityId] = dirSegments;
+  const entityType = ENTITY_DIR_TO_TYPE[entityDir];
+  if (!entityType) return null;
+  return { entityId, entityType, ownerId };
+}
+
+function syncMemberToDb(dirSegments: string[], member: ProjectMember): void {
+  const info = extractEntityInfo(dirSegments);
+  if (!info) return;
+  try {
+    db.insert(entityMembers)
+      .values({
+        entityId: info.entityId,
+        entityType: info.entityType,
+        memberId: member.id,
+        userId: member.userId ?? null,
+        accountName: member.accountName,
+        ownerId: info.ownerId,
+        addedAt: member.addedAt,
+        createdAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing()
+      .run();
+  } catch (e) {
+    console.warn("[MemberDB] Failed to sync member to DB:", e);
+  }
+}
+
+function removeMemberFromDb(dirSegments: string[], memberId: string): void {
+  const info = extractEntityInfo(dirSegments);
+  if (!info) return;
+  try {
+    db.delete(entityMembers)
+      .where(
+        and(
+          eq(entityMembers.entityId, info.entityId),
+          eq(entityMembers.entityType, info.entityType),
+          eq(entityMembers.memberId, memberId)
+        )
+      )
+      .run();
+  } catch (e) {
+    console.warn("[MemberDB] Failed to remove member from DB:", e);
+  }
+}
+
+function updateMemberInDb(
+  dirSegments: string[],
+  memberId: string,
+  updates: Partial<Omit<ProjectMember, "id">>
+): void {
+  const info = extractEntityInfo(dirSegments);
+  if (!info) return;
+  try {
+    const setFields: Record<string, string> = {};
+    if (updates.accountName !== undefined) setFields.accountName = updates.accountName;
+    if (updates.userId !== undefined) setFields.userId = updates.userId;
+    if (updates.addedAt !== undefined) setFields.addedAt = updates.addedAt;
+    if (Object.keys(setFields).length > 0) {
+      db.update(entityMembers)
+        .set(setFields)
+        .where(
+          and(
+            eq(entityMembers.entityId, info.entityId),
+            eq(entityMembers.entityType, info.entityType),
+            eq(entityMembers.memberId, memberId)
+          )
+        )
+        .run();
+    }
+  } catch (e) {
+    console.warn("[MemberDB] Failed to update member in DB:", e);
+  }
 }

@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { chats, documentActivities } from "@/db/schema";
 import { gte, desc, eq, and, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/auth/tokens";
 import WorkspaceDetail from "@/components/workspace/WorkspaceDetail";
 
 export default async function WorkspacePage({
@@ -16,7 +18,18 @@ export default async function WorkspacePage({
   const { chatId: chatIdParam, file: rawFile } = await searchParams;
   const urlPath = rawPath.map(decodeURIComponent);
 
-  // urlPath = ["personal", "default", "{workspaceId}"]
+  // 验证用户身份（从 cookie 获取 access token）
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token")?.value;
+  let currentUserId: string | null = null;
+  if (accessToken) {
+    const payload = await verifyToken(accessToken);
+    if (payload && payload.type === "access") {
+      currentUserId = payload.sub;
+    }
+  }
+
+  // urlPath = ["personal", "{accountId}", "{workspaceId}"]
   if (urlPath.length < 3) notFound();
 
   const accountType = urlPath[0];
@@ -53,10 +66,15 @@ export default async function WorkspacePage({
     fileContent = readDocument(...fileSegments);
   }
 
-  // 预取最近 20 天的聊天（只查从该 workspace 发起的聊天）
+  // 预取最近 20 天的聊天（跟着 workspace 走：所有成员可见）
   const twentyDaysAgo = new Date(
     Date.now() - 20 * 24 * 60 * 60 * 1000,
   ).toISOString();
+
+  const chatConditions = [
+    eq(chats.workspaceId, workspaceId),
+    gte(chats.updatedAt, twentyDaysAgo),
+  ];
 
   const recentChats = db
     .select({
@@ -66,12 +84,7 @@ export default async function WorkspacePage({
       projectId: chats.projectId,
     })
     .from(chats)
-    .where(
-      and(
-        eq(chats.workspaceId, workspaceId),
-        gte(chats.updatedAt, twentyDaysAgo),
-      ),
-    )
+    .where(and(...chatConditions))
     .orderBy(desc(chats.updatedAt))
     .all();
 

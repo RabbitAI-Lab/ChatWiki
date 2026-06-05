@@ -136,6 +136,7 @@ export interface ProjectSkills {
 export interface ProjectMember {
   id: string;           // UUID
   accountName: string;  // 账号名称
+  userId?: string;      // 关联的系统用户 ID（可选，用于权限控制）
   addedAt: string;      // 添加时间 (ISO)
 }
 
@@ -148,8 +149,9 @@ export interface ProjectMeta {
   name: string;        // user-visible name
   description: string;
   createdAt: string;
-  accountId: string;
+  accountId: string;   // 所有者的用户 ID（用于目录路径 personal/{accountId}）
   accountType: string;
+  ownerId: string;     // 创建者的用户 ID（与 accountId 相同，语义更明确）
   sortOrder: number;   // lower = higher priority (appears first)
   repositories?: Repository[];
   sandbox?: SandboxStatus;  // 沙盒状态

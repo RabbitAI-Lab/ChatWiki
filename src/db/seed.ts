@@ -1,5 +1,6 @@
 import { db } from "./index";
 import { accounts, templates, systemPrompts } from "./schema";
+import { backfillEntityMembers } from "@/lib/fs/backfill-members";
 
 export async function seed() {
   console.log("[seed] Seeding database...");
@@ -211,6 +212,9 @@ MCP configuration:
   } else {
     console.log(`[seed] ${existingSystemPrompts.length} system prompts already exist.`);
   }
+
+  // 回填成员索引
+  backfillEntityMembers();
 
   console.log("[seed] Done.");
 }

@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const type = (searchParams.get("type") || "personal") as "personal" | "enterprise";
-  const accountId = searchParams.get("accountId") || "default";
+  const accountId = searchParams.get("accountId") || auth.id;
   const orgId = searchParams.get("orgId") || undefined;
 
   const workspaces = listWorkspaces(type, accountId, orgId);
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
-  const { type = "personal", accountId = "default", name, orgId } = body;
+  const { type = "personal", accountId = auth.id, name, orgId } = body;
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
   const meta = createWorkspace(type, accountId, name, orgId);
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
-  const { type = "personal", accountId = "default", id, orgId } = body;
+  const { type = "personal", accountId = auth.id, id, orgId } = body;
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
   deleteWorkspace(type, accountId, id, orgId);
@@ -40,7 +40,7 @@ export async function DELETE(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
-  const { type = "personal", accountId = "default", id, name, sortOrder, orgId } = body;
+  const { type = "personal", accountId = auth.id, id, name, sortOrder, orgId } = body;
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
   const accountSegments = type === "personal"
@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
-  const { type = "personal", accountId = "default", orders, orgId } = body;
+  const { type = "personal", accountId = auth.id, orders, orgId } = body;
   if (!Array.isArray(orders)) return NextResponse.json({ error: "orders array is required" }, { status: 400 });
 
   const accountSegments = type === "personal"

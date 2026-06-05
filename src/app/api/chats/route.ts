@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { chats, modelConfigs, templates } from "@/db/schema";
-import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, or, sql, inArray, SQL } from "drizzle-orm";
+import { findMemberEntityIds } from "@/lib/fs";
 
 // GET /api/chats?page=1&pageSize=20&projectId=xxx&since=ISO_DATE
 export async function GET(req: NextRequest) {
@@ -15,7 +16,35 @@ export async function GET(req: NextRequest) {
   const since = url.searchParams.get("since");
   const offset = (page - 1) * pageSize;
 
-  const conditions: ReturnType<typeof eq | typeof isNull | typeof gte>[] = [];
+  // 用户隔离: 显示自己的 chats + 项目成员可见的 chats（userId 为 null 的旧数据也可见）
+  const userCondition = or(eq(chats.userId, auth.id), isNull(chats.userId));
+
+  // 查找用户作为成员的项目 ID，这些项目的 chats 也应该可见
+  const memberProjectIds = findMemberEntityIds(auth.id, "projects", ".project.json");
+  const memberWorkspaceIds = findMemberEntityIds(auth.id, "workspace", ".workspace.json");
+
+  // 构建成员可见的 chats 条件：项目或工作空间关联的 chats
+  let memberCondition: SQL | undefined = undefined;
+  if (memberProjectIds.length > 0 || memberWorkspaceIds.length > 0) {
+    const memberParts: SQL[] = [];
+    if (memberProjectIds.length > 0) {
+      memberParts.push(inArray(chats.projectId, memberProjectIds));
+    }
+    if (memberWorkspaceIds.length > 0) {
+      memberParts.push(inArray(chats.workspaceId, memberWorkspaceIds));
+    }
+    // 成员 chats 条件：属于成员项目/工作空间的（不要求 userId 匹配）
+    memberCondition = memberParts.length === 1 ? memberParts[0] : or(...memberParts);
+  }
+
+  // 综合条件：自己的 chats OR 成员项目/工作空间的 chats
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const conditions: any[] = [];
+  if (memberCondition) {
+    conditions.push(or(userCondition, memberCondition)!);
+  } else {
+    conditions.push(userCondition);
+  }
   if (projectId) {
     conditions.push(projectId === "__none__" ? isNull(chats.projectId) : eq(chats.projectId, projectId));
   }
@@ -59,11 +88,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ chats: rows, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
 
-// DELETE /api/chats - 清空所有会话
-export async function DELETE() {
-  // Static handler — note: no req means no auth possible; skipping guard
-  // (if this handler needs auth, it should be a route with req param)
-  db.delete(chats).run();
+// DELETE /api/chats - 清空当前用户的会话
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
+  db.delete(chats).where(eq(chats.userId, auth.id)).run();
   return NextResponse.json({ success: true });
 }
 
@@ -75,6 +103,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date().toISOString();
   const result = db.insert(chats).values({
+    userId: auth.id,
     title: title || "New Chat",
     modelId: modelId ?? undefined,
     templateId: templateId ?? undefined,

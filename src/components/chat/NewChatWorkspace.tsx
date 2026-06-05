@@ -46,7 +46,7 @@ export default function NewChatWorkspace() {
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [recentDocuments, setRecentDocuments] = useState<DocumentActivity[]>([]);
 
-  const projectPath = selectedProjectId
+  const projectPath = selectedProjectId && user
     ? `personal/${user.id}/projects/${selectedProjectId}/docs`
     : "";
 
@@ -69,7 +69,7 @@ export default function NewChatWorkspace() {
   // --- Project list fetch ---
 
   useEffect(() => {
-    authFetch("/api/fs/projects?type=personal&accountId=default")
+    authFetch(`/api/fs/projects?type=personal&accountId=${user?.id ?? ''}`)
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
@@ -83,7 +83,7 @@ export default function NewChatWorkspace() {
           }
         }
       });
-  }, []);
+  }, [user?.id]);
 
   // --- Refresh recent chats & documents ---
 
@@ -118,7 +118,7 @@ export default function NewChatWorkspace() {
 
     // Load file tree for the selected project
     fileTree.setTreeLoading(true);
-    const prefix = `personal/${user.id}/projects/${project.id}/docs`;
+    const prefix = `personal/${user?.id ?? ''}/projects/${project.id}/docs`;
     try {
       const res = await authFetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();
@@ -377,7 +377,7 @@ export default function NewChatWorkspace() {
                   projectId={selectedProjectId}
                   projectName={selectedProjectName}
                   projectMeta={projectMeta}
-                  projectPath={`personal/${user.id}/projects/${selectedProjectId}`}
+                  projectPath={`personal/${user?.id ?? ''}/projects/${selectedProjectId}`}
                   recentChats={recentChats}
                   recentDocuments={recentDocuments}
                   onSwitchToChat={chatSwitching.handleSwitchToChat}

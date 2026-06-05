@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { chats, accounts, documentActivities } from "@/db/schema";
 import { gte, desc, eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/auth/tokens";
 import ProjectWorkspace from "@/components/project/ProjectWorkspace";
 
 export default async function ProjectPage({
@@ -16,7 +18,18 @@ export default async function ProjectPage({
   const path = rawPath.map(decodeURIComponent);
   const { file: rawFile } = await searchParams;
 
-  // path = ["personal", "default", "projects", "{projectId}"]
+  // 验证用户身份（从 cookie 获取 access token）
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token")?.value;
+  let currentUserId: string | null = null;
+  if (accessToken) {
+    const payload = await verifyToken(accessToken);
+    if (payload && payload.type === "access") {
+      currentUserId = payload.sub;
+    }
+  }
+
+  // path = ["personal", "{accountId}", "projects", "{projectId}"]
   if (path.length < 4) notFound();
 
   const projectId = path[3];
@@ -62,11 +75,16 @@ export default async function ProjectPage({
   };
 
   // Fetch recent chats for this project (last 20 days)
+  // 跟着项目走：该项目下所有 chat 对所有访问者可见
   const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+  const chatConditions = [
+    gte(chats.updatedAt, twentyDaysAgo),
+    eq(chats.projectId, projectId),
+  ];
   const recentChats = db
     .select({ id: chats.id, title: chats.title, updatedAt: chats.updatedAt })
     .from(chats)
-    .where(and(gte(chats.updatedAt, twentyDaysAgo), eq(chats.projectId, projectId)))
+    .where(and(...chatConditions))
     .orderBy(desc(chats.updatedAt))
     .all();
 

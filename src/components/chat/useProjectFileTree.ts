@@ -36,7 +36,7 @@ export function useProjectFileTree({
     const pid = targetProjectId ?? projectId;
     if (!pid) return;
     setTreeLoading(true);
-    const prefix = `personal/${user.id}/projects/${pid}/docs`;
+    const prefix = `personal/${user?.id ?? ''}/projects/${pid}/docs`;
     try {
       const res = await authFetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();

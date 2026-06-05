@@ -43,7 +43,7 @@ export function useChatSelectors({
   effectiveChatId,
 }: UseChatSelectorsOptions) {
   const [models, setModels] = useState<ModelItem[]>([]);
-  const { authFetch } = useAuth();
+  const { authFetch, user } = useAuth();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -115,14 +115,16 @@ export function useChatSelectors({
           }
         }
       });
-    authFetch("/api/fs/projects?type=personal&accountId=default")
-      .then((r) => r.json())
-      .then((data) => setProjects(Array.isArray(data) ? data : []));
-    authFetch("/api/fs/workspaces?type=personal&accountId=default")
-      .then((r) => r.json())
-      .then((data) => setWorkspaces(
-        Array.isArray(data) ? data.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })) : []
-      ));
+    if (user) {
+      authFetch(`/api/fs/projects?type=personal&accountId=${user.id}`)
+        .then((r) => r.json())
+        .then((data) => setProjects(Array.isArray(data) ? data : []));
+      authFetch(`/api/fs/workspaces?type=personal&accountId=${user.id}`)
+        .then((r) => r.json())
+        .then((data) => setWorkspaces(
+          Array.isArray(data) ? data.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })) : []
+        ));
+    }
     authFetch("/api/templates")
       .then((r) => r.json())
       .then((data) => {
@@ -140,7 +142,7 @@ export function useChatSelectors({
           }
         }
       });
-  }, []);
+  }, [user?.id]);
 
   return {
     models,

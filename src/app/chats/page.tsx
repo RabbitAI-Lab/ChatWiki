@@ -43,7 +43,7 @@ export default function ChatsPageClient() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-    authFetch("/api/fs/projects?type=personal&accountId=default")
+    authFetch(`/api/fs/projects?type=personal&accountId=${user.id}`)
       .then((res) => res.json())
       .then((projects: ProjectMeta[] | { error: string }) => {
         if (Array.isArray(projects)) {
@@ -52,7 +52,7 @@ export default function ChatsPageClient() {
           setProjectMap(map);
         }
       });
-    authFetch("/api/fs/workspaces?type=personal&accountId=default")
+    authFetch(`/api/fs/workspaces?type=personal&accountId=${user.id}`)
       .then((res) => res.json())
       .then((workspaces: ProjectMeta[] | { error: string }) => {
         if (Array.isArray(workspaces)) {
@@ -176,8 +176,8 @@ export default function ChatsPageClient() {
                   <tr
                     key={chat.id}
                     onClick={() => {
-                      if (chat.workspaceId && !chat.projectId) {
-                        router.push(`/workspace/personal/default/${chat.workspaceId}?chatId=${chat.id}`);
+                      if (chat.workspaceId && !chat.projectId && user) {
+                        router.push(`/workspace/personal/${user.id}/${chat.workspaceId}?chatId=${chat.id}`);
                       } else {
                         router.push(`/chat/${chat.id}`);
                       }

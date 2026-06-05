@@ -44,7 +44,7 @@ export default function WorkspacesPanel() {
   const fetchWorkspaces = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await authFetch("/api/fs/workspaces?type=personal&accountId=default");
+      const res = await authFetch(`/api/fs/workspaces?type=personal&accountId=${user!.id}`);
       if (!res.ok) return;
       const data = await res.json();
       setWorkspaces(Array.isArray(data) ? data : []);
@@ -74,7 +74,7 @@ export default function WorkspacesPanel() {
       await authFetch("/api/fs/workspaces", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "personal", accountId: "default", id, name: trimmed }),
+        body: JSON.stringify({ type: "personal", accountId: user!.id, id, name: trimmed }),
       });
     }
     setEditingId(null);
@@ -87,14 +87,14 @@ export default function WorkspacesPanel() {
     const res = await authFetch("/api/fs/workspaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "personal", accountId: "default", name }),
+      body: JSON.stringify({ type: "personal", accountId: user!.id, name }),
     });
     if (!res.ok) return;
     const meta = await res.json();
     await fetchWorkspaces();
     setEditingId(meta.id);
     setEditName(meta.name);
-    router.push(`/workspace/personal/default/${meta.id}`);
+    router.push(`/workspace/personal/${user!.id}/${meta.id}`);
   };
 
   const handleDoubleClick = (workspace: WorkspaceMeta) => {
@@ -156,7 +156,7 @@ export default function WorkspacesPanel() {
     await authFetch("/api/fs/workspaces", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "personal", accountId: "default", orders }),
+      body: JSON.stringify({ type: "personal", accountId: user!.id, orders }),
     });
 
     setDragId(null);
@@ -196,7 +196,7 @@ export default function WorkspacesPanel() {
       {/* Content */}
       <div className="mt-0.5 space-y-0.5 px-2">
         {workspaces.map((workspace) => {
-          const workspacePath = `/workspace/personal/default/${workspace.id}`;
+          const workspacePath = `/workspace/personal/${user!.id}/${workspace.id}`;
           const isActive = pathname === workspacePath || pathname.startsWith(workspacePath + "/");
           const isEditing = editingId === workspace.id;
           const isDragTarget = dropTargetId === workspace.id;

@@ -19,7 +19,7 @@ export function registerProjectTools(server: McpServer) {
           .enum(["personal", "enterprise"])
           .default("personal")
           .describe("账号类型"),
-        accountId: z.string().default("default").describe("账号 ID"),
+        accountId: z.string().describe("账号 ID"),
         orgId: z.string().optional().describe("组织 ID（enterprise 类型时使用）"),
       }),
     },
@@ -40,7 +40,7 @@ export function registerProjectTools(server: McpServer) {
           .enum(["personal", "enterprise"])
           .default("personal")
           .describe("账号类型"),
-        accountId: z.string().default("default").describe("账号 ID"),
+        accountId: z.string().describe("账号 ID"),
         name: z.string().describe("项目名称"),
         orgId: z.string().optional().describe("组织 ID（enterprise 类型时使用）"),
       }),
@@ -62,7 +62,7 @@ export function registerProjectTools(server: McpServer) {
           .enum(["personal", "enterprise"])
           .default("personal")
           .describe("账号类型"),
-        accountId: z.string().default("default").describe("账号 ID"),
+        accountId: z.string().describe("账号 ID"),
         projectId: z.string().describe("项目 ID"),
         orgId: z.string().optional().describe("组织 ID（enterprise 类型时使用）"),
       }),
@@ -95,7 +95,7 @@ export function registerProjectTools(server: McpServer) {
           .enum(["personal", "enterprise"])
           .default("personal")
           .describe("账号类型"),
-        accountId: z.string().default("default").describe("账号 ID"),
+        accountId: z.string().describe("账号 ID"),
         projectId: z.string().describe("项目 ID"),
         name: z.string().optional().describe("新项目名称"),
         description: z.string().optional().describe("项目描述"),
@@ -135,7 +135,7 @@ export function registerProjectTools(server: McpServer) {
           .enum(["personal", "enterprise"])
           .default("personal")
           .describe("账号类型"),
-        accountId: z.string().default("default").describe("账号 ID"),
+        accountId: z.string().describe("账号 ID"),
         projectId: z.string().describe("项目 ID"),
         orgId: z.string().optional().describe("组织 ID（enterprise 类型时使用）"),
       }),

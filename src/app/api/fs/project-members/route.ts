@@ -7,6 +7,9 @@ import {
   updateMember,
 } from "@/lib/fs";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 // GET /api/fs/project-members?dirSegments=personal,default,projects,{id}
 export async function GET(req: NextRequest) {
@@ -33,6 +36,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "dirSegments and member are required" }, { status: 400 });
   }
   try {
+    // 根据 accountName 查询用户表自动关联 userId
+    if (!member.userId && member.accountName) {
+      const userRow = db.select().from(users).where(eq(users.email, member.accountName)).get()
+        ?? db.select().from(users).where(eq(users.name, member.accountName)).get();
+      if (userRow) {
+        member.userId = userRow.id;
+      }
+    }
     const members = addMember(dirSegments, member);
     logOperation({
       projectId: extractProjectId(dirSegments),

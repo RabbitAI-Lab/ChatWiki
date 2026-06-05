@@ -40,6 +40,7 @@ export const templates = sqliteTable("templates", {
 // chats: 聊天会话
 export const chats = sqliteTable("chats", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id"),  // 所属用户 ID（创建者）
   title: text("title").notNull().default("New Chat"),
   modelId: integer("model_id"),
   templateId: integer("template_id"),
@@ -294,4 +295,17 @@ export const userSubscriptions = sqliteTable("user_subscriptions", {
   cancelledAt: text("cancelled_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+// entity_members: 项目/工作空间成员索引表（DB 缓存，文件系统为 source of truth）
+export const entityMembers = sqliteTable("entity_members", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  entityId: text("entity_id").notNull(),
+  entityType: text("entity_type").notNull(),       // 'project' | 'workspace'
+  memberId: text("member_id").notNull(),
+  userId: text("user_id"),
+  accountName: text("account_name").notNull(),
+  ownerId: text("owner_id").notNull(),
+  addedAt: text("added_at").notNull(),
+  createdAt: text("created_at").notNull(),
 });

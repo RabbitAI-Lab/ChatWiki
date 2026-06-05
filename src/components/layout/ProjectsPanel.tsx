@@ -43,7 +43,7 @@ export default function ProjectsPanel() {
   const fetchProjects = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await authFetch("/api/fs/projects?type=personal&accountId=default");
+      const res = await authFetch(`/api/fs/projects?type=personal&accountId=${user!.id}`);
       if (!res.ok) return;
       const data = await res.json();
       setProjects(Array.isArray(data) ? data : []);
@@ -73,7 +73,7 @@ export default function ProjectsPanel() {
       await authFetch("/api/fs/projects", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "personal", accountId: "default", id, name: trimmed }),
+        body: JSON.stringify({ type: "personal", accountId: user!.id, id, name: trimmed }),
       });
     }
     setEditingId(null);
@@ -86,14 +86,14 @@ export default function ProjectsPanel() {
     const res = await authFetch("/api/fs/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "personal", accountId: "default", name }),
+      body: JSON.stringify({ type: "personal", accountId: user!.id, name }),
     });
     if (!res.ok) return;
     const meta = await res.json();
     await fetchProjects();
     setEditingId(meta.id);
     setEditName(meta.name);
-    router.push(`/project/personal/default/projects/${meta.id}`);
+    router.push(`/project/personal/${user!.id}/projects/${meta.id}`);
   };
 
   const handleDoubleClick = (project: ProjectMeta) => {
@@ -145,7 +145,7 @@ export default function ProjectsPanel() {
     await authFetch("/api/fs/projects", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "personal", accountId: "default", orders }),
+      body: JSON.stringify({ type: "personal", accountId: user!.id, orders }),
     });
 
     setDragId(null);
@@ -184,7 +184,7 @@ export default function ProjectsPanel() {
       {/* Content */}
       <div className="mt-0.5 space-y-0.5 px-2">
         {projects.map((project) => {
-          const projectPath = `/project/personal/default/projects/${project.id}`;
+          const projectPath = `/project/personal/${user!.id}/projects/${project.id}`;
           const isActive = pathname === projectPath || pathname.startsWith(projectPath + "/");
           const isEditing = editingId === project.id;
           const isDragTarget = dropTargetId === project.id;

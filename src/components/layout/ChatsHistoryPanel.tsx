@@ -98,7 +98,7 @@ export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanel
   const { collapsed } = useSidebar();
   const groups = groupChats(chats);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const { authFetch } = useAuth();
+  const { user, authFetch } = useAuth();
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -145,7 +145,7 @@ export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanel
                     onClick={() => {
                       // workspace-only 的 chat 跳转到 workspace 详情页
                       if (chat.workspaceId && !chat.projectId) {
-                        router.push(`/workspace/personal/default/${chat.workspaceId}?chatId=${chat.id}`);
+                        router.push(`/workspace/personal/${user?.id ?? ''}/${chat.workspaceId}?chatId=${chat.id}`);
                       } else {
                         router.push(chatPath);
                       }

@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const type = (searchParams.get("type") || "personal") as "personal" | "enterprise";
-  const accountId = searchParams.get("accountId") || "default";
+  const accountId = searchParams.get("accountId") || auth.id;
   const workspace = searchParams.get("workspace");
   const orgId = searchParams.get("orgId") || undefined;
 
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
-  const { type = "personal", accountId = "default", workspace, projectId, orgId } = body;
+  const { type = "personal", accountId = auth.id, workspace, projectId, orgId } = body;
   if (!workspace || !projectId) {
     return NextResponse.json({ error: "workspace and projectId are required" }, { status: 400 });
   }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const body = await req.json();
-  const { type = "personal", accountId = "default", workspace, projectId, orgId } = body;
+  const { type = "personal", accountId = auth.id, workspace, projectId, orgId } = body;
   if (!workspace || !projectId) {
     return NextResponse.json({ error: "workspace and projectId are required" }, { status: 400 });
   }

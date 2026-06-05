@@ -8,7 +8,7 @@ import { modelConfigs, mcpConfig } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ModelError } from "./types";
 import type { StreamEvent } from "./types";
-import { readProjectMcpConfig as readProjectMcpConfigFromFs } from "./fs";
+import { readProjectMcpConfig as readProjectMcpConfigFromFs, getDataRoot } from "./fs";
 
 type ModelConfigRow = {
   id: number;
@@ -219,7 +219,21 @@ export async function* streamModelResponse(
   let projectMcpServers: Record<string, McpServerConfig> | undefined;
   if (options?.projectId) {
     try {
-      const projectConfig = readProjectMcpConfigFromFs(["personal", "default", "projects", options.projectId]);
+      // 从 cwd 推算 dirSegments（cwd 格式: .../personal/{userId}/projects/{projectId}）
+      const dataRoot = getDataRoot();
+      let projectDirSegments: string[] | undefined;
+      if (options.cwd && options.cwd.startsWith(dataRoot)) {
+        const rel = path.relative(dataRoot, options.cwd).split(path.sep);
+        // 期望格式: ["personal", "{userId}", "projects", "{projectId}"]
+        if (rel.length >= 4 && rel[0] === "personal" && rel[2] === "projects") {
+          projectDirSegments = rel.slice(0, 4);
+        }
+      }
+      // 回退到 default（兼容迁移前数据）
+      if (!projectDirSegments) {
+        projectDirSegments = ["personal", "default", "projects", options.projectId];
+      }
+      const projectConfig = readProjectMcpConfigFromFs(projectDirSegments);
       if (projectConfig?.mcpServers && typeof projectConfig.mcpServers === "object") {
         projectMcpServers = projectConfig.mcpServers as Record<string, McpServerConfig>;
       }

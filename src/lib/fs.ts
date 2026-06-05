@@ -83,3 +83,6 @@ export {
   linkProjectToWorkspace,
   unlinkProjectFromWorkspace,
 } from "./fs/workspace";
+
+// ── 辅助: 查找用户作为成员的实体 ──
+export { findMemberEntityIds } from "./fs/meta-crud";
