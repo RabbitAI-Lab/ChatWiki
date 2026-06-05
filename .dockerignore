@@ -21,4 +21,3 @@ docker
 scripts/add-gitnexus-to-project.ts
 scripts/migrate-projects-dir.ts
 scripts/migrate-projects-docs-dir.ts
-vendor
