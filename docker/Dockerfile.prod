@@ -19,24 +19,8 @@ RUN pnpm build
 
 # Stage 2.5: 裁剪为生产依赖
 FROM builder AS prod-deps
-RUN pnpm config set ignore-scripts true && pnpm prune --prod
-# pnpm prune 会重组 .pnpm/ store 路径，导致 .next/node_modules/ 中的软链接断裂
-# 遍历所有软链接，将断裂的链接重指向 prune 后的正确路径
-RUN find .next/node_modules -type l | while read -r link; do \
-      if [ ! -e "$$link" ]; then \
-        old=$$(readlink "$$link"); \
-        pkg=$$(echo "$$old" | sed 's|.*/node_modules/||'); \
-        dir=$$(dirname "$$link"); \
-        actual=$$(find node_modules/.pnpm -path "*/node_modules/$$pkg" -maxdepth 6 | head -1); \
-        if [ -n "$$actual" ]; then \
-          rel=$$(python3 -c "import os; print(os.path.relpath('$$actual', '$$dir'))"); \
-          ln -snf "$$rel" "$$link"; \
-          echo "Fixed: $$link -> $$rel"; \
-        else \
-          echo "WARNING: cannot locate $$pkg after prune"; \
-        fi; \
-      fi; \
-    done
+RUN pnpm config set ignore-scripts true && pnpm prune --prod && \
+    python3 -c "import os\nbase='.next/node_modules'\nif not os.path.isdir(base):exit(0)\nentries=[]\nfor n in os.listdir(base):\n p=os.path.join(base,n)\n if n.startswith('@'):\n  try:\n   for s in os.listdir(p):entries.append(os.path.join(p,s))\n  except:pass\n else:entries.append(p)\nimport subprocess\nfor e in entries:\n try:\n  if not os.path.islink(e) or os.path.exists(e):continue\n except:continue\n old=os.readlink(e)\n i=old.rfind('node_modules/')\n if i<0:continue\n pkg=old[i+12:]\n r=subprocess.run(['find','node_modules/.pnpm','-path','*/node_modules/'+pkg],capture_output=True,text=True,timeout=30)\n for line in r.stdout.strip().split(chr(10)):\n  if not line:continue\n  new_rel=os.path.relpath(line,os.path.dirname(e))\n  os.unlink(e)\n  os.symlink(new_rel,e)\n  print('Fixed:',e,'->',new_rel)\n  break\n else:\n  if pkg:print('WARN:not found:',pkg)"
 
 # Stage 3: 运行时
 FROM node:20-bookworm-slim AS runner
