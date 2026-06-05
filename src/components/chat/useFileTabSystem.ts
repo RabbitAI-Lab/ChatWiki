@@ -8,6 +8,7 @@ export interface FileTab {
   filePath: string;
   content: string;
   loaded: boolean;
+  type: "markdown" | "html";
 }
 
 const PROJECT_INFO_TAB = "__project_info__" as const;
@@ -52,10 +53,12 @@ export function useFileTabSystem({ projectId, projectPath, closeFallbackTab = PR
       }
       // Create new tab
       const cachedContent = contentCache.current[filePath] ?? "";
+      const fileType = filePath.toLowerCase().endsWith(".html") ? "html" as const : "markdown" as const;
       const newTab: FileTab = {
         filePath,
         content: cachedContent,
         loaded: !!cachedContent,
+        type: fileType,
       };
       setActiveTabId(filePath);
 

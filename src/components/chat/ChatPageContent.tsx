@@ -77,7 +77,7 @@ export default function ChatPageContent({
 }: ChatPageContentProps) {
   const router = useRouter();
   const { message } = App.useApp();
-  const { authFetch } = useAuth();
+  const { authFetch, user } = useAuth();
   const { open: openFloatingChat, isOpen: floatingChatOpen, isMinimized: floatingChatMinimized, setMentionFile: setFloatingMentionFile } = useFloatingChat();
 
   // Project context state
@@ -88,7 +88,7 @@ export default function ChatPageContent({
   const [recentDocuments] = useState(initialRecentDocuments);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
-  const projectPath = projectId ? `personal/default/projects/${projectId}/docs` : "";
+  const projectPath = projectId ? `personal/${user.id}/projects/${projectId}/docs` : "";
 
   // Tab system
   const tabSystem = useFileTabSystem({
@@ -106,8 +106,9 @@ export default function ChatPageContent({
     onUpdateTabPaths: tabSystem.updateTabPaths,
     initialTree,
     onFileCreated: useCallback((relativePath: string, content: string) => {
+      const fileType = relativePath.toLowerCase().endsWith(".html") ? "html" as const : "markdown" as const;
       tabSystem.contentCache.current[relativePath] = content;
-      tabSystem.setTabs((prev) => [...prev, { filePath: relativePath, content, loaded: true }]);
+      tabSystem.setTabs((prev) => [...prev, { filePath: relativePath, content, loaded: true, type: fileType }]);
       tabSystem.setActiveTabId(relativePath);
     }, [tabSystem]),
   });
@@ -224,8 +225,8 @@ export default function ChatPageContent({
         />
 
         {fileTree.treeLoading ? (
-          <div className="flex-1 flex items-center justify-center py-8 text-gray-400">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-blue-600 mr-2" />
+          <div className="flex-1 flex items-center justify-center py-8 text-gray-400 dark:text-gray-500">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 dark:border-zinc-600 border-t-blue-600 dark:border-t-blue-400 mr-2" />
             <span className="text-xs">Loading...</span>
           </div>
         ) : (
@@ -289,7 +290,7 @@ export default function ChatPageContent({
                   <span
                     role="button"
                     onClick={(e) => tabSystem.handleTabClose(tab.filePath, e)}
-                    className="ml-0.5 w-4 h-4 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="ml-0.5 w-4 h-4 flex items-center justify-center rounded text-gray-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                   >
                     ×
                   </span>
@@ -310,7 +311,7 @@ export default function ChatPageContent({
               projectId={projectId}
               projectName={projectName || projectId}
               projectMeta={projectMeta ?? null}
-              projectPath={`personal/default/projects/${projectId}`}
+              projectPath={`personal/${user.id}/projects/${projectId}`}
               recentChats={recentChats || []}
               recentDocuments={recentDocuments || []}
               onSwitchToChat={chatSwitching.handleSwitchToChat}
@@ -357,6 +358,9 @@ export default function ChatPageContent({
                 filePath={tab.filePath}
                 loaded={tab.loaded}
                 content={tab.content}
+                type={tab.type}
+                projectId={projectId!}
+                docsPath={projectPath}
                 onChange={(markdown) => tabSystem.handleFileChange(tab.filePath, markdown)}
                 onSave={() => tabSystem.handleFileSave(tab.filePath, tabSystem.contentCache.current[tab.filePath] ?? tab.content)}
               />
