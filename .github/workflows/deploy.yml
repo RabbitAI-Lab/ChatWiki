@@ -133,7 +133,6 @@ jobs:
 
             # ===== Phase 3: 健康检查 =====
             echo "[Deploy] Running health checks..."
-            sleep 10
 
             # Web 根路径（3000）：状态 < 500 即视为可达
             for i in $(seq 1 12); do
@@ -151,13 +150,16 @@ jobs:
               exit 1
             fi
 
-            # MCP 端口（4001）：HTTP 探测（状态 < 500 即可达）
-            for i in $(seq 1 10); do
+            # MCP：先等容器日志确认 MCP Server 已启动，再验证宿主机端口映射
+            echo "[Deploy] Waiting for MCP server to start inside container..."
+            timeout 120 docker compose logs --follow 2>&1 | grep -m1 -q "MCP Server running" || true
+
+            for i in $(seq 1 6); do
               if curl -s -o /dev/null -w "%{http_code}" http://localhost:4001/mcp 2>/dev/null | grep -qE "^[1-4][0-9][0-9]$"; then
                 echo "[Deploy] MCP (4001) OK"
                 break
               fi
-              echo "[Deploy] Waiting for MCP... attempt $i/10"
+              echo "[Deploy] Verifying MCP port mapping... attempt $i/6"
               sleep 5
             done
 
