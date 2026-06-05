@@ -88,7 +88,7 @@ export default function ChatPageContent({
   const [recentDocuments] = useState(initialRecentDocuments);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
-  const projectPath = projectId ? `personal/${user.id}/projects/${projectId}/docs` : "";
+  const projectPath = projectId && user ? `personal/${user.id}/projects/${projectId}/docs` : "";
 
   // Tab system
   const tabSystem = useFileTabSystem({
