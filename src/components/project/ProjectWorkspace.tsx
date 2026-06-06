@@ -20,7 +20,7 @@ export default function ProjectWorkspace({
   docsPath,
   tree: initialTree,
   rootTree: initialRootTree,
-  rootPath,
+  rootPath: _rootPath,
   selectedFile,
   initialContent,
   projectMeta,

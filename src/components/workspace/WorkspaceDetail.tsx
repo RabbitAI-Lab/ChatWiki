@@ -47,7 +47,7 @@ export default function WorkspaceDetail({
   tree: initialTree,
   rootTree: initialRootTree,
   docsPath,
-  rootPath,
+  rootPath: _rootPath,
   selectedFile,
   initialContent,
 }: WorkspaceDetailProps) {
