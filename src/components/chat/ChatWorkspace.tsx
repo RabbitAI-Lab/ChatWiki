@@ -4,6 +4,7 @@ import { useState, forwardRef, useImperativeHandle, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Bubble, Sender, XProvider } from "@ant-design/x";
+import { ClockCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import { Tag } from "antd";
 import type { Message, ChatWorkspaceProps, ChatWorkspaceRef } from "./chat-workspace-ref";
 export type { Message, ChatWorkspaceProps, ChatWorkspaceRef } from "./chat-workspace-ref";
@@ -220,12 +221,84 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
         {/* Input */}
         <div className="px-4 py-3 shrink-0">
           <div className="max-w-3xl mx-auto">
+            {/* Queue indicator */}
+            {messagesApi.queueSize > 0 && (
+              <div
+                className="rounded-md px-3 py-2 mb-2"
+                style={{
+                  color: 'var(--ant-color-primary)',
+                  backgroundColor: 'var(--ant-color-primary-bg)',
+                }}
+              >
+                <div className="flex items-center gap-2 text-xs mb-1.5">
+                  <ClockCircleOutlined spin />
+                  <span>{t('queue.pending', { count: messagesApi.queueSize })}</span>
+                  <button
+                    onClick={() => messagesApi.handleClearQueue()}
+                    className="ml-auto transition-colors"
+                    style={{ color: 'var(--ant-color-text-quaternary)' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ant-color-error)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ant-color-text-quaternary)')}
+                    title={t('queue.clearAll')}
+                  >
+                    <CloseOutlined />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1">
+                  {messagesApi.queueItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-2 text-xs rounded px-2 py-1"
+                      style={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        color: 'var(--ant-color-text)',
+                      }}
+                    >
+                      <span
+                        className="flex-1 min-w-0"
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={item.content}
+                      >
+                        {item.content}
+                      </span>
+                      <button
+                        onClick={() => messagesApi.handleRemoveFromQueue(index)}
+                        className="shrink-0 transition-colors leading-none"
+                        style={{ color: 'var(--ant-color-text-quaternary)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ant-color-error)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ant-color-text-quaternary)')}
+                        title={t('queue.remove')}
+                      >
+                        <CloseOutlined style={{ fontSize: 10 }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <Sender
               value={messagesApi.inputValue}
               onChange={messagesApi.setInputValue}
               onSubmit={messagesApi.handleSend}
               loading={messagesApi.loading}
               onCancel={messagesApi.handleCancel}
+              onKeyDown={(e) => {
+                if (
+                  messagesApi.loading &&
+                  e.key === 'Enter' &&
+                  !e.shiftKey &&
+                  !(e.ctrlKey || e.altKey || e.metaKey) &&
+                  !e.nativeEvent.isComposing &&
+                  messagesApi.inputValue.trim()
+                ) {
+                  messagesApi.handleSend(messagesApi.inputValue);
+                  return false;
+                }
+              }}
               placeholder={t('input.placeholder')}
               autoSize={
                 messagesApi.messages.length === 0 && !floating

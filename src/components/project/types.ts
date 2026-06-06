@@ -56,6 +56,8 @@ export interface ProjectWorkspaceProps {
   accountInfo: AccountInfo;
   recentChats: RecentChat[];
   recentDocuments?: DocumentActivity[];
+  /** Owner 用户信息（服务端查询，用于成员页显示名称） */
+  ownerUser?: { name: string | null; email: string } | null;
   /** URL 参数传入的 chatId，用于自动加载指定 chat 并切换到 chat tab */
   initialChatId?: number;
 }

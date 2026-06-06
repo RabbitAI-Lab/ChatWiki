@@ -17,7 +17,7 @@ export interface GetChatUrlParams {
  * - 都没有 → 返回 null（孤立 chat）
  */
 export function getChatUrl(params: GetChatUrlParams): string | null {
-  const { chatId, projectId, workspaceId, userId } = params;
+  const { chatId, projectId, workspaceId, userId: _userId } = params;
 
   if (projectId) {
     return `/project/${projectId}?chatId=${chatId}`;

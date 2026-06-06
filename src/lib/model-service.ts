@@ -8,7 +8,7 @@ import { modelConfigs, mcpConfig } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ModelError } from "./types";
 import type { StreamEvent } from "./types";
-import { readProjectMcpConfig as readProjectMcpConfigFromFs, getDataRoot } from "./fs";
+import { readProjectMcpConfig as readProjectMcpConfigFromFs } from "./fs";
 import { tokenUsageLogs } from "@/db/schema";
 
 type ModelConfigRow = {

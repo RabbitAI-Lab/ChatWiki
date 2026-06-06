@@ -91,7 +91,7 @@ export function useChatSwitching({ setActiveTabId, projectId, router, onNewChatN
       const chatUrl = getChatUrl({ chatId: targetChatId, userId: userId ?? '' });
       router?.push(chatUrl || `/chat/${targetChatId}`);
     }
-  }, [setActiveTabId, projectId, router]);
+  }, [setActiveTabId, projectId, router, embedded, userId]);
 
   const handleNewChat = useCallback(() => {
     if (onNewChatNavigate) {

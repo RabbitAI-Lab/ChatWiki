@@ -23,6 +23,7 @@ export default function ProjectWorkspace({
   projectMeta,
   recentChats,
   recentDocuments,
+  ownerUser,
   initialChatId,
 }: ProjectWorkspaceProps) {
   const t = useTranslations('project');
@@ -469,6 +470,7 @@ export default function ProjectWorkspace({
           projectMeta={projectMeta}
           recentChats={recentChats}
           recentDocuments={recentDocuments}
+          ownerUser={ownerUser}
           chatKey={chatKey}
           activeChatId={activeChatId}
           activeChatTitle={activeChatTitle}

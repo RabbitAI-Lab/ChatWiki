@@ -128,7 +128,7 @@ export default function NewChatWorkspace() {
     refreshRecentChats(project.id);
     refreshRecentDocuments(project.id);
     router.push(`/project/${project.id}`);
-  }, [authFetch, user?.id, fileTree, tabSystem, chatSwitching, refreshRecentChats, refreshRecentDocuments]);
+  }, [authFetch, fileTree, tabSystem, chatSwitching, refreshRecentChats, refreshRecentDocuments, router]);
 
   // Keep ref in sync with latest handleSelectProject on every render
   useEffect(() => {

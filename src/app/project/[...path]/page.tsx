@@ -60,6 +60,16 @@ export default async function ProjectPage({
   const projectMeta = readProjectMeta(projectDirSegments);
   const projectName = projectMeta?.name || projectId;
 
+  // Resolve owner user info (name + email fallback)
+  let ownerUser: { name: string | null; email: string } | null = null;
+  if (projectMeta?.ownerId) {
+    ownerUser = db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, projectMeta.ownerId))
+      .get() ?? null;
+  }
+
   // Resolve account info
   const accountInfo = {
     accountName: projectMeta?.accountId || projectId,
@@ -83,14 +93,24 @@ export default async function ProjectPage({
       updatedAt: chats.updatedAt,
       projectId: chats.projectId,
       creatorName: users.name,
+      creatorEmail: users.email,
       modifierName: modifierUser.name,
+      modifierEmail: modifierUser.email,
     })
     .from(chats)
     .leftJoin(users, eq(chats.userId, users.id))
     .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(and(...chatConditions))
     .orderBy(desc(chats.updatedAt))
-    .all();
+    .all()
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      updatedAt: row.updatedAt,
+      projectId: row.projectId,
+      creatorName: row.creatorName ?? row.creatorEmail,
+      modifierName: row.modifierName ?? row.modifierEmail,
+    }));
 
   // Fetch recent document activities for this project (last 20 days)
   const recentDocuments = db
@@ -103,6 +123,7 @@ export default async function ProjectPage({
       oldTitle: documentActivities.oldTitle,
       userId: documentActivities.userId,
       userName: users.name,
+      userEmail: users.email,
       createdAt: documentActivities.createdAt,
     })
     .from(documentActivities)
@@ -113,7 +134,18 @@ export default async function ProjectPage({
     ))
     .orderBy(desc(documentActivities.createdAt))
     .limit(20)
-    .all();
+    .all()
+    .map((row) => ({
+      id: row.id,
+      projectId: row.projectId,
+      documentPath: row.documentPath,
+      documentTitle: row.documentTitle,
+      action: row.action,
+      oldTitle: row.oldTitle,
+      userId: row.userId,
+      userName: row.userName ?? row.userEmail,
+      createdAt: row.createdAt,
+    }));
 
   return (
     <ProjectWorkspace
@@ -127,6 +159,7 @@ export default async function ProjectPage({
       accountInfo={accountInfo}
       recentChats={recentChats}
       recentDocuments={recentDocuments}
+      ownerUser={ownerUser}
       initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
     />
   );

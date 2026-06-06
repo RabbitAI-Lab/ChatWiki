@@ -41,6 +41,8 @@ interface ProjectEditorAreaProps {
   projectMeta: ProjectMeta | null;
   recentChats: RecentChat[];
   recentDocuments?: DocumentActivity[];
+  /** Owner 用户信息（用于成员页显示名称） */
+  ownerUser?: { name: string | null; email: string } | null;
 
   // --- Chat 状态 ---
   chatKey: number;
@@ -73,6 +75,7 @@ export default function ProjectEditorArea({
   projectMeta,
   recentChats,
   recentDocuments,
+  ownerUser,
   chatKey,
   activeChatId,
   activeChatTitle,
@@ -105,6 +108,7 @@ export default function ProjectEditorArea({
           projectPath={projectPath}
           recentChats={recentChats}
           recentDocuments={recentDocuments}
+          ownerUser={ownerUser}
           onSwitchToChat={onSwitchToChat}
           onNewChat={onNewChat}
           onNavigateToDocument={onNavigateToDocument}

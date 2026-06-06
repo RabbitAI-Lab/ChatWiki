@@ -139,6 +139,12 @@ async function streamAiResponse(params: {
   return { aiContent, aiThinking, aiSignature, hasError };
 }
 
+/** 队列中的待发送消息 */
+interface QueuedMessage {
+  content: string;
+  mentionedFiles: string[];
+}
+
 interface UseChatMessagesOptions {
   effectiveChatId: number | null;
   setEffectiveChatId: (id: number | null) => void;
@@ -191,6 +197,26 @@ export function useChatMessages({
   const [loading, setLoading] = useState(false);
   const [mentionedFiles, setMentionedFiles] = useState<string[]>([]);
 
+  // --- 队列机制 ---
+  const queueRef = useRef<QueuedMessage[]>([]);
+  const [queueSize, setQueueSize] = useState(0);
+  const [queueItems, setQueueItems] = useState<QueuedMessage[]>([]);
+  const isProcessingRef = useRef(false);
+
+  // --- 最新状态快照 ref（解决闭包陈旧值问题） ---
+  const messagesRef = useRef<Message[]>(initialMessages || []);
+  const effectiveChatIdRef = useRef(effectiveChatId);
+
+  // 同步 messages 到 ref
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // 同步 effectiveChatId 到 ref
+  useEffect(() => {
+    effectiveChatIdRef.current = effectiveChatId;
+  }, [effectiveChatId]);
+
   useEffect(() => {
     if (mentionFile) {
       Promise.resolve().then(() => {
@@ -203,31 +229,50 @@ export function useChatMessages({
     }
   }, [mentionFile, onMentionConsumed]);
 
-  const handleSend = useCallback(async (content: string) => {
-    if (!content.trim() || loading) return;
+  // --- 队列排空函数（前置声明，由 processSingleMessage 末尾调用） ---
+  // drainQueue 和 processSingleMessage 互相引用，使用 ref 打破循环依赖
+  const processSingleMessageRef = useRef<
+    (content: string, mentionedFiles: string[]) => Promise<void>
+  >(() => Promise.resolve());
 
-    if (!selectedModelId) {
-      setInputValue(content);
-      return;
+  const syncQueueState = useCallback(() => {
+    setQueueSize(queueRef.current.length);
+    setQueueItems([...queueRef.current]);
+  }, []);
+
+  const drainQueue = useCallback(() => {
+    const next = queueRef.current.shift();
+    if (next) {
+      syncQueueState();
+      queueMicrotask(() => {
+        processSingleMessageRef.current(next.content, next.mentionedFiles);
+      });
+    } else {
+      isProcessingRef.current = false;
+      setLoading(false);
+      setQueueSize(0);
+      setQueueItems([]);
     }
+  }, [syncQueueState]);
 
+  // --- 实际的消息发送逻辑 ---
+  const processSingleMessage = useCallback(async (
+    trimmedContent: string,
+    capturedMentionedFiles: string[],
+  ) => {
     console.log("Selected model:", selectedModelId, "Selected project:", selectedProject, "Selected template:", selectedTemplateId);
-    setLoading(true);
-    const trimmed = content.trim();
-    setInputValue("");
 
     // Prepend mentioned files to message content
-    let fullContent = trimmed;
-    if (mentionedFiles.length > 0) {
-      const mentionText = mentionedFiles
+    let fullContent = trimmedContent;
+    if (capturedMentionedFiles.length > 0) {
+      const mentionText = capturedMentionedFiles
         .map((f) => {
           const fileName = f.split("/").pop() || f;
           return `@${fileName}`;
         })
         .join(" ");
-      fullContent = `${mentionText} ${trimmed}`;
+      fullContent = `${mentionText} ${trimmedContent}`;
     }
-    setMentionedFiles([]);
 
     // 1. Optimistically add user message
     const tempUserMsg: Message = {
@@ -238,11 +283,11 @@ export function useChatMessages({
     setMessages((prev) => [...prev, tempUserMsg]);
 
     // 2. If no chat exists yet, create one first
-    let currentChatId = effectiveChatId;
+    let currentChatId = effectiveChatIdRef.current;
     if (currentChatId === null) {
       if (creatingRef.current) {
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-        setLoading(false);
+        drainQueue();
         return;
       }
       creatingRef.current = true;
@@ -251,7 +296,7 @@ export function useChatMessages({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: trimmed.slice(0, 50),
+            title: trimmedContent.slice(0, 50),
             modelId: selectedModelId,
             templateId: selectedTemplateId,
             projectId: selectedProject,
@@ -260,12 +305,14 @@ export function useChatMessages({
         });
         if (!chatRes.ok) {
           setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-          setLoading(false);
           creatingRef.current = false;
+          drainQueue();
           return;
         }
         const chat = await chatRes.json();
         currentChatId = chat.id;
+        // 同步更新 ref 和 state
+        effectiveChatIdRef.current = chat.id;
         setEffectiveChatId(chat.id);
         onChatCreated?.(chat.id);
         router.refresh();
@@ -275,8 +322,8 @@ export function useChatMessages({
         }
       } catch {
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-        setLoading(false);
         creatingRef.current = false;
+        drainQueue();
         return;
       }
       creatingRef.current = false;
@@ -287,7 +334,7 @@ export function useChatMessages({
       const userRes = await authFetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "user", content: trimmed }),
+        body: JSON.stringify({ role: "user", content: trimmedContent }),
       });
 
       if (userRes.ok) {
@@ -313,7 +360,7 @@ export function useChatMessages({
 
     // 5. Stream AI response via SSE
     const selectedTemplate = selectedTemplateId
-      ? templates.find((t) => t.id === selectedTemplateId)
+      ? templates.find((tpl) => tpl.id === selectedTemplateId)
       : undefined;
 
     const systemMsg = buildSystemMessage({
@@ -324,9 +371,11 @@ export function useChatMessages({
       openFileTabs,
     });
 
+    // 使用 messagesRef 读取最新消息列表
+    const currentMessages = messagesRef.current;
     const allMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       ...(systemMsg ? [systemMsg] : []),
-      ...messages.filter((m) => !m.isError).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      ...currentMessages.filter((m) => !m.isError).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user" as const, content: fullContent },
     ];
 
@@ -336,7 +385,7 @@ export function useChatMessages({
       chatMessages: allMessages,
       setMessages,
       abortControllerRef,
-      selectedModelId,
+      selectedModelId: selectedModelId!,
       selectedProject,
       selectedWorkspace,
       workspaceId,
@@ -345,12 +394,10 @@ export function useChatMessages({
       t,
     });
 
-    // 6. Save AI message to DB（带 Extended Thinking 字段）
+    // 6. Save AI message to DB
     if (result.aiContent) {
-      // Use a ref-based approach to read latest thinking/signature from setMessages
       const finalThinking = result.aiThinking || null;
       const finalSignature = result.aiSignature ?? null;
-      // 检查当前消息是否被标记为 isError
       const isErrorMessage = result.hasError;
       const aiRes = await authFetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
@@ -383,11 +430,56 @@ export function useChatMessages({
       }
     }
 
-    setLoading(false);
-  }, [loading, selectedModelId, selectedProject, selectedTemplateId, selectedWorkspace, workspaceId, effectiveChatId, embedded, floating, mentionedFiles, messages, templates, projectName, openFileTabs, router, onChatCreated, onToolCall, setEffectiveChatId, authFetch, t]);
+    // 处理队列中的下一条消息
+    drainQueue();
+  }, [selectedModelId, selectedProject, selectedTemplateId, selectedWorkspace, workspaceId, embedded, floating, templates, projectName, openFileTabs, router, onChatCreated, onToolCall, setEffectiveChatId, authFetch, t, userId, drainQueue]);
+
+  // 保持 ref 始终指向最新的 processSingleMessage
+  useEffect(() => {
+    processSingleMessageRef.current = processSingleMessage;
+  }, [processSingleMessage]);
+
+  // --- 公共 handleSend：入队判断 + 启动处理 ---
+  const handleSend = useCallback(async (content: string) => {
+    if (!content.trim()) return;
+
+    if (!selectedModelId) {
+      setInputValue(content);
+      return;
+    }
+
+    const capturedFiles = [...mentionedFiles];
+    setInputValue("");
+    setMentionedFiles([]);
+
+    if (isProcessingRef.current) {
+      // AI 正在响应 → 入队
+      queueRef.current.push({
+        content: content.trim(),
+        mentionedFiles: capturedFiles,
+      });
+      syncQueueState();
+      return;
+    }
+
+    // 不在处理 → 直接开始
+    isProcessingRef.current = true;
+    setLoading(true);
+    await processSingleMessage(content.trim(), capturedFiles);
+  }, [selectedModelId, mentionedFiles, processSingleMessage, syncQueueState]);
+
+  const handleRemoveFromQueue = useCallback((index: number) => {
+    queueRef.current.splice(index, 1);
+    syncQueueState();
+  }, [syncQueueState]);
+
+  const handleClearQueue = useCallback(() => {
+    queueRef.current = [];
+    syncQueueState();
+  }, [syncQueueState]);
 
   const handleRegenerate = useCallback(async (aiMsg: Message) => {
-    if (!effectiveChatId || loading || !selectedModelId) return;
+    if (!effectiveChatId || isProcessingRef.current || !selectedModelId) return;
 
     const msgIndex = messages.findIndex((m) => m.id === aiMsg.id);
     const prevUserMsg = messages
@@ -398,6 +490,7 @@ export function useChatMessages({
     if (!prevUserMsg) return;
 
     setLoading(true);
+    isProcessingRef.current = true;
 
     setMessages((prev) => prev.filter((m) => m.id !== aiMsg.id));
 
@@ -501,13 +594,21 @@ export function useChatMessages({
       }
     }
 
+    isProcessingRef.current = false;
     setLoading(false);
-  }, [effectiveChatId, loading, selectedModelId, messages, selectedTemplateId, templates, selectedProject, selectedWorkspace, workspaceId, projectName, openFileTabs, onToolCall, authFetch, t]);
+  }, [effectiveChatId, selectedModelId, messages, selectedTemplateId, templates, selectedProject, selectedWorkspace, workspaceId, projectName, openFileTabs, onToolCall, authFetch, t]);
 
   const handleCancel = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+
+    // 清空队列
+    queueRef.current = [];
+    setQueueSize(0);
+    setQueueItems([]);
+    isProcessingRef.current = false;
     setLoading(false);
+
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === "assistant" && !last.content) {
@@ -518,6 +619,13 @@ export function useChatMessages({
   }, []);
 
   const handleClear = useCallback(() => {
+    queueRef.current = [];
+    setQueueSize(0);
+    setQueueItems([]);
+    isProcessingRef.current = false;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setLoading(false);
     setMessages([]);
   }, []);
 
@@ -527,6 +635,10 @@ export function useChatMessages({
     inputValue,
     setInputValue,
     loading,
+    queueSize,
+    queueItems,
+    handleRemoveFromQueue,
+    handleClearQueue,
     mentionedFiles,
     setMentionedFiles,
     handleSend,

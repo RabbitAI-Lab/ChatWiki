@@ -79,7 +79,7 @@ export default function ChatPageContent({
   const { message } = App.useApp();
   const t = useTranslations("chat");
   const tc = useTranslations("common");
-  const { authFetch, user } = useAuth();
+  const { authFetch } = useAuth();
   const { open: openFloatingChat, isOpen: floatingChatOpen, isMinimized: floatingChatMinimized, setMentionFile: setFloatingMentionFile } = useFloatingChat();
 
   // Project context state

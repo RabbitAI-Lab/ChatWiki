@@ -668,6 +668,11 @@
       "workspace": "工作空间",
       "placeholder": "输入消息..."
     },
+    "queue": {
+      "pending": "{count} 条消息等待发送中...",
+      "clearAll": "取消全部",
+      "remove": "移除"
+    },
     "tabs": {
       "chat": "对话",
       "projectInfo": "项目信息",

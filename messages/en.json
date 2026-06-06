@@ -668,6 +668,11 @@
       "workspace": "Workspace",
       "placeholder": "Type a message..."
     },
+    "queue": {
+      "pending": "{count} message(s) queued...",
+      "clearAll": "Cancel all",
+      "remove": "Remove"
+    },
     "tabs": {
       "chat": "Chat",
       "projectInfo": "Project Info",

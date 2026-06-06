@@ -15,6 +15,7 @@ import {
 import { db } from "@/db";
 import { documentActivities, sharedHtmlFiles } from "@/db/schema";
 import { parsePath } from "../utils";
+import { getMcpUserId } from "../context";
 
 /**
  * 校验路径是否在 docs 目录下。
@@ -64,12 +65,14 @@ function recordHtmlActivity(
   title: string,
   action: "create" | "update" | "delete"
 ): void {
+  const userId = getMcpUserId();
   db.insert(documentActivities)
     .values({
       projectId,
       documentPath: htmlPath,
       documentTitle: title,
       action,
+      userId,
       createdAt: new Date().toISOString(),
     })
     .run();

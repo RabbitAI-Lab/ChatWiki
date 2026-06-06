@@ -82,7 +82,7 @@ export default function WorkspaceGitNexusManager({
       }
     }, 2000);
     return () => clearInterval(timer);
-  }, [isInProgress, workspacePath, onStatusChange, authFetch]);
+  }, [isInProgress, workspacePath, workspaceId, onStatusChange, authFetch]);
 
   const handleAnalyze = async () => {
     try {

@@ -1,7 +1,6 @@
 "use client";
 
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { useAuth } from "@/components/auth/useAuth";
 import type { Message } from "./chat-workspace-ref";
 
 interface UseChatNavigationOptions {
@@ -39,7 +38,6 @@ export function useChatNavigation({
   router,
   onSwitchToChat,
 }: UseChatNavigationOptions) {
-  const { user } = useAuth();
 
   const loadChat = async (targetChatId: number) => {
     try {

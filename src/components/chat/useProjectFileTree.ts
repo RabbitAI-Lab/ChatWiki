@@ -26,7 +26,7 @@ export function useProjectFileTree({
   onFileCreated,
 }: UseProjectFileTreeOptions) {
   const [tree, setTree] = useState<TreeNode[]>(initialTreeProp ?? []);
-  const { authFetch, user } = useAuth();
+  const { authFetch } = useAuth();
   const [treeLoading, setTreeLoading] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
@@ -45,7 +45,7 @@ export function useProjectFileTree({
       setTree([]);
     }
     setTreeLoading(false);
-  }, [authFetch, projectId, user?.id]);
+  }, [authFetch, projectId]);
 
   const handleCreateFile = useCallback(async (parentPath: string) => {
     if (!projectId) return;

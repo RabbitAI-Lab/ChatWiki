@@ -8,10 +8,12 @@ import { registerFileTools } from "./tools/file";
 import { registerDirectoryTools } from "./tools/directory";
 import { registerTemplateTools } from "./tools/template";
 import { validateApiKey } from "@/lib/auth/api-key";
+import { runWithMcpContext } from "./context";
 
 const PORT = parseInt(process.env.MCP_PORT || "4001");
 const HOST = process.env.MCP_HOST || "127.0.0.1";
 const transports = new Map<string, NodeStreamableHTTPServerTransport>();
+const sessionUserIds = new Map<string, string | null>();
 
 function createMcpServer(): McpServer {
   const server = new McpServer({ name: "rabbitdocs-mcp", version: "1.0.0" });
@@ -32,6 +34,7 @@ export function startMcpServer() {
   app.post("/mcp", async (req, res) => {
     // API Key 认证（可选：如果提供了 Bearer token 则验证）
     const authHeader = req.headers["authorization"] as string | undefined;
+    let requestUserId: string | null = null;
     if (authHeader?.startsWith("Bearer atm_")) {
       const key = authHeader.slice(7);
       const validated = validateApiKey(key);
@@ -39,6 +42,7 @@ export function startMcpServer() {
         res.status(401).json({ error: "Invalid API key" });
         return;
       }
+      requestUserId = validated.userId;
       // 认证通过，继续处理
     }
 
@@ -47,12 +51,17 @@ export function startMcpServer() {
 
     if (sessionId && transports.has(sessionId)) {
       transport = transports.get(sessionId)!;
+      // 如果本次请求带了认证信息，更新 session 绑定的 userId
+      if (requestUserId) {
+        sessionUserIds.set(sessionId, requestUserId);
+      }
     } else if (!sessionId) {
       const newSessionId = randomUUID();
       transport = new NodeStreamableHTTPServerTransport({
         sessionIdGenerator: () => newSessionId,
       });
       transports.set(newSessionId, transport);
+      sessionUserIds.set(newSessionId, requestUserId);
       const server = createMcpServer();
       await server.connect(transport);
     } else {
@@ -60,7 +69,12 @@ export function startMcpServer() {
       return;
     }
 
-    await transport.handleRequest(req, res, req.body);
+    // 确定最终 userId：优先本次请求认证，其次 session 绑定的 userId
+    const finalSessionId = sessionId || [...transports.keys()].pop()!;
+    const userId = requestUserId ?? sessionUserIds.get(finalSessionId) ?? null;
+    await runWithMcpContext({ userId }, () =>
+      transport.handleRequest(req, res, req.body)
+    );
   });
 
   // GET /mcp — SSE stream（服务端推送通知）
@@ -81,6 +95,7 @@ export function startMcpServer() {
       const transport = transports.get(sessionId)!;
       await transport.close();
       transports.delete(sessionId);
+      sessionUserIds.delete(sessionId);
     }
     res.status(204).end();
   });

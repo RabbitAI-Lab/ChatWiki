@@ -100,7 +100,7 @@ export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanel
   const t = useTranslations("chatsHistory");
   const groups = groupChats(chats, t);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const { user, authFetch } = useAuth();
+  const { authFetch } = useAuth();
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);

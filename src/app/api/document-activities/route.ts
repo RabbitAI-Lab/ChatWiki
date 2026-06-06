@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       oldTitle: documentActivities.oldTitle,
       userId: documentActivities.userId,
       userName: users.name,
+      userEmail: users.email,
       createdAt: documentActivities.createdAt,
     })
     .from(documentActivities)
@@ -40,7 +41,18 @@ export async function GET(req: NextRequest) {
     .where(and(...conditions))
     .orderBy(desc(documentActivities.createdAt))
     .limit(limit)
-    .all();
+    .all()
+    .map((row) => ({
+      id: row.id,
+      projectId: row.projectId,
+      documentPath: row.documentPath,
+      documentTitle: row.documentTitle,
+      action: row.action,
+      oldTitle: row.oldTitle,
+      userId: row.userId,
+      userName: row.userName ?? row.userEmail,
+      createdAt: row.createdAt,
+    }));
 
   return NextResponse.json({ activities });
 }

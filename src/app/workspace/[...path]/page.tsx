@@ -84,14 +84,24 @@ export default async function WorkspacePage({
       updatedAt: chats.updatedAt,
       projectId: chats.projectId,
       creatorName: users.name,
+      creatorEmail: users.email,
       modifierName: modifierUser.name,
+      modifierEmail: modifierUser.email,
     })
     .from(chats)
     .leftJoin(users, eq(chats.userId, users.id))
     .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(and(...chatConditions))
     .orderBy(desc(chats.updatedAt))
-    .all();
+    .all()
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      updatedAt: row.updatedAt,
+      projectId: row.projectId,
+      creatorName: row.creatorName ?? row.creatorEmail,
+      modifierName: row.modifierName ?? row.modifierEmail,
+    }));
 
   // 预取最近 20 天的文档活动（聚合 workspace 下所有 linked projects）
   const recentDocuments =
@@ -107,6 +117,7 @@ export default async function WorkspacePage({
             oldTitle: documentActivities.oldTitle,
             userId: documentActivities.userId,
             userName: users.name,
+            userEmail: users.email,
             createdAt: documentActivities.createdAt,
           })
           .from(documentActivities)
@@ -119,7 +130,18 @@ export default async function WorkspacePage({
           )
           .orderBy(desc(documentActivities.createdAt))
           .limit(20)
-          .all();
+          .all()
+          .map((row) => ({
+            id: row.id,
+            projectId: row.projectId,
+            documentPath: row.documentPath,
+            documentTitle: row.documentTitle,
+            action: row.action,
+            oldTitle: row.oldTitle,
+            userId: row.userId,
+            userName: row.userName ?? row.userEmail,
+            createdAt: row.createdAt,
+          }));
 
   return (
     <WorkspaceDetail

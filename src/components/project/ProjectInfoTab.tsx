@@ -28,6 +28,8 @@ interface ProjectInfoTabProps {
   projectPath: string;
   recentChats: RecentChat[];
   recentDocuments?: DocumentActivity[];
+  /** Owner 用户信息（服务端查询，用于成员页显示名称） */
+  ownerUser?: { name: string | null; email: string } | null;
   onSwitchToChat: (chatId: number) => void;
   onNewChat: () => void;
   onNavigateToDocument?: (documentPath: string) => void;
@@ -57,6 +59,7 @@ export default function ProjectInfoTab({
   projectPath,
   recentChats,
   recentDocuments,
+  ownerUser,
   onSwitchToChat,
   onNewChat,
   onNavigateToDocument,
@@ -81,10 +84,12 @@ export default function ProjectInfoTab({
 
   const dirSegments = projectPath.split("/");
 
-  // 计算 Owner 显示名称：优先从 members 中找，否则查 API 或 fallback
+  // 计算 Owner 显示名称：优先从 members 中找，其次用 ownerUser，最后 fallback
   const ownerName = (() => {
     const inMembers = members.find((m) => m.userId === ownerId);
     if (inMembers) return inMembers.accountName;
+    if (ownerUser?.name) return ownerUser.name;
+    if (ownerUser?.email) return ownerUser.email;
     // fallback: 用 UUID 的前 8 位
     return ownerId.length > 8 ? `${ownerId.slice(0, 8)}...` : ownerId;
   })();
