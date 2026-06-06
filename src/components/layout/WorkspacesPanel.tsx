@@ -113,7 +113,7 @@ export default function WorkspacesPanel() {
     await fetchWorkspaces();
     setEditingId(meta.id);
     setEditName(meta.name);
-    router.push(`/workspace/personal/${user!.id}/${meta.id}`);
+    router.push(`/workspace/${meta.id}`);
   };
 
   const handleDoubleClick = (workspace: WorkspaceMeta) => {
@@ -228,7 +228,7 @@ export default function WorkspacesPanel() {
       {/* Content */}
       <div className="mt-0.5 space-y-0.5 px-2">
         {workspaces.map((workspace) => {
-          const workspacePath = `/workspace/personal/${user!.id}/${workspace.id}`;
+          const workspacePath = `/workspace/${workspace.id}`;
           const isActive = pathname === workspacePath || pathname.startsWith(workspacePath + "/");
           const isEditing = editingId === workspace.id;
           const isDragTarget = dropTargetId === workspace.id;

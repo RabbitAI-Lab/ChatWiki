@@ -36,8 +36,8 @@ export default function WorkspaceMemberManager({
   const [editAccountName, setEditAccountName] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // 修复 bug: 实际是 "/" 分隔
-  const dirSegments = workspacePath.split("/").filter(Boolean);
+  // workspacePath: "workspace/{workspaceId}"
+  const workspaceId = workspacePath.split("/")[1] || "";
 
   const resetForm = () => {
     setFormAccountName("");
@@ -57,7 +57,7 @@ export default function WorkspaceMemberManager({
       const res = await authFetch("/api/fs/workspace-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dirSegments, member }),
+        body: JSON.stringify({ workspaceId, member }),
       });
       if (res.ok) {
         const updatedMembers = await res.json();
@@ -76,7 +76,7 @@ export default function WorkspaceMemberManager({
     const res = await authFetch("/api/fs/workspace-members", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dirSegments, memberId }),
+      body: JSON.stringify({ workspaceId, memberId }),
     });
     if (res.ok) {
       onMembersChange(members.filter((m) => m.id !== memberId));
@@ -102,7 +102,7 @@ export default function WorkspaceMemberManager({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          workspaceId,
           memberId: editingMemberId,
           updates: { accountName: editAccountName.trim() },
         }),

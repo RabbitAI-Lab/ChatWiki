@@ -85,13 +85,29 @@ export function useChatNavigation({
       const chatRes = await fetch(`/api/chats/${chatId}`);
       if (chatRes.ok) {
         const chatData = await chatRes.json();
-        if (chatData.workspaceId && !chatData.projectId) {
+
+        // 有 projectId，跳转到项目详情页
+        if (chatData.projectId) {
+          const projectUrl = `/project/${chatData.projectId}?chatId=${chatId}`;
           if (floating) {
             loadChat(chatId);
           } else if (embedded) {
-            window.location.href = `/workspace/personal/${user?.id ?? ''}/${chatData.workspaceId}?chatId=${chatId}`;
+            window.location.href = projectUrl;
           } else {
-            router.push(`/workspace/personal/${user?.id ?? ''}/${chatData.workspaceId}?chatId=${chatId}`);
+            router.push(projectUrl);
+          }
+          return;
+        }
+
+        // 仅 workspaceId，跳转到工作区详情页
+        if (chatData.workspaceId) {
+          const workspaceUrl = `/workspace/${chatData.workspaceId}?chatId=${chatId}`;
+          if (floating) {
+            loadChat(chatId);
+          } else if (embedded) {
+            window.location.href = workspaceUrl;
+          } else {
+            router.push(workspaceUrl);
           }
           return;
         }
@@ -116,9 +132,9 @@ export function useChatNavigation({
       setMessages([]);
       setInputValue("");
     } else if (selectedProject) {
-      router.push(`/chat/new?project=${encodeURIComponent(selectedProject)}`);
+      router.push(`/project/${selectedProject}`);
     } else if (selectedWorkspace) {
-      router.push(`/workspace/personal/${user?.id ?? ''}/${selectedWorkspace}`);
+      router.push(`/workspace/${selectedWorkspace}`);
     } else {
       router.push("/chat/new");
     }

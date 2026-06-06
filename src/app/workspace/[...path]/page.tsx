@@ -32,22 +32,20 @@ export default async function WorkspacePage({
   }
   void currentUserId; // reserved for future workspace-level access control
 
-  // urlPath = ["personal", "{accountId}", "{workspaceId}"]
-  if (urlPath.length < 3) notFound();
+  // urlPath = ["{workspaceId}"]
+  if (urlPath.length < 1) notFound();
 
-  const accountType = urlPath[0];
-  const accountId = urlPath[1];
-  const workspaceId = urlPath[2];
+  const workspaceId = urlPath[0];
 
-  // Build FS path: ["personal", "default", "workspace", "{workspaceId}"]
-  const workspaceDirSegments = [accountType, accountId, "workspace", workspaceId];
+  // Build FS path: ["workspace", "{workspaceId}"]
+  const workspaceDirSegments = ["workspace", workspaceId];
 
   const workspaceMeta = readWorkspaceMeta(workspaceDirSegments);
   if (!workspaceMeta) notFound();
 
   const linkedProjects = listWorkspaceProjects(
-    accountType as "personal" | "enterprise",
-    accountId,
+    "",
+    "",
     workspaceId,
   );
 
@@ -129,8 +127,8 @@ export default async function WorkspacePage({
       linkedProjects={linkedProjects}
       recentChats={recentChats}
       recentDocuments={recentDocuments}
-      accountType={accountType}
-      accountId={accountId}
+      accountType="personal"
+      accountId={workspaceMeta?.accountId || workspaceId}
       initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
       tree={tree}
       docsPath={docsPrefix}

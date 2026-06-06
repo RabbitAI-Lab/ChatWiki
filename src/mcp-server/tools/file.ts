@@ -18,15 +18,15 @@ import { parsePath } from "../utils";
 
 /**
  * 校验路径是否在 docs 目录下。
- * 期望格式：{type}/{accountId}/projects/{projectId}/docs/...
+ * 期望格式：projects/{projectId}/docs/...
  * 返回错误信息，如果合法则返回 null。
  */
 function requireDocsPath(segments: string[]): string | null {
-  if (segments.length < 5) {
-    return `Path must be under the docs directory (format: {type}/{accountId}/projects/{projectId}/docs/...). Got: ${segments.join("/")}`;
+  if (segments.length < 3) {
+    return `Path must be under the docs directory (format: projects/{projectId}/docs/...). Got: ${segments.join("/")}`;
   }
-  if (segments[4] !== "docs") {
-    return `File operations are only allowed under the docs directory. The 5th path segment must be "docs", got: "${segments[4]}"`;
+  if (segments[0] !== "projects" || segments[2] !== "docs") {
+    return `File operations are only allowed under the docs directory. Expected format: projects/{projectId}/docs/... Got: ${segments.join("/")}`;
   }
   return null;
 }
@@ -44,12 +44,12 @@ function requireHtmlExtension(segments: string[]): string | null {
 
 /**
  * 从 docs 路径段中解析 projectId 与 htmlPath（相对项目根目录，含 .html）。
- * 期望：segments[0..4] = ["personal", "{accountId}", "projects", "{projectId}", "docs", ...]
+ * 期望：segments = ["projects", "{projectId}", "docs", ...]
  */
 function parseHtmlMeta(segments: string[]): { projectId: string; htmlPath: string; title: string } | null {
-  if (segments.length < 6 || segments[4] !== "docs" || !segments[3]) return null;
-  const projectId = segments[3];
-  const docSegments = segments.slice(5);
+  if (segments.length < 4 || segments[0] !== "projects" || segments[2] !== "docs") return null;
+  const projectId = segments[1];
+  const docSegments = segments.slice(3);
   const htmlPath = docSegments.join("/");
   const title = (docSegments[docSegments.length - 1] || "").replace(/\.html$/, "");
   return { projectId, htmlPath, title };
@@ -94,12 +94,12 @@ export function registerFileTools(server: McpServer) {
     "read_file",
     {
       description:
-        "读取文件内容（Markdown 文档）。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
+        "读取文件内容（Markdown 文档）。路径格式如：projects/{projectId}/docs/doc-name。",
       inputSchema: z.object({
         path: z
           .string()
           .describe(
-            "文件路径，如 personal/default/projects/{projectId}/docs/doc-name"
+            "文件路径，如 projects/{projectId}/docs/doc-name。"
           ),
       }),
     },
@@ -124,12 +124,12 @@ export function registerFileTools(server: McpServer) {
     "write_file",
     {
       description:
-        "创建或写入文件（Markdown 文档）。如果文件已存在则覆盖，父目录不存在则自动创建。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
+        "创建或写入文件（Markdown 文档）。如果文件已存在则覆盖，父目录不存在则自动创建。路径格式如：projects/{projectId}/docs/doc-name。",
       inputSchema: z.object({
         path: z
           .string()
           .describe(
-            "文件路径，如 personal/default/projects/{projectId}/docs/doc-name"
+            "文件路径，如 projects/{projectId}/docs/doc-name。"
           ),
         content: z.string().describe("文件内容（Markdown）"),
       }),
@@ -151,12 +151,12 @@ export function registerFileTools(server: McpServer) {
     "delete_file",
     {
       description:
-        "删除文件。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
+        "删除文件。路径格式如：projects/{projectId}/docs/doc-name。",
       inputSchema: z.object({
         path: z
           .string()
           .describe(
-            "文件路径，如 personal/default/projects/{projectId}/docs/doc-name"
+            "文件路径，如 projects/{projectId}/docs/doc-name。"
           ),
       }),
     },
@@ -177,12 +177,12 @@ export function registerFileTools(server: McpServer) {
     "rename_file",
     {
       description:
-        "重命名文件（修改文件标题）。路径格式如：personal/default/projects/{projectId}/docs/doc-name",
+        "重命名文件（修改文件标题）。路径格式如：projects/{projectId}/docs/doc-name。",
       inputSchema: z.object({
         path: z
           .string()
           .describe(
-            "文件当前路径，如 personal/default/projects/{projectId}/docs/doc-name"
+            "文件当前路径，如 projects/{projectId}/docs/doc-name。"
           ),
         newTitle: z.string().describe("新的文件标题（不含扩展名）"),
       }),
@@ -204,13 +204,11 @@ export function registerFileTools(server: McpServer) {
     "list_files",
     {
       description:
-        "列出目录下的所有 .md 文件。路径格式如：personal/default/projects/{projectId}/docs",
+        "列出目录下的所有 .md 文件。路径格式如：projects/{projectId}/docs。",
       inputSchema: z.object({
         path: z
           .string()
-          .describe(
-            "目录路径，如 personal/default/projects/{projectId}/docs"
-          ),
+          .describe("目录路径，如 projects/{projectId}/docs。"),
       }),
     },
     async ({ path }) => {
@@ -232,11 +230,11 @@ export function registerFileTools(server: McpServer) {
     "read_tree",
     {
       description:
-        "获取目录树结构，递归列出所有子目录和 .md 文件。路径格式如：personal/default/projects/{projectId}/docs",
+        "获取目录树结构，递归列出所有子目录和 .md 文件。路径格式如：projects/{projectId}/docs。",
       inputSchema: z.object({
         path: z
           .string()
-          .describe("目录路径，如 personal/default/projects/{projectId}/docs"),
+          .describe("目录路径，如 projects/{projectId}/docs。"),
       }),
     },
     async ({ path }) => {
@@ -258,12 +256,12 @@ export function registerFileTools(server: McpServer) {
     "create_html",
     {
       description:
-        "在 docs 目录下创建 .html 文件。路径必须以 .html 结尾，如 personal/default/projects/{projectId}/docs/index.html。",
+        "在 docs 目录下创建 .html 文件。路径必须以 .html 结尾，如 projects/{projectId}/docs/index.html。",
       inputSchema: z.object({
         path: z
           .string()
           .describe(
-            "HTML 文件路径（必须以 .html 结尾），如 personal/default/projects/{projectId}/docs/index.html"
+            "HTML 文件路径（必须以 .html 结尾），如 projects/{projectId}/docs/index.html。"
           ),
         content: z.string().describe("HTML 文件内容（完整 HTML 源码）"),
       }),
@@ -298,7 +296,7 @@ export function registerFileTools(server: McpServer) {
         path: z
           .string()
           .describe(
-            "HTML 文件路径（必须以 .html 结尾），如 personal/default/projects/{projectId}/docs/index.html"
+            "HTML 文件路径（必须以 .html 结尾），如 projects/{projectId}/docs/index.html。"
           ),
         content: z.string().describe("新的 HTML 文件内容（完整 HTML 源码）"),
       }),
@@ -340,7 +338,7 @@ export function registerFileTools(server: McpServer) {
         path: z
           .string()
           .describe(
-            "HTML 文件路径（必须以 .html 结尾），如 personal/default/projects/{projectId}/docs/index.html"
+            "HTML 文件路径（必须以 .html 结尾），如 projects/{projectId}/docs/index.html。"
           ),
       }),
     },

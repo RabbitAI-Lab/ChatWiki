@@ -6,7 +6,7 @@ import { getApiT } from "@/lib/i18n-api";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/fs/project-gitnexus?dirSegments=personal,default,projects,{id}
+// GET /api/fs/project-gitnexus?projectId={id}
 // 返回 { status: GitNexusStatus | null, indexExists: boolean }
 // 整个 project 目录视为一个扫描根；`--force` 与 `--skip-git` 始终为 true。
 // 额外：孤儿状态自愈 — 若 phase 是 analyzing/cleaning 但内存 tasks 中无对应任务
@@ -14,12 +14,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const t = await getApiT();
-  if (!dirSegmentsStr) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["projects", projectId];
 
   try {
     const meta = readProjectMeta(dirSegments);

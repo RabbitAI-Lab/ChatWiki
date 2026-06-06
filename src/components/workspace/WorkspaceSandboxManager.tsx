@@ -21,8 +21,8 @@ export default function WorkspaceSandboxManager({
   const [loading, setLoading] = useState(false);
   const { authFetch } = useAuth();
 
-  // 修复 bug: 实际是 "/" 分隔
-  const dirSegments = workspacePath.split("/").filter(Boolean);
+  // workspacePath: "workspace/{workspaceId}"
+  const workspaceId = workspacePath.split("/")[1] || "";
 
   const handleRequest = async () => {
     setLoading(true);
@@ -31,7 +31,7 @@ export default function WorkspaceSandboxManager({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          workspaceId,
           sandbox: {
             enabled: true,
             requestedAt: new Date().toISOString(),
@@ -54,7 +54,7 @@ export default function WorkspaceSandboxManager({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          workspaceId,
           sandbox: {
             enabled: false,
             releasedAt: new Date().toISOString(),

@@ -111,8 +111,9 @@ export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanel
     await authFetch(`/api/chats/${chatId}`, { method: "DELETE" });
     setConfirmDeleteId(null);
     window.dispatchEvent(new Event("chats-changed"));
-    if (pathname === `/chat/${chatId}`) {
-      router.push("/chat/new");
+    // 如果当前正在查看被删的 chat 页面，跳转到 /chats 列表页
+    if (pathname.startsWith(`/chat/${chatId}`) || (pathname.includes(`chatId=${chatId}`))) {
+      router.push("/chats");
     }
   };
 
@@ -139,17 +140,21 @@ export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanel
             </div>
             <div className="space-y-[1.5px] px-2">
               {group.chats.map((chat) => {
-                const chatPath = `/chat/${chat.id}`;
-                const isActive = pathname === chatPath;
+                // 判断当前是否正在查看该 chat（匹配 /chat/{id} 或 ?chatId={id}）
+                const isActive = pathname === `/chat/${chat.id}` || (
+                  (pathname.includes(`/project/`) || pathname.includes(`/workspace/`)) &&
+                  new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('chatId') === String(chat.id)
+                );
                 return (
                   <div
                     key={chat.id}
                     onClick={() => {
-                      // workspace-only 的 chat 跳转到 workspace 详情页
-                      if (chat.workspaceId && !chat.projectId) {
-                        router.push(`/workspace/personal/${user?.id ?? ''}/${chat.workspaceId}?chatId=${chat.id}`);
+                      if (chat.projectId) {
+                        router.push(`/project/${chat.projectId}?chatId=${chat.id}`);
+                      } else if (chat.workspaceId) {
+                        router.push(`/workspace/${chat.workspaceId}?chatId=${chat.id}`);
                       } else {
-                        router.push(chatPath);
+                        router.push(`/chat/${chat.id}`);
                       }
                     }}
                     className={cn(

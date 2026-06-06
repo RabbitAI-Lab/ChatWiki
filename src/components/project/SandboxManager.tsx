@@ -22,6 +22,7 @@ export default function SandboxManager({
   const { authFetch } = useAuth();
 
   const dirSegments = projectPath.split("/");
+  const projectId = dirSegments[1] || "";
 
   const handleRequest = async () => {
     setLoading(true);
@@ -30,7 +31,7 @@ export default function SandboxManager({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          projectId,
           sandbox: {
             enabled: true,
             requestedAt: new Date().toISOString(),
@@ -53,7 +54,7 @@ export default function SandboxManager({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          projectId,
           sandbox: {
             enabled: false,
             releasedAt: new Date().toISOString(),

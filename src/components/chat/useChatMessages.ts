@@ -7,6 +7,7 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
 import type { Message } from "./chat-workspace-ref";
 import type { TemplateItem } from "./useChatSelectors";
 import { buildSystemMessage, consumeSseStream } from "./chat-constants";
+import { getChatUrl } from "@/lib/chat-navigation";
 
 /**
  * SSE 事件回调中更新消息的辅助函数。
@@ -157,6 +158,7 @@ interface UseChatMessagesOptions {
   onToolCall?: (toolCall: { toolName: string; args: Record<string, unknown> }) => void;
   mentionFile?: string | null;
   onMentionConsumed?: () => void;
+  userId?: string;
 }
 
 export function useChatMessages({
@@ -178,6 +180,7 @@ export function useChatMessages({
   onToolCall,
   mentionFile,
   onMentionConsumed,
+  userId,
 }: UseChatMessagesOptions) {
   const creatingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -267,7 +270,8 @@ export function useChatMessages({
         onChatCreated?.(chat.id);
         router.refresh();
         if (!embedded && !floating) {
-          window.history.replaceState(null, "", `/chat/${chat.id}`);
+          const chatUrl = getChatUrl({ chatId: chat.id, projectId: selectedProject, workspaceId: selectedWorkspace ?? workspaceId, userId: userId ?? '' });
+          window.history.replaceState(null, "", chatUrl || `/chat/${chat.id}`);
         }
       } catch {
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
@@ -498,7 +502,7 @@ export function useChatMessages({
     }
 
     setLoading(false);
-  }, [effectiveChatId, loading, selectedModelId, messages, selectedTemplateId, templates, selectedProject, projectName, openFileTabs, onToolCall, authFetch, t]);
+  }, [effectiveChatId, loading, selectedModelId, messages, selectedTemplateId, templates, selectedProject, selectedWorkspace, workspaceId, projectName, openFileTabs, onToolCall, authFetch, t]);
 
   const handleCancel = useCallback(() => {
     abortControllerRef.current?.abort();

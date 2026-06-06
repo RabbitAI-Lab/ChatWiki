@@ -56,6 +56,7 @@ export default function MemberManager({
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   const dirSegments = projectPath.split("/");
+  const projectId = dirSegments[1] || "";
   const isOwner = user?.id === ownerId;
 
   const resetForm = () => {
@@ -76,7 +77,7 @@ export default function MemberManager({
       const res = await authFetch("/api/fs/project-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dirSegments, member }),
+        body: JSON.stringify({ projectId, member }),
       });
       if (res.ok) {
         const updatedMembers = await res.json();
@@ -98,7 +99,7 @@ export default function MemberManager({
     const res = await authFetch("/api/fs/project-members", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dirSegments, memberId }),
+      body: JSON.stringify({ projectId, memberId }),
     });
     if (res.ok) {
       onMembersChange(members.filter((m) => m.id !== memberId));
@@ -127,7 +128,7 @@ export default function MemberManager({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          projectId,
           memberId: editingMemberId,
           updates: { accountName: editAccountName.trim() },
         }),
@@ -161,7 +162,7 @@ export default function MemberManager({
           const res = await authFetch("/api/fs/project-members", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ dirSegments, memberId: member.id }),
+            body: JSON.stringify({ projectId, memberId: member.id }),
           });
           if (res.ok) {
             const data = await res.json();

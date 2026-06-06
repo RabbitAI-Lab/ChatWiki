@@ -82,6 +82,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(token);
   }, []);
 
+  // 拉取用户功能列表
+  const fetchFeatures = useCallback((token: string) => {
+    fetch("/api/features", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : { features: [] }))
+      .then((data) => setFeatures(data.features || []))
+      .catch(() => setFeatures([]));
+  }, []);
+
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
@@ -126,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       return null;
     }
-  }, []);
+  }, [fetchFeatures]);
 
   // 初始化：尝试用 refresh token 恢复会话
   useEffect(() => {
@@ -142,18 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 登录成功后拉取功能列表
       fetchFeatures(data.accessToken);
     },
-    []
+    [fetchFeatures]
   );
-
-  // 拉取用户功能列表
-  const fetchFeatures = useCallback((token: string) => {
-    fetch("/api/features", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : { features: [] }))
-      .then((data) => setFeatures(data.features || []))
-      .catch(() => setFeatures([]));
-  }, []);
 
   const hasFeature = useCallback(
     (key: string) => features.includes(key),

@@ -123,18 +123,18 @@ function eccFileUninstall(projectDir: string): void {
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegments = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const t = await getApiT();
 
-  if (!dirSegments) {
+  if (!projectId) {
     return NextResponse.json(
       { error: t('api.dirSegmentsRequired') },
       { status: 400 }
     );
   }
 
-  const segments = dirSegments.split(",");
-  const meta = readProjectMeta(segments);
+  const dirSegments = ["projects", projectId];
+  const meta = readProjectMeta(dirSegments);
 
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
@@ -166,19 +166,20 @@ export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, skillId, enabled } = body as {
-    dirSegments: string[];
+  const { projectId, skillId, enabled } = body as {
+    projectId: string;
     skillId: "ecc" | "huashu";
     enabled: boolean;
   };
 
-  if (!dirSegments || !skillId) {
+  if (!projectId || !skillId) {
     return NextResponse.json(
       { error: t('api.missingRequiredParams') },
       { status: 400 }
     );
   }
 
+  const dirSegments = ["projects", projectId];
   const meta = readProjectMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });

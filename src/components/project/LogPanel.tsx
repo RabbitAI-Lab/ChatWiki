@@ -81,7 +81,7 @@ function CategoryIcon({ category }: { category: LogCategory }) {
 
 export default function LogPanel({ projectPath }: LogPanelProps) {
   const t = useTranslations('project');
-  const projectId = projectPath.split("/").pop() || "";
+  const projectId = projectPath.split("/")[1] || "";
   const { authFetch } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [total, setTotal] = useState(0);

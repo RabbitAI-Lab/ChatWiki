@@ -24,12 +24,12 @@ export default function WorkspaceSkillsPanel({
   const [huashuError, setHuashuError] = useState<string | null>(null);
   const { message } = App.useApp();
 
-  // 修复 bug: 实际是 "/" 分隔
-  const dirSegments = workspacePath.split("/").filter(Boolean);
+  // workspacePath: "workspace/{workspaceId}"
+  const workspaceId = workspacePath.split("/")[1] || "";
 
   useEffect(() => {
     let cancelled = false;
-    authFetch(`/api/fs/workspace-skills?dirSegments=${dirSegments.join(",")}`)
+    authFetch(`/api/fs/workspace-skills?workspaceId=${workspaceId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data) {
@@ -47,7 +47,7 @@ export default function WorkspaceSkillsPanel({
     return () => {
       cancelled = true;
     };
-  }, [dirSegments, authFetch]);
+  }, [workspaceId, authFetch]);
 
   const handleToggle = async (
     skillId: "ecc" | "huashu",
@@ -61,7 +61,7 @@ export default function WorkspaceSkillsPanel({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          workspaceId,
           skillId,
           enabled: checked,
         }),

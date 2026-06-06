@@ -12,8 +12,8 @@ import {
 import { buildEntryFromFormValues, emptyMcpJson } from "./utils";
 
 export interface UseMcpConfigParams {
-  // Comma-separated path segments identifying the project/workspace.
-  dirSegments: string[];
+  // The project ID.
+  projectId: string;
   // API base path; e.g. "/api/fs/project-mcp" or "/api/fs/workspace-mcp".
   apiBase: string;
   // Auth-aware fetch function
@@ -68,7 +68,7 @@ export interface UseMcpConfigResult {
  * project-level and workspace-level panels.
  */
 export function useMcpConfig({
-  dirSegments,
+  projectId,
   apiBase,
   authFetch,
 }: UseMcpConfigParams): UseMcpConfigResult {
@@ -87,15 +87,13 @@ export function useMcpConfig({
 
   const { message } = App.useApp();
 
-  // Serialize dirSegments to a stable string key so that useCallback
-  // dependencies do not change on every render (array reference instability
-  // was causing an infinite fetch → setState → re-render loop).
-  const dirKey = dirSegments.join(",");
+  // Use projectId as a stable string key for useCallback dependencies.
+  // (Previously dirKey was derived from dirSegments.join(",").)
 
   const fetchConfig = useCallback(async () => {
     try {
       const res = await authFetch(
-        `${apiBase}?dirSegments=${dirKey}`,
+        `${apiBase}?projectId=${encodeURIComponent(projectId)}`,
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -125,7 +123,7 @@ export function useMcpConfig({
     } finally {
       setLoading(false);
     }
-  }, [apiBase, dirKey, authFetch]);
+  }, [apiBase, projectId, authFetch]);
 
   useEffect(() => {
     fetchConfig();
@@ -144,7 +142,7 @@ export function useMcpConfig({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            dirSegments: dirKey.split(","),
+            projectId,
             mcpJson: {
               mcpServers: next.mcpServers,
               disabled: next.disabled || {},
@@ -181,7 +179,7 @@ export function useMcpConfig({
         setSaving(false);
       }
     },
-    [apiBase, dirKey, fetchConfig, message, authFetch],
+    [apiBase, projectId, fetchConfig, message, authFetch],
   );
 
   // Toggle enabled/disabled; rebuild zhipu URL on enable if a stored key exists.

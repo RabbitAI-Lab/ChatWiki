@@ -23,10 +23,11 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
   const { message } = App.useApp();
 
   const dirSegments = projectPath.split("/");
+  const projectId = dirSegments[1] || "";
 
   useEffect(() => {
     let cancelled = false;
-    authFetch(`/api/fs/project-skills?dirSegments=${dirSegments.join(",")}`)
+    authFetch(`/api/fs/project-skills?projectId=${projectId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data) {
@@ -44,7 +45,7 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [dirSegments, authFetch]);
+  }, [projectId, authFetch]);
 
   const handleToggle = async (skillId: "ecc" | "huashu", checked: boolean) => {
     setSaving(skillId);
@@ -55,7 +56,7 @@ export default function SkillsPanel({ projectPath }: SkillsPanelProps) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          projectId,
           skillId,
           enabled: checked,
         }),

@@ -1,6 +1,6 @@
 import { listTree, readDocument, readProjectMeta, stripTreePrefix } from "@/lib/fs";
 import { db } from "@/db";
-import { chats, accounts, documentActivities, users } from "@/db/schema";
+import { chats, documentActivities, users } from "@/db/schema";
 import { gte, desc, eq, and } from "drizzle-orm";
 import { aliasedTable } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -14,11 +14,11 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ path: string[] }>;
-  searchParams: Promise<{ file?: string }>;
+  searchParams: Promise<{ file?: string; chatId?: string }>;
 }) {
   const { path: rawPath } = await params;
   const path = rawPath.map(decodeURIComponent);
-  const { file: rawFile } = await searchParams;
+  const { file: rawFile, chatId: chatIdParam } = await searchParams;
 
   // 验证用户身份（从 cookie 获取 access token）
   const cookieStore = await cookies();
@@ -32,15 +32,15 @@ export default async function ProjectPage({
   }
   void currentUserId; // reserved for future per-project access control
 
-  // path = ["personal", "{accountId}", "projects", "{projectId}"]
-  if (path.length < 4) notFound();
+  // path = ["{projectId}"]
+  if (path.length < 1) notFound();
 
-  const projectId = path[3];
-  const projectDirSegments = path; // personal/default/projects/{projectId}
+  const projectId = path[0];
+  const projectDirSegments = ["projects", projectId];
   const docsDirSegments = [...projectDirSegments, "docs"];
-  const docsPrefix = docsDirSegments.join("/"); // "personal/default/projects/{projectId}/docs"
+  const docsPrefix = docsDirSegments.join("/"); // "projects/{projectId}/docs"
 
-  // Get file tree (paths are like "personal/default/projects/{projectId}/docs/subdir/file.md")
+  // Get file tree (paths are like "projects/{projectId}/docs/subdir/file.md")
   const rawTree = listTree(docsDirSegments, [".md", ".html"])
 
   // Strip docs prefix and .md extension from tree paths
@@ -61,19 +61,8 @@ export default async function ProjectPage({
   const projectName = projectMeta?.name || projectId;
 
   // Resolve account info
-  const _accountType = path[0]; // "personal" or "enterprise"
-  void _accountType;
-  const accountId = path[1];
-  let accountName = accountId;
-  try {
-    const accountRow = db.select().from(accounts).where(eq(accounts.id, Number(accountId))).get();
-    if (accountRow) accountName = accountRow.name;
-  } catch {
-    // fallback to accountId
-  }
-
   const accountInfo = {
-    accountName,
+    accountName: projectMeta?.accountId || projectId,
     orgName: undefined as string | undefined,
     enterpriseName: undefined as string | undefined,
   };
@@ -138,6 +127,7 @@ export default async function ProjectPage({
       accountInfo={accountInfo}
       recentChats={recentChats}
       recentDocuments={recentDocuments}
+      initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
     />
   );
 }

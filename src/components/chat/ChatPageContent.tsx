@@ -55,7 +55,7 @@ interface ChatPageContentProps {
   initialModelId?: number;
   initialTemplateId?: number;
   projectId?: string;
-  initialTree: import("@/lib/tree").TreeNode[];
+  initialTree?: import("@/lib/tree").TreeNode[];
   projectName?: string;
   projectMeta?: ProjectMetaType | null;
   recentChats?: RecentChat[];
@@ -69,7 +69,7 @@ export default function ChatPageContent({
   initialModelId,
   initialTemplateId,
   projectId: initialProjectId,
-  initialTree,
+  initialTree: initialTreeRaw = [],
   projectName: initialProjectName,
   projectMeta: initialProjectMeta,
   recentChats: initialRecentChats,
@@ -90,7 +90,7 @@ export default function ChatPageContent({
   const [recentDocuments] = useState(initialRecentDocuments);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
-  const projectPath = projectId && user ? `personal/${user.id}/projects/${projectId}/docs` : "";
+  const projectPath = projectId ? `projects/${projectId}/docs` : "";
 
   // Tab system
   const tabSystem = useFileTabSystem({
@@ -106,7 +106,7 @@ export default function ChatPageContent({
     message,
     onCloseTab: tabSystem.handleTabClose,
     onUpdateTabPaths: tabSystem.updateTabPaths,
-    initialTree,
+    initialTree: initialTreeRaw,
     onFileCreated: useCallback((relativePath: string, content: string) => {
       const fileType = relativePath.toLowerCase().endsWith(".html") ? "html" as const : "markdown" as const;
       tabSystem.cacheContent(relativePath, content);
@@ -324,7 +324,7 @@ export default function ChatPageContent({
               projectId={projectId}
               projectName={projectName || projectId}
               projectMeta={projectMeta ?? null}
-              projectPath={`personal/${user?.id ?? ''}/projects/${projectId}`}
+              projectPath={`projects/${projectId}`}
               recentChats={recentChats || []}
               recentDocuments={recentDocuments || []}
               onSwitchToChat={chatSwitching.handleSwitchToChat}

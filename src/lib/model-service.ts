@@ -245,20 +245,7 @@ export async function* streamModelResponse(
   let projectMcpServers: Record<string, McpServerConfig> | undefined;
   if (options?.projectId) {
     try {
-      // 从 cwd 推算 dirSegments（cwd 格式: .../personal/{userId}/projects/{projectId}）
-      const dataRoot = getDataRoot();
-      let projectDirSegments: string[] | undefined;
-      if (options.cwd && options.cwd.startsWith(dataRoot)) {
-        const rel = path.relative(dataRoot, options.cwd).split(path.sep);
-        // 期望格式: ["personal", "{userId}", "projects", "{projectId}"]
-        if (rel.length >= 4 && rel[0] === "personal" && rel[2] === "projects") {
-          projectDirSegments = rel.slice(0, 4);
-        }
-      }
-      // 回退到 default（兼容迁移前数据）
-      if (!projectDirSegments) {
-        projectDirSegments = ["personal", "default", "projects", options.projectId];
-      }
+      const projectDirSegments = ["projects", options.projectId];
       const projectConfig = readProjectMcpConfigFromFs(projectDirSegments);
       if (projectConfig?.mcpServers && typeof projectConfig.mcpServers === "object") {
         projectMcpServers = projectConfig.mcpServers as Record<string, McpServerConfig>;
@@ -325,7 +312,7 @@ export async function* streamModelResponse(
   } catch (err) {
     yield {
       type: "error",
-      error: `模型调用初始化失败: ${err instanceof Error ? err.message : String(err)}`,
+      error: `[SDK] 模型调用初始化失败: ${err instanceof Error ? err.message : String(err)}`,
       code: "SDK_ERROR",
     };
     return;
@@ -370,7 +357,7 @@ export async function* streamModelResponse(
         if ("error" in message && message.error) {
           yield {
             type: "error",
-            error: `模型调用失败: ${message.error}`,
+            error: `[SDK] 模型调用失败: ${message.error}`,
             code: "SDK_ERROR",
           };
           return;
@@ -532,7 +519,7 @@ export async function* streamModelResponse(
     console.error("[AgentSDK] stream error:", err instanceof Error ? err.message : String(err));
     yield {
       type: "error",
-      error: `模型调用过程中出错: ${err instanceof Error ? err.message : String(err)}`,
+      error: `[SDK] 模型调用过程中出错: ${err instanceof Error ? err.message : String(err)}`,
       code: "SDK_ERROR",
     };
   }

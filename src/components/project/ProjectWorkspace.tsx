@@ -23,6 +23,7 @@ export default function ProjectWorkspace({
   projectMeta,
   recentChats,
   recentDocuments,
+  initialChatId,
 }: ProjectWorkspaceProps) {
   const t = useTranslations('project');
   const router = useRouter();
@@ -67,7 +68,7 @@ export default function ProjectWorkspace({
     selectedFile && initialContent !== undefined ? { [selectedFile]: initialContent } : {}
   );
 
-  const projectId = projectPath.split("/")[3] || "";
+  const projectId = projectPath.split("/")[1] || "";
 
   // --- File tree functions ---
 
@@ -408,6 +409,13 @@ export default function ProjectWorkspace({
   // --- Derived state ---
 
   const selectedPath = activeTabId !== CHAT_TAB && activeTabId !== PROJECT_INFO_TAB ? activeTabId : null;
+
+  // 如果从 URL 参数传入 chatId，自动加载该 chat
+  useEffect(() => {
+    if (initialChatId) {
+      Promise.resolve().then(() => handleSwitchToChat(initialChatId));
+    }
+  }, [initialChatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex h-full">

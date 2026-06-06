@@ -8,20 +8,21 @@ import { getApiT } from "@/lib/i18n-api";
 export const dynamic = "force-dynamic";
 
 // POST /api/fs/workspace-gitnexus/clean
-// Body: { dirSegments: string[], action: "clean" | "cancel" }
+// Body: { workspaceId: string, action: "clean" | "cancel" }
 // 行为：清理或取消工作空间根的 GitNexus 任务。
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, action } = body;
+  const { workspaceId, action } = body;
 
-  if (!dirSegments || !action) {
+  if (!workspaceId || !action) {
     return NextResponse.json(
       { error: t('api.dirSegmentsRequired') },
       { status: 400 }
     );
   }
+  const dirSegments = ["workspace", workspaceId];
 
   if (action !== "clean" && action !== "cancel") {
     return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import type { RecentChat } from "@/lib/types";
+import { getChatUrl } from "@/lib/chat-navigation";
 
 export type { RecentChat };
 
@@ -20,9 +21,11 @@ interface UseChatSwitchingOptions {
   projectId?: string;
   router?: { push: (url: string) => void };
   onNewChatNavigate?: () => void;
+  userId?: string;
+  embedded?: boolean;
 }
 
-export function useChatSwitching({ setActiveTabId, projectId, router, onNewChatNavigate }: UseChatSwitchingOptions) {
+export function useChatSwitching({ setActiveTabId, projectId, router, onNewChatNavigate, userId, embedded }: UseChatSwitchingOptions) {
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [activeChatTitle, setActiveChatTitle] = useState("New Conversation");
   const [activeChatMessages, setActiveChatMessages] = useState<Array<{ id: number; role: "user" | "assistant"; content: string }>>([]);
@@ -52,7 +55,8 @@ export function useChatSwitching({ setActiveTabId, projectId, router, onNewChatN
 
       // If the target chat belongs to a different project, do a full page navigation
       if (targetProjectId !== projectId) {
-        router?.push(`/chat/${targetChatId}`);
+        const chatUrl = getChatUrl({ chatId: targetChatId, projectId: chatData.projectId, workspaceId: chatData.workspaceId, userId: userId ?? '' });
+        router?.push(chatUrl || `/chat/${targetChatId}`);
         return;
       }
 
@@ -76,10 +80,16 @@ export function useChatSwitching({ setActiveTabId, projectId, router, onNewChatN
       setActiveChatTemplateId(chatData.templateId);
       setChatKey((k) => k + 1);
       setActiveTabId(CHAT_TAB);
-      window.history.replaceState(null, "", `/chat/${targetChatId}`);
+      // 嵌入模式下更新 ?chatId 查询参数
+      if (embedded && projectId) {
+        window.history.replaceState(null, '', `?chatId=${targetChatId}`);
+      } else {
+        window.history.replaceState(null, '', `/chat/${targetChatId}`);
+      }
     } catch {
       // Fallback to full page navigation on error
-      router?.push(`/chat/${targetChatId}`);
+      const chatUrl = getChatUrl({ chatId: targetChatId, userId: userId ?? '' });
+      router?.push(chatUrl || `/chat/${targetChatId}`);
     }
   }, [setActiveTabId, projectId, router]);
 

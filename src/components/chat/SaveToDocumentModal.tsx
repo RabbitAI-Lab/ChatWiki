@@ -64,7 +64,7 @@ export default function SaveToDocumentModal({
       setOverwriteTarget(null);
       setFilename("");
 
-      return authFetch(`/api/fs/tree?path=personal/${user?.id ?? ''}/projects/${projectId}/docs`)
+      return authFetch(`/api/fs/tree?path=projects/${projectId}/docs`)
         .then((r) => {
           if (!r.ok) throw new Error("Failed to load file tree");
           return r.json();
@@ -111,7 +111,7 @@ export default function SaveToDocumentModal({
       docPath = `${selectedDir}/${filename.trim()}`;
     } else {
       // Save at project root
-      docPath = `personal/${user?.id ?? ''}/projects/${projectId}/docs/${filename.trim()}`;
+      docPath = `projects/${projectId}/docs/${filename.trim()}`;
     }
 
     try {
@@ -286,7 +286,7 @@ export default function SaveToDocumentModal({
                   if (!projectId) return;
                   setLoading(true);
                   setError(null);
-                  authFetch(`/api/fs/tree?path=personal/${user?.id ?? ''}/projects/${projectId}/docs`)
+                  authFetch(`/api/fs/tree?path=projects/${projectId}/docs`)
                     .then((r) => {
                       if (!r.ok) throw new Error("Failed");
                       return r.json();

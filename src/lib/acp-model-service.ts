@@ -5,10 +5,16 @@
  */
 import type { StreamEvent } from "./types";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import { getOrCreateEntry, getOrCreateSession, buildPoolKey, type AcpPoolConfig } from "./acp-pool";
+import { getOrCreateEntry, getOrCreateSession, forceRecreateEntry, buildPoolKey, type AcpPoolConfig } from "./acp-pool";
 import { resolveModelConfig } from "./model-service";
 import { db } from "@/db";
 import { tokenUsageLogs } from "@/db/schema";
+
+/** 检测是否为连接断开错误 */
+function isConnectionClosedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("ACP connection closed") || msg.includes("ENOENT");
+}
 
 export async function* streamAcpModelResponse(
   modelId: number,
@@ -19,7 +25,8 @@ export async function* streamAcpModelResponse(
     workspaceId?: string;
     chatId: number;
     cwd?: string;
-  }
+  },
+  _retryAttempted = false
 ): AsyncGenerator<StreamEvent> {
   const config = resolveModelConfig(modelId);
 
@@ -67,7 +74,7 @@ export async function* streamAcpModelResponse(
     console.log("[ACP] sessionId=", sessionId);
 
     // 3. 准备 prompt 消息
-    const isContinuation = entry.sessions.has(chatIdStr);
+    const isContinuation = !isNewSession;
     const promptMessages = buildPromptMessages(messages, isContinuation);
     console.log("[ACP] prompt 消息准备完毕, isContinuation=", isContinuation, "promptBlocks=", promptMessages.length);
     if (promptMessages[0] && promptMessages[0].type === "text") {
@@ -133,7 +140,7 @@ export async function* streamAcpModelResponse(
     if (promptError) {
       yield {
         type: "error",
-        error: `ACP 模型调用失败: ${(promptError as Error).message}`,
+        error: `[ACP] 模型调用失败: ${(promptError as Error).message}`,
         code: "SDK_ERROR",
       };
       return;
@@ -202,10 +209,25 @@ export async function* streamAcpModelResponse(
       thinking: accumulatedThinking || undefined,
     };
   } catch (err) {
-    console.error("[ACP] stream error:", err instanceof Error ? err.message : String(err));
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("[ACP] stream error:", errMsg);
+
+    // 连接断开时自动重连（仅限尚未输出内容时）
+    if (isConnectionClosedError(err) && !_retryAttempted && !accumulatedText) {
+      console.log("[ACP] 连接断开，尝试自动重连...");
+      try {
+        const newEntry = await forceRecreateEntry(key, poolConfig);
+        console.log("[ACP] 重连成功, pid=", newEntry.child.pid);
+        yield* streamAcpModelResponse(modelId, messages, options, true);
+        return;
+      } catch (reconnectErr) {
+        console.error("[ACP] 重连失败:", reconnectErr instanceof Error ? reconnectErr.message : String(reconnectErr));
+      }
+    }
+
     yield {
       type: "error",
-      error: `ACP 调用出错: ${err instanceof Error ? err.message : String(err)}`,
+      error: `[ACP] 调用出错: ${errMsg}`,
       code: "SDK_ERROR",
     };
   }

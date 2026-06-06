@@ -8,18 +8,19 @@ import { getApiT } from "@/lib/i18n-api";
 export const dynamic = "force-dynamic";
 
 // POST /api/fs/project-gitnexus/analyze
-// Body: { dirSegments: string[] }
-// 行为：在项目根目录（data/personal/default/projects/{projectId}）上启动 gitnexus analyze。
+// Body: { projectId: string }
+// 行为：在项目根目录（data/projects/{projectId}）上启动 gitnexus analyze。
 //       --force 与 --skip-git 由 API 强制启用，不再由前端传入。
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments } = body;
+  const { projectId } = body;
 
-  if (!dirSegments) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
 
   try {
     const meta = readProjectMeta(dirSegments);

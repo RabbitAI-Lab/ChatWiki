@@ -24,7 +24,7 @@ interface McpPanelProps {
  */
 export default function McpPanel({ projectPath }: McpPanelProps) {
   const t = useTranslations('project');
-  const dirSegments = projectPath.split("/");
+  const projectId = projectPath.split("/")[1] || "";
   const { authFetch } = useAuth();
   const {
     mcpJson,
@@ -46,7 +46,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
     totalCount,
     actions,
   } = useMcpConfig({
-    dirSegments,
+    projectId,
     apiBase: "/api/fs/project-mcp",
     authFetch,
   });

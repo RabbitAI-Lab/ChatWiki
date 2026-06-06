@@ -15,7 +15,7 @@ import type {
   Repository,
   ProjectMember,
 } from "../types";
-import { getDataRoot, getAccountSegments, createDir } from "./core";
+import { getDataRoot, createDir } from "./core";
 import { db } from "@/db";
 import { entityMembers, entities, entityRepositories } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
@@ -212,19 +212,18 @@ function memberRowToProjectMember(row: typeof entityMembers.$inferSelect): Proje
 // ────────────────────────────────────────────────────────────
 
 export interface EntityCrud {
-  list(type: "personal" | "enterprise", accountId: string, orgId?: string): ProjectMeta[];
-  create(type: "personal" | "enterprise", accountId: string, name: string, orgId?: string): ProjectMeta;
-  remove(type: "personal" | "enterprise", accountId: string, id: string, orgId?: string): void;
+  list(accountId: string): ProjectMeta[];
+  create(accountId: string, name: string): ProjectMeta;
+  remove(id: string): void;
 }
 
 export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
   const { entityDir, entityType, createDocsDir } = strategy;
 
-  function list(type: "personal" | "enterprise", accountId: string, _orgId?: string): ProjectMeta[] {
+  function list(accountId: string): ProjectMeta[] {
     const rows = db.select().from(entities)
       .where(and(
         eq(entities.accountId, accountId),
-        eq(entities.accountType, type),
         eq(entities.type, entityType as "project" | "workspace")
       ))
       .orderBy(asc(entities.sortOrder))
@@ -255,18 +254,16 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
     });
   }
 
-  function create(type: "personal" | "enterprise", accountId: string, name: string, orgId?: string): ProjectMeta {
-    const accountSegs = getAccountSegments(type, accountId, orgId);
-
+  function create(accountId: string, name: string): ProjectMeta {
     // Shift all existing entities' sortOrder by 1 so new one goes first
-    const existing = list(type, accountId, orgId);
+    const existing = list(accountId);
     for (const p of existing) {
       p.sortOrder += 1;
-      strategy.writeMeta(p, [...accountSegs, entityDir, p.id]);
+      strategy.writeMeta(p, [entityDir, p.id]);
     }
 
     const id = randomUUID();
-    const dirSegments = [...accountSegs, entityDir, id];
+    const dirSegments = [entityDir, id];
     createDir(dirSegments);
     if (createDocsDir) {
       createDir([...dirSegments, "docs"]);
@@ -278,7 +275,7 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
       description: "",
       createdAt: new Date().toISOString(),
       accountId,
-      accountType: type,
+      accountType: "personal",
       ownerId: accountId,
       sortOrder: 0,
     };
@@ -286,9 +283,8 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
     return meta;
   }
 
-  function remove(type: "personal" | "enterprise", accountId: string, id: string, orgId?: string): void {
-    const accountSegs = getAccountSegments(type, accountId, orgId);
-    const dirPath = path.join(getDataRoot(), ...accountSegs, entityDir, id);
+  function remove(id: string): void {
+    const dirPath = path.join(getDataRoot(), entityDir, id);
 
     // 删除 DB 记录: entities + entity_repositories + entity_members
     try {
@@ -369,29 +365,6 @@ export function createMemberCrud(strategy: MetaStrategy): MemberCrud {
     meta.members.push(member);
     strategy.writeMeta(meta, dirSegments);
 
-    // 如果成员有 userId，创建 symlink 使其在自己的目录下可见
-    if (member.userId && dirSegments.length >= 4) {
-      try {
-        const [personal, ownerId, entityDir, entityId] = dirSegments;
-        const memberProjectsDir = path.join(getDataRoot(), personal, member.userId, entityDir);
-        if (!fs.existsSync(memberProjectsDir)) {
-          fs.mkdirSync(memberProjectsDir, { recursive: true });
-        }
-        const linkPath = path.join(memberProjectsDir, entityId);
-        // symlink 指向所有者的项目目录: ../../{ownerId}/{entityDir}/{entityId}
-        // 从 memberProjectsDir(personal/{memberUserId}/{entityDir}) 向上 2 层到 personal/
-        const targetPath = path.join("..", "..", ownerId, entityDir, entityId);
-        // Check with lstatSync: existsSync returns false for broken symlinks
-        let linkExists = false;
-        try { fs.lstatSync(linkPath); linkExists = true; } catch { /* not exists */ }
-        if (!linkExists) {
-          fs.symlinkSync(targetPath, linkPath);
-        }
-      } catch (e) {
-        console.warn(`[MemberSymlink] Failed to create symlink for member ${member.userId}:`, e);
-      }
-    }
-
     // 同步写 DB 索引
     syncMemberToDb(dirSegments, member);
 
@@ -404,23 +377,6 @@ export function createMemberCrud(strategy: MetaStrategy): MemberCrud {
     const removed = (meta.members || []).find((m) => m.id === memberId);
     meta.members = (meta.members || []).filter((m) => m.id !== memberId);
     strategy.writeMeta(meta, dirSegments);
-
-    // 如果成员有 userId，清理 symlink
-    if (removed?.userId && dirSegments.length >= 4) {
-      try {
-        const [personal, _ownerId, entityDir, entityId] = dirSegments;
-        const linkPath = path.join(getDataRoot(), personal, removed.userId, entityDir, entityId);
-        // Use lstatSync to detect symlinks (existsSync returns false for broken symlinks)
-        try {
-          const stat = fs.lstatSync(linkPath);
-          if (stat.isSymbolicLink()) {
-            fs.unlinkSync(linkPath);
-          }
-        } catch { /* linkPath doesn't exist, nothing to remove */ }
-      } catch (e) {
-        console.warn(`[MemberSymlink] Failed to remove symlink for member ${removed.userId}:`, e);
-      }
-    }
 
     // 同步从 DB 索引删除
     removeMemberFromDb(dirSegments, memberId, removed?.userId);
@@ -587,12 +543,14 @@ function extractEntityInfo(dirSegments: string[]): {
   entityType: string;
   ownerId: string;
 } | null {
-  // dirSegments 格式: [personal|enterprise, ownerId, entityDir, entityId]
-  if (dirSegments.length < 4) return null;
-  const [, ownerId, entityDir, entityId] = dirSegments;
+  // dirSegments 格式: [entityDir, entityId] (如 ["projects", "{projectId}"])
+  if (dirSegments.length < 2) return null;
+  const [entityDir, entityId] = dirSegments;
   const entityType = ENTITY_DIR_TO_TYPE[entityDir];
   if (!entityType) return null;
-  return { entityId, entityType, ownerId };
+  // ownerId 从 DB 元数据获取，此处用 entityId 占位
+  const meta = readMetaFromDb(entityId, entityType);
+  return { entityId, entityType, ownerId: meta?.ownerId || "" };
 }
 
 function syncMemberToDb(dirSegments: string[], member: ProjectMember): void {

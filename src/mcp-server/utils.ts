@@ -14,20 +14,3 @@ export function parsePath(filePath: string): string[] {
 export function resolvePath(segments: string[]): string {
   return path.join(getDataRoot(), ...segments);
 }
-
-/**
- * 构建账号级别的路径段
- */
-export function getAccountSegments(
-  type: "personal" | "enterprise",
-  accountId: string,
-  orgId?: string
-): string[] {
-  if (type === "personal") {
-    return ["personal", accountId];
-  } else if (orgId) {
-    return ["enterprise", accountId, orgId];
-  } else {
-    return ["enterprise", accountId];
-  }
-}

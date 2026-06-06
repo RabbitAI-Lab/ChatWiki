@@ -10,6 +10,7 @@
  * - free:<userId>       — 自由聊天（无项目）降级为用户维度
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import * as fs from "node:fs";
 import { Writable, Readable } from "node:stream";
 import {
   ClientSideConnection,
@@ -53,7 +54,7 @@ globalThis.__chatwiki_acp_pool__ = pool;
 
 // ========== 配置常量 ==========
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000;    // 5 分钟空闲回收
+const IDLE_TIMEOUT_MS = parseInt(process.env.ACP_IDLE_TIMEOUT_MS || "300000");    // 默认 5 分钟，可通过环境变量配置
 const SIGTERM_GRACE_MS = 3 * 1000;        // SIGTERM 后 3s 升级为 SIGKILL
 const REAPER_INTERVAL_MS = 60 * 1000;     // 60s 检查一次
 
@@ -161,6 +162,23 @@ export async function destroyEntry(key: string): Promise<void> {
 }
 
 /**
+ * 强制重建指定 key 的连接。
+ * 用于连接意外断开后自动重连。
+ */
+export async function forceRecreateEntry(
+  key: string,
+  config: AcpPoolConfig
+): Promise<AcpPoolEntry> {
+  console.log(`[ACP Pool] force recreating entry: key=${key}`);
+  await destroyEntry(key);
+  const entry = await createEntry(key, config);
+  pool.set(key, entry);
+  touchActivity(key);
+  console.log(`[ACP Pool] force recreated entry: key=${key} pid=${entry.child.pid}`);
+  return entry;
+}
+
+/**
  * 触碰活跃时间。
  */
 function touchActivity(key: string): void {
@@ -182,11 +200,17 @@ function touchActivity(key: string): void {
 // ========== 内部工具 ==========
 
 async function createEntry(key: string, config: AcpPoolConfig): Promise<AcpPoolEntry> {
+  // 防御性检查：确保 cwd 目录存在
+  if (!fs.existsSync(config.cwd)) {
+    fs.mkdirSync(config.cwd, { recursive: true });
+    console.log(`[ACP Pool] created missing cwd: ${config.cwd}`);
+  }
+
   const userExtraEnv = parseExtraEnv(config.extraEnvJson);
 
   // spawn Agent 子进程
-  const child: ChildProcess = spawn("npx", ["-y", "@agentclientprotocol/claude-agent-acp"], {
-    stdio: ["pipe", "pipe", "pipe"] as const,
+  const child = spawn("npx", ["-y", "@agentclientprotocol/claude-agent-acp"], {
+    cwd: config.cwd,
     env: {
       ...process.env,
       ...userExtraEnv,
@@ -197,8 +221,8 @@ async function createEntry(key: string, config: AcpPoolConfig): Promise<AcpPoolE
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
       CLAUDE_AGENT_SDK_CLIENT_APP: "RabbitDocs/0.1.0",
     },
-    cwd: config.cwd,
-  }) as ChildProcess;
+    stdio: ["pipe", "pipe", "pipe"],
+  });
 
   console.log(`[ACP Pool] spawned agent: key=${key} pid=${child.pid} model=${config.modelName}`);
 

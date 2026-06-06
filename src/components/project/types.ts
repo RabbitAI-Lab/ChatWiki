@@ -56,4 +56,6 @@ export interface ProjectWorkspaceProps {
   accountInfo: AccountInfo;
   recentChats: RecentChat[];
   recentDocuments?: DocumentActivity[];
+  /** URL 参数传入的 chatId，用于自动加载指定 chat 并切换到 chat tab */
+  initialChatId?: number;
 }

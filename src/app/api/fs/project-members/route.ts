@@ -14,16 +14,16 @@ import { eq } from "drizzle-orm";
 import type { ProjectMember } from "@/lib/fs";
 import { getApiT } from "@/lib/i18n-api";
 
-// GET /api/fs/project-members?dirSegments=personal/{userId}/projects/{id}
+// GET /api/fs/project-members?projectId={id}
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const t = await getApiT();
-  if (!dirSegmentsStr) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
-  const dirSegments = dirSegmentsStr.split("/");
+  const dirSegments = ["projects", projectId];
   const meta = readProjectMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
@@ -36,10 +36,11 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, member } = body;
-  if (!dirSegments || !member) {
+  const { projectId, member } = body;
+  if (!projectId || !member) {
     return NextResponse.json({ error: t('api.members.dirSegmentsAndMemberRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     // Owner 校验：只有 owner 才能添加成员
     const meta = readProjectMeta(dirSegments);
@@ -81,10 +82,11 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, memberId, updates } = body;
-  if (!dirSegments || !memberId || !updates) {
+  const { projectId, memberId, updates } = body;
+  if (!projectId || !memberId || !updates) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     // Owner 校验
     const meta = readProjectMeta(dirSegments);
@@ -116,10 +118,11 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, memberId } = body;
-  if (!dirSegments || !memberId) {
+  const { projectId, memberId } = body;
+  if (!projectId || !memberId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     const meta = readProjectMeta(dirSegments);
     if (!meta) {
@@ -144,15 +147,16 @@ export async function DELETE(req: NextRequest) {
 }
 
 // PUT /api/fs/project-members - transfer ownership (owner only)
-// Body: { dirSegments, memberId } — memberId is the member to become new owner
+// Body: { projectId, memberId } — memberId is the member to become new owner
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, memberId } = body;
-  if (!dirSegments || !memberId) {
+  const { projectId, memberId } = body;
+  if (!projectId || !memberId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     const meta = readProjectMeta(dirSegments);
     if (!meta) {

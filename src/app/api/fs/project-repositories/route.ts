@@ -9,16 +9,16 @@ import {
 import { logOperation, extractProjectId } from "@/lib/operation-log";
 import { getApiT } from "@/lib/i18n-api";
 
-// GET /api/fs/project-repositories?dirSegments=personal,default,projects,{id}
+// GET /api/fs/project-repositories?projectId={id}
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const t = await getApiT();
-  if (!dirSegmentsStr) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["projects", projectId];
   const meta = readProjectMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
@@ -31,10 +31,11 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repository } = body;
-  if (!dirSegments || !repository) {
+  const { projectId, repository } = body;
+  if (!projectId || !repository) {
     return NextResponse.json({ error: t('api.repositories.dirSegmentsAndRepoRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     const repositories = addRepository(dirSegments, repository);
     logOperation({
@@ -54,10 +55,11 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repoId, updates } = body;
-  if (!dirSegments || !repoId || !updates) {
+  const { projectId, repoId, updates } = body;
+  if (!projectId || !repoId || !updates) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     const updated = updateRepository(dirSegments, repoId, updates);
     if (!updated) {
@@ -80,10 +82,11 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repoId } = body;
-  if (!dirSegments || !repoId) {
+  const { projectId, repoId } = body;
+  if (!projectId || !repoId) {
     return NextResponse.json({ error: t('api.repositories.dirSegmentsRepoIdRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
   try {
     const meta = readProjectMeta(dirSegments);
     const repoName = meta?.repositories?.find((r) => r.id === repoId)?.name || repoId;

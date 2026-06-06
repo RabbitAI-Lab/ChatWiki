@@ -92,12 +92,12 @@ export default function WorkspaceMcpPanel({
 
   const { message } = App.useApp();
 
-  // 修复 bug: 实际是 "/" 分隔
-  const dirSegments = workspacePath.split("/").filter(Boolean);
+  // workspacePath: "workspace/{workspaceId}"
+  const workspaceId = workspacePath.split("/")[1] || "";
 
   const fetchConfig = async () => {
     try {
-      const res = await authFetch(`/api/fs/workspace-mcp?dirSegments=${dirSegments.join(",")}`,
+      const res = await authFetch(`/api/fs/workspace-mcp?workspaceId=${workspaceId}`,
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -128,7 +128,7 @@ export default function WorkspaceMcpPanel({
       const res = await authFetch("/api/fs/workspace-mcp", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dirSegments, mcpJson: next }),
+        body: JSON.stringify({ workspaceId, mcpJson: next }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

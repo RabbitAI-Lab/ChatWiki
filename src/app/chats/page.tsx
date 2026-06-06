@@ -100,13 +100,20 @@ export default function ChatsPageClient() {
   // Fetch chats based on activeTab
   useEffect(() => {
     if (authLoading || !user) return;
-    setLoading(true);
+    let cancelled = false;
+    // Schedule setState via microtask to satisfy react-hooks/set-state-in-effect
+    Promise.resolve().then(() => {
+      if (!cancelled) setLoading(true);
+    });
     authFetch(`/api/chats?page=${page}&pageSize=${pageSize}&scope=${activeTab}`)
       .then((res) => res.json())
       .then((json) => {
-        setData(json);
-        setLoading(false);
+        if (!cancelled) {
+          setData(json);
+          setLoading(false);
+        }
       });
+    return () => { cancelled = true; };
   }, [page, activeTab, authLoading, user, authFetch]);
 
   const handleTabChange = (tab: TabScope) => {
@@ -269,8 +276,10 @@ export default function ChatsPageClient() {
                   <tr
                     key={chat.id}
                     onClick={() => {
-                      if (chat.workspaceId && !chat.projectId && user) {
-                        router.push(`/workspace/personal/${user.id}/${chat.workspaceId}?chatId=${chat.id}`);
+                      if (chat.projectId) {
+                        router.push(`/project/${chat.projectId}?chatId=${chat.id}`);
+                      } else if (chat.workspaceId) {
+                        router.push(`/workspace/${chat.workspaceId}?chatId=${chat.id}`);
                       } else {
                         router.push(`/chat/${chat.id}`);
                       }

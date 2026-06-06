@@ -12,6 +12,7 @@ import { useChatSelectors } from "./useChatSelectors";
 import { useChatShare } from "./useChatShare";
 import { useChatNavigation } from "./useChatNavigation";
 import { useChatMessages } from "./useChatMessages";
+import { useAuth } from "@/components/auth/useAuth";
 import { mapMessagesToBubbleItems } from "./ChatBubbleItem";
 import ChatInputFooter from "./ChatInputFooter";
 import ChatHeader from "./ChatHeader";
@@ -41,6 +42,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
 }, ref) {
   const router = useRouter();
   const t = useTranslations("chat");
+  const { user } = useAuth();
   const [effectiveChatId, setEffectiveChatId] = useState<number | null>(chatId ?? null);
   const [effectiveChatTitle, setEffectiveChatTitle] = useState<string>(chatTitle);
 
@@ -76,6 +78,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
     onToolCall,
     mentionFile,
     onMentionConsumed,
+    userId: user?.id,
   });
 
   // Navigation (loadChat, history select, new chat)

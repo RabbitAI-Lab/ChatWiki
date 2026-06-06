@@ -38,7 +38,7 @@ export default function TemplatesPanel({ templates }: TemplatesPanelProps) {
       uncategorized = await createRes.json();
     }
 
-    const docPath = `personal/${user.id}/projects/${uncategorized.id}/docs/${template.name}`;
+    const docPath = `projects/${uncategorized.id}/docs/${template.name}`;
     const res = await authFetch(`/api/templates/${template.id}`);
     if (!res.ok) return;
     const tmpl = await res.json();

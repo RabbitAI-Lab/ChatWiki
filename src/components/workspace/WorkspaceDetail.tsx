@@ -82,8 +82,8 @@ export default function WorkspaceDetail({
   const renameInputRef = useRef<HTMLInputElement>(null);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
-  // dirSegments: ["personal", "default", "workspace", "{workspaceId}"]
-  const workspacePath = `${accountType}/${accountId}/workspace/${workspaceMeta.id}`;
+  // workspacePath: "workspace/{workspaceId}"
+  const workspacePath = `workspace/${workspaceMeta.id}`;
 
   // Sync tree when server props change (after router.refresh())
   useEffect(() => {

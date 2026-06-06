@@ -12,16 +12,16 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getApiT } from "@/lib/i18n-api";
 
-// GET /api/fs/workspace-members?dirSegments=personal,default,workspace,{id}
+// GET /api/fs/workspace-members?workspaceId={id}
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const workspaceId = searchParams.get("workspaceId");
   const t = await getApiT();
-  if (!dirSegmentsStr) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["workspace", workspaceId];
   const meta = readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
@@ -34,10 +34,11 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, member } = body;
-  if (!dirSegments || !member) {
+  const { workspaceId, member } = body;
+  if (!workspaceId || !member) {
     return NextResponse.json({ error: t('api.members.dirSegmentsAndMemberRequired') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
   try {
     // 根据 accountName 查询用户表自动关联 userId
     if (!member.userId && member.accountName) {
@@ -65,10 +66,11 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, memberId, updates } = body;
-  if (!dirSegments || !memberId || !updates) {
+  const { workspaceId, memberId, updates } = body;
+  if (!workspaceId || !memberId || !updates) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
   try {
     const updated = updateWorkspaceMember(dirSegments, memberId, updates);
     if (!updated) {
@@ -91,10 +93,11 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, memberId } = body;
-  if (!dirSegments || !memberId) {
+  const { workspaceId, memberId } = body;
+  if (!workspaceId || !memberId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
   try {
     const meta = readWorkspaceMeta(dirSegments);
     const memberName = meta?.members?.find((m) => m.id === memberId)?.accountName || memberId;

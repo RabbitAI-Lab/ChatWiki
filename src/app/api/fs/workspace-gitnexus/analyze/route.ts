@@ -8,18 +8,19 @@ import { getApiT } from "@/lib/i18n-api";
 export const dynamic = "force-dynamic";
 
 // POST /api/fs/workspace-gitnexus/analyze
-// Body: { dirSegments: string[] }
+// Body: { workspaceId: string }
 // 行为：在工作空间根目录上启动 gitnexus analyze。
 //       --force 与 --skip-git 由 API 强制启用。
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments } = body;
+  const { workspaceId } = body;
 
-  if (!dirSegments) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
 
   try {
     const meta = readWorkspaceMeta(dirSegments);

@@ -115,8 +115,8 @@ export default function WorkspaceLogPanel({
   workspacePath,
 }: WorkspaceLogPanelProps) {
   const t = useTranslations('workspace');
-  // 修复 bug: 实际是 "/" 分隔,取最后一段作为 workspaceId
-  const workspaceId = workspacePath.split("/").filter(Boolean).pop() || "";
+  // workspacePath: "workspace/{workspaceId}"
+  const workspaceId = workspacePath.split("/")[1] || "";
   const { authFetch } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [total, setTotal] = useState(0);

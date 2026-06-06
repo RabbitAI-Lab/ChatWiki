@@ -7,7 +7,7 @@ import { getApiT } from "@/lib/i18n-api";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/fs/workspace-mcp?dirSegments=...
+ * GET /api/fs/workspace-mcp?workspaceId=...
  *
  * 返回工作区级 MCP 配置的完整结构（mcpJson），让前端可以渲染任意条 MCP server。
  * 兼容老字段 enabled/apiKey（基于 zhipu-web-search-sse 计算），便于旧调用方降级。
@@ -15,14 +15,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const workspaceId = searchParams.get("workspaceId");
   const t = await getApiT();
 
-  if (!dirSegmentsStr) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
 
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["workspace", workspaceId];
   const config = readWorkspaceMcpConfig(dirSegments);
 
   const mcpServers =
@@ -54,18 +54,19 @@ export async function GET(req: NextRequest) {
  * PUT /api/fs/workspace-mcp
  *
  * 两种模式：
- *   1. { dirSegments, mcpJson: { mcpServers, _apiKeys } } - 结构化模式（推荐）
- *   2. { dirSegments, rawJson } - 原始 JSON 模式（高级，会做防御性校验）
+ *   1. { workspaceId, mcpJson: { mcpServers, _apiKeys } } - 结构化模式（推荐）
+ *   2. { workspaceId, rawJson } - 原始 JSON 模式（高级，会做防御性校验）
  */
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments } = body as { dirSegments?: string[] };
+  const { workspaceId } = body as { workspaceId?: string };
 
-  if (!Array.isArray(dirSegments) || dirSegments.length === 0) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
 
   // ----- 模式 1: 结构化模式 -----
   if (body.mcpJson !== undefined) {

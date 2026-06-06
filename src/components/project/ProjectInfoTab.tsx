@@ -107,7 +107,7 @@ export default function ProjectInfoTab({
         const res = await authFetch("/api/fs/project-repositories/check-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dirSegments }),
+          body: JSON.stringify({ projectId: dirSegments[1] }),
         });
 
         if (res.ok) {

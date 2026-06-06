@@ -11,11 +11,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments } = body;
+  const { workspaceId } = body;
 
-  if (!dirSegments) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+
+  const dirSegments = ["workspace", workspaceId];
 
   try {
     const meta = readWorkspaceMeta(dirSegments);

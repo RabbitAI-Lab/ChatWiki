@@ -71,10 +71,10 @@ function buildNewPath(
 }
 
 function parseDocumentMeta(segments: string[]) {
-  // segments: ["personal", "default", "projects", "{projectId}", "docs", ...pathParts]
-  if (segments.length >= 6 && segments[3] && segments[4] === "docs") {
-    const projectId = segments[3];
-    const docSegments = segments.slice(5);
+  // segments: ["projects", "{projectId}", "docs", ...pathParts]
+  if (segments.length >= 4 && segments[0] === "projects" && segments[1] && segments[2] === "docs") {
+    const projectId = segments[1];
+    const docSegments = segments.slice(3);
     const documentPath = docSegments.join("/");
     const last = docSegments[docSegments.length - 1] || "";
     const documentTitle = last.replace(/\.(md|html)$/, "");

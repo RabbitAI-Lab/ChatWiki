@@ -56,8 +56,8 @@ export default function WorkspaceGitNexusManager({
 }: WorkspaceGitNexusManagerProps) {
   const { authFetch } = useAuth();
   const t = useTranslations('workspace');
-  // workspacePath 实际是 "/" 分隔
-  const dirSegments = workspacePath.split("/").filter(Boolean);
+  // workspacePath: "workspace/{workspaceId}"
+  const workspaceId = workspacePath.split("/")[1] || "";
 
   const phase: GitNexusPhase = status?.phase ?? "idle";
   const badgeKey = PHASE_BADGE_KEY[phase];
@@ -69,7 +69,7 @@ export default function WorkspaceGitNexusManager({
     if (!isInProgress) return;
     const timer = setInterval(async () => {
       try {
-        const res = await authFetch(`/api/fs/workspace-gitnexus?dirSegments=${encodeURIComponent(workspacePath)}`
+        const res = await authFetch(`/api/fs/workspace-gitnexus?workspaceId=${encodeURIComponent(workspaceId)}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -90,7 +90,7 @@ export default function WorkspaceGitNexusManager({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          workspaceId,
         }),
       });
       if (res.ok) {
@@ -126,9 +126,9 @@ export default function WorkspaceGitNexusManager({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              dirSegments,
-              action: "cancel",
-            }),
+          workspaceId,
+          action: "cancel",
+        }),
           });
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
@@ -160,9 +160,9 @@ export default function WorkspaceGitNexusManager({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              dirSegments,
-              action: "clean",
-            }),
+          workspaceId,
+          action: "clean",
+        }),
           });
           if (res.ok) {
             const data = await res.json();

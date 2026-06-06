@@ -1,61 +1,70 @@
 /**
- * Workspace-specific symlink operations for linking/unlinking projects.
+ * Workspace-project association functions.
+ * Replaced symlink-based linking with DB queries.
  */
-import fs from "node:fs";
-import path from "node:path";
-
 import type { ProjectMeta } from "../types";
-import { getDataRoot, getAccountSegments } from "./core";
 import { readProjectMeta } from "./project";
+import { db } from "@/db";
+import { entityMembers } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 /**
- * List projects linked to a workspace (via symlinks).
- * Returns ProjectMeta[] for each symlinked project.
+ * List projects linked to a workspace (via DB member records).
+ * Returns ProjectMeta[] for each linked project.
  */
-export function listWorkspaceProjects(type: "personal" | "enterprise", accountId: string, workspaceId: string, orgId?: string): ProjectMeta[] {
-  const workspaceDir = path.join(getDataRoot(), ...getAccountSegments(type, accountId, orgId), "workspace", workspaceId);
-  if (!fs.existsSync(workspaceDir)) return [];
+export function listWorkspaceProjects(_type: string, _accountId: string, workspaceId: string): ProjectMeta[] {
+  const memberRows = db
+    .select({ entityId: entityMembers.entityId })
+    .from(entityMembers)
+    .where(
+      and(
+        eq(entityMembers.entityId, workspaceId),
+        eq(entityMembers.entityType, "workspace_project")
+      )
+    )
+    .all();
 
-  const entries = fs.readdirSync(workspaceDir, { withFileTypes: true });
   const result: ProjectMeta[] = [];
-
-  for (const entry of entries) {
-    if (entry.isDirectory() || fs.lstatSync(path.join(workspaceDir, entry.name)).isSymbolicLink()) {
-      const projectId = entry.name;
-      const projectMeta = readProjectMeta([...getAccountSegments(type, accountId, orgId), "projects", projectId]);
-      if (projectMeta) {
-        result.push(projectMeta);
-      }
+  for (const row of memberRows) {
+    const projectMeta = readProjectMeta(["projects", row.entityId]);
+    if (projectMeta) {
+      result.push(projectMeta);
     }
   }
   return result;
 }
 
 /**
- * Link a project to a workspace by creating a symlink.
- * Symlink: workspace/{workspaceId}/{projectId} -> ../../projects/{projectId}/
+ * Link a project to a workspace by inserting a DB record.
  */
-export function linkProjectToWorkspace(type: "personal" | "enterprise", accountId: string, workspaceId: string, projectId: string, orgId?: string): void {
-  const accountSegs = getAccountSegments(type, accountId, orgId);
-  const linkPath = path.join(getDataRoot(), ...accountSegs, "workspace", workspaceId, projectId);
-  // Relative path from workspace dir to projects dir
-  // workspace/{workspaceId}/{projectId} -> ../../projects/{projectId}/
-  const targetPath = path.join("..", "..", "projects", projectId);
-
-  if (fs.existsSync(linkPath)) {
-    fs.unlinkSync(linkPath); // Remove existing link
-  }
-  fs.symlinkSync(targetPath, linkPath, "dir");
+export function linkProjectToWorkspace(_type: string, _accountId: string, workspaceId: string, projectId: string): void {
+  const now = new Date().toISOString();
+  db.insert(entityMembers)
+    .values({
+      entityId: workspaceId,
+      entityType: "workspace_project",
+      memberId: projectId,
+      userId: null,
+      accountName: "",
+      ownerId: workspaceId,
+      addedAt: now,
+      createdAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
 }
 
 /**
- * Unlink a project from a workspace by removing the symlink.
+ * Unlink a project from a workspace by removing the DB record.
  */
-export function unlinkProjectFromWorkspace(type: "personal" | "enterprise", accountId: string, workspaceId: string, projectId: string, orgId?: string): void {
-  const accountSegs = getAccountSegments(type, accountId, orgId);
-  const linkPath = path.join(getDataRoot(), ...accountSegs, "workspace", workspaceId, projectId);
-
-  if (fs.existsSync(linkPath)) {
-    fs.unlinkSync(linkPath);
-  }
+export function unlinkProjectFromWorkspace(_type: string, _accountId: string, workspaceId: string, projectId: string): void {
+  db.delete(entityMembers)
+    .where(
+      and(
+        eq(entityMembers.entityId, workspaceId),
+        eq(entityMembers.entityType, "workspace_project"),
+        eq(entityMembers.memberId, projectId)
+      )
+    )
+    .run();
 }

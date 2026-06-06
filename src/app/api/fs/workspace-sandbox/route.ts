@@ -10,15 +10,15 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegments = searchParams.get("dirSegments");
+  const workspaceId = searchParams.get("workspaceId");
   const t = await getApiT();
 
-  if (!dirSegments) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
 
-  const segments = dirSegments.split(",");
-  const meta = readWorkspaceMeta(segments);
+  const dirSegments = ["workspace", workspaceId];
+  const meta = readWorkspaceMeta(dirSegments);
 
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
@@ -32,15 +32,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, sandbox } = body as {
-    dirSegments: string[];
+  const { workspaceId, sandbox } = body as {
+    workspaceId: string;
     sandbox: SandboxStatus;
   };
 
-  if (!dirSegments || !sandbox) {
+  if (!workspaceId || !sandbox) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
 
+  const dirSegments = ["workspace", workspaceId];
   const meta = readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
@@ -64,14 +65,16 @@ export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, sandbox } = body as {
-    dirSegments: string[];
+  const { workspaceId, sandbox } = body as {
+    workspaceId: string;
     sandbox: SandboxStatus;
   };
 
-  if (!dirSegments || !sandbox) {
+  if (!workspaceId || !sandbox) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
+
+  const dirSegments = ["workspace", workspaceId];
 
   const meta = readWorkspaceMeta(dirSegments);
   if (!meta) {

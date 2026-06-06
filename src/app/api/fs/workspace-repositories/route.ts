@@ -9,16 +9,16 @@ import {
 import { logOperation, extractProjectId } from "@/lib/operation-log";
 import { getApiT } from "@/lib/i18n-api";
 
-// GET /api/fs/workspace-repositories?dirSegments=personal,default,workspace,{id}
+// GET /api/fs/workspace-repositories?workspaceId={id}
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const workspaceId = searchParams.get("workspaceId");
   const t = await getApiT();
-  if (!dirSegmentsStr) {
+  if (!workspaceId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["workspace", workspaceId];
   const meta = readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
@@ -31,10 +31,11 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repository } = body;
-  if (!dirSegments || !repository) {
+  const { workspaceId, repository } = body;
+  if (!workspaceId || !repository) {
     return NextResponse.json({ error: t('api.repositories.dirSegmentsAndRepoRequired') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
   try {
     const repositories = addWorkspaceRepository(dirSegments, repository);
     logOperation({
@@ -54,10 +55,11 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repoId, updates } = body;
-  if (!dirSegments || !repoId || !updates) {
+  const { workspaceId, repoId, updates } = body;
+  if (!workspaceId || !repoId || !updates) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
   try {
     const updated = updateWorkspaceRepository(dirSegments, repoId, updates);
     if (!updated) {
@@ -80,10 +82,11 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repoId } = body;
-  if (!dirSegments || !repoId) {
+  const { workspaceId, repoId } = body;
+  if (!workspaceId || !repoId) {
     return NextResponse.json({ error: t('api.repositories.dirSegmentsRepoIdRequired') }, { status: 400 });
   }
+  const dirSegments = ["workspace", workspaceId];
   try {
     const meta = readWorkspaceMeta(dirSegments);
     const repoName = meta?.repositories?.find((r) => r.id === repoId)?.name || repoId;

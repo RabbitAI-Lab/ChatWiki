@@ -100,7 +100,7 @@ export default function ProjectsPanel() {
     await fetchProjects();
     setEditingId(meta.id);
     setEditName(meta.name);
-    router.push(`/project/personal/${user!.id}/projects/${meta.id}`);
+    router.push(`/project/${meta.id}`);
   };
 
   const handleDoubleClick = (project: ProjectMeta) => {
@@ -193,7 +193,7 @@ export default function ProjectsPanel() {
       <div className="mt-0.5 space-y-0.5 px-2">
         {projects.map((project) => {
           const isOwned = project.accountId === user!.id;
-          const projectPath = `/project/personal/${project.accountId}/projects/${project.id}`;
+          const projectPath = `/project/${project.id}`;
           const isActive = pathname === projectPath || pathname.startsWith(projectPath + "/");
           const isEditing = editingId === project.id;
           const isDragTarget = dropTargetId === project.id;

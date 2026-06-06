@@ -56,6 +56,7 @@ export default function GitNexusManager({
 }: GitNexusManagerProps) {
   const { authFetch } = useAuth();
   const t = useTranslations('project');
+  const projectId = projectPath.split("/")[1] || "";
   const phase: GitNexusPhase = status?.phase ?? "idle";
   const badgeKey = PHASE_BADGE_KEY[phase];
   const badgeStyle = PHASE_BADGE_STYLE[phase];
@@ -66,7 +67,7 @@ export default function GitNexusManager({
     if (!isInProgress) return;
     const timer = setInterval(async () => {
       try {
-        const res = await authFetch(`/api/fs/project-gitnexus?dirSegments=${encodeURIComponent(projectPath)}`
+        const res = await authFetch(`/api/fs/project-gitnexus?projectId=${encodeURIComponent(projectId)}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -79,7 +80,7 @@ export default function GitNexusManager({
       }
     }, 2000);
     return () => clearInterval(timer);
-  }, [isInProgress, projectPath, onStatusChange, authFetch]);
+  }, [isInProgress, projectId, onStatusChange, authFetch]);
 
   const handleAnalyze = async () => {
     try {
@@ -87,7 +88,7 @@ export default function GitNexusManager({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments: projectPath.split("/"),
+          projectId,
         }),
       });
       if (res.ok) {
@@ -123,7 +124,7 @@ export default function GitNexusManager({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              dirSegments: projectPath.split("/"),
+              projectId,
               action: "cancel",
             }),
           });
@@ -157,7 +158,7 @@ export default function GitNexusManager({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              dirSegments: projectPath.split("/"),
+              projectId,
               action: "clean",
             }),
           });

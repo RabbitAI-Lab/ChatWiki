@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { App } from "antd";
 import ChatWorkspace from "@/components/chat/ChatWorkspace";
@@ -37,6 +37,7 @@ const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
 export default function NewChatWorkspace() {
   const t = useTranslations("chat");
   const tc = useTranslations("common");
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { message } = App.useApp();
   const { open: openFloatingChat, isOpen: floatingChatOpen, isMinimized: floatingChatMinimized, setMentionFile: setFloatingMentionFile } = useFloatingChat();
@@ -54,8 +55,8 @@ export default function NewChatWorkspace() {
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [recentDocuments, setRecentDocuments] = useState<DocumentActivity[]>([]);
 
-  const projectPath = selectedProjectId && user
-    ? `personal/${user.id}/projects/${selectedProjectId}/docs`
+  const projectPath = selectedProjectId
+    ? `projects/${selectedProjectId}/docs`
     : "";
 
   const autoSelectedRef = useRef(false);
@@ -109,7 +110,7 @@ export default function NewChatWorkspace() {
 
     // Load file tree for the selected project
     fileTree.setTreeLoading(true);
-    const prefix = `personal/${user?.id ?? ''}/projects/${project.id}/docs`;
+    const prefix = `projects/${project.id}/docs`;
     try {
       const res = await authFetch(`/api/fs/tree?path=${prefix}`);
       const data = await res.json();
@@ -126,7 +127,7 @@ export default function NewChatWorkspace() {
     // Fetch recent chats & documents
     refreshRecentChats(project.id);
     refreshRecentDocuments(project.id);
-    window.history.replaceState(null, "", `/chat/new?project=${project.id}`);
+    router.push(`/project/${project.id}`);
   }, [authFetch, user?.id, fileTree, tabSystem, chatSwitching, refreshRecentChats, refreshRecentDocuments]);
 
   // Keep ref in sync with latest handleSelectProject on every render
@@ -405,7 +406,7 @@ export default function NewChatWorkspace() {
                   projectId={selectedProjectId}
                   projectName={selectedProjectName}
                   projectMeta={projectMeta}
-                  projectPath={`personal/${user?.id ?? ''}/projects/${selectedProjectId}`}
+                  projectPath={`projects/${selectedProjectId}`}
                   recentChats={recentChats}
                   recentDocuments={recentDocuments}
                   onSwitchToChat={chatSwitching.handleSwitchToChat}

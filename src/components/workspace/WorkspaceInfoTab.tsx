@@ -104,8 +104,7 @@ export default function WorkspaceInfoTab({
     workspaceMeta?.members || []
   );
 
-  // 修复 bug: projectPath 实际是 "/" 分隔,这里 workspacePath 同样使用 "/"
-  const dirSegments = workspacePath.split("/").filter(Boolean);
+  // workspaceId is passed as a prop directly
 
   // 检查同步状态
   useEffect(() => {
@@ -119,7 +118,7 @@ export default function WorkspaceInfoTab({
         const res = await authFetch("/api/fs/workspace-repositories/check-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dirSegments }),
+          body: JSON.stringify({ workspaceId }),
         });
 
         if (res.ok) {

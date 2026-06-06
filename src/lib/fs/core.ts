@@ -34,7 +34,7 @@ export function getDataRoot(): string {
 
 /**
  * Build a full file system path from path segments.
- * Example: buildPath("personal", "default", "projects", "my-project", "doc") => "data/personal/default/projects/my-project/doc.md"
+ * Example: buildPath("projects", "my-project", "docs", "doc") => "data/projects/my-project/docs/doc.md"
  * Rejects path segments containing ".." or null bytes to prevent path traversal attacks.
  */
 export function buildPath(...segments: string[]): string {
@@ -71,19 +71,6 @@ function assertValidSegments(segments: string[]): void {
     if (seg === ".." || seg.includes("\0")) {
       throw new Error("Invalid path segment");
     }
-  }
-}
-
-/**
- * Helper to build account-level path segments.
- */
-export function getAccountSegments(type: "personal" | "enterprise", accountId: string, orgId?: string): string[] {
-  if (type === "personal") {
-    return ["personal", accountId];
-  } else if (orgId) {
-    return ["enterprise", accountId, orgId];
-  } else {
-    return ["enterprise", accountId];
   }
 }
 

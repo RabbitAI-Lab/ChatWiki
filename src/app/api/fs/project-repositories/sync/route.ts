@@ -10,23 +10,23 @@ import {
 import type { Repository } from "@/lib/fs";
 import { getApiT } from "@/lib/i18n-api";
 
-// GET /api/fs/project-repositories/sync?dirSegments=...&repoId=...
+// GET /api/fs/project-repositories/sync?projectId=...&repoId=...
 // 获取单个仓库的同步状态
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const repoId = searchParams.get("repoId");
 
-  if (!dirSegmentsStr || !repoId) {
+  if (!projectId || !repoId) {
     return NextResponse.json(
       { error: t('api.repositories.dirSegmentsRepoIdRequired') },
       { status: 400 }
     );
   }
 
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["projects", projectId];
 
   try {
     const meta = readProjectMeta(dirSegments);
@@ -54,14 +54,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, repoId, action } = body;
+  const { projectId, repoId, action } = body;
 
-  if (!dirSegments || !repoId || !action) {
+  if (!projectId || !repoId || !action) {
     return NextResponse.json(
       { error: t('api.repositories.dirSegmentsRepoIdRequired') },
       { status: 400 }
     );
   }
+
+  const dirSegments = ["projects", projectId];
 
   if (action !== "clone" && action !== "pull") {
     return NextResponse.json(

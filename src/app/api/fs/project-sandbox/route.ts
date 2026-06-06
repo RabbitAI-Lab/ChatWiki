@@ -10,15 +10,15 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegments = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const t = await getApiT();
 
-  if (!dirSegments) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
 
-  const segments = dirSegments.split(",");
-  const meta = readProjectMeta(segments);
+  const dirSegments = ["projects", projectId];
+  const meta = readProjectMeta(dirSegments);
 
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
@@ -32,15 +32,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, sandbox } = body as {
-    dirSegments: string[];
+  const { projectId, sandbox } = body as {
+    projectId: string;
     sandbox: SandboxStatus;
   };
 
-  if (!dirSegments || !sandbox) {
+  if (!projectId || !sandbox) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
 
+  const dirSegments = ["projects", projectId];
   const meta = readProjectMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
@@ -64,14 +65,16 @@ export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments, sandbox } = body as {
-    dirSegments: string[];
+  const { projectId, sandbox } = body as {
+    projectId: string;
     sandbox: SandboxStatus;
   };
 
-  if (!dirSegments || !sandbox) {
+  if (!projectId || !sandbox) {
     return NextResponse.json({ error: t('api.missingRequiredParams') }, { status: 400 });
   }
+
+  const dirSegments = ["projects", projectId];
 
   const meta = readProjectMeta(dirSegments);
   if (!meta) {

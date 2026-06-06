@@ -61,6 +61,7 @@ export default function RepositoryManager({
   const [formPassword, setFormPassword] = useState("");
 
   const dirSegments = projectPath.split("/");
+  const projectId = dirSegments[1] || "";
 
   const resetForm = () => {
     setFormName("");
@@ -97,7 +98,7 @@ export default function RepositoryManager({
       const res = await authFetch("/api/fs/project-repositories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dirSegments, repository }),
+        body: JSON.stringify({ projectId, repository }),
       });
       if (res.ok) {
         const updatedRepos = await res.json();
@@ -116,7 +117,7 @@ export default function RepositoryManager({
     const res = await authFetch("/api/fs/project-repositories", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dirSegments, repoId }),
+      body: JSON.stringify({ projectId, repoId }),
     });
     if (res.ok) {
       onRepositoriesChange(repositories.filter((r) => r.id !== repoId));
@@ -134,7 +135,7 @@ export default function RepositoryManager({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dirSegments,
+          projectId,
           repoId: repo.id,
           action,
         }),

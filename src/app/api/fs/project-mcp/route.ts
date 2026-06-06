@@ -7,7 +7,7 @@ import { getApiT } from "@/lib/i18n-api";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/fs/project-mcp?dirSegments=...
+ * GET /api/fs/project-mcp?projectId=...
  *
  * 返回项目级 MCP 配置的完整结构（mcpJson），让前端可以渲染任意条 MCP server。
  * 兼容老字段 enabled/apiKey（基于 zhipu-web-search-sse 计算），便于旧调用方降级。
@@ -15,14 +15,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
-  const dirSegmentsStr = searchParams.get("dirSegments");
+  const projectId = searchParams.get("projectId");
   const t = await getApiT();
 
-  if (!dirSegmentsStr) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
 
-  const dirSegments = dirSegmentsStr.split(",");
+  const dirSegments = ["projects", projectId];
   const config = readProjectMcpConfig(dirSegments);
 
   const mcpServers =
@@ -59,18 +59,19 @@ export async function GET(req: NextRequest) {
  * PUT /api/fs/project-mcp
  *
  * 两种模式：
- *   1. { dirSegments, mcpJson: { mcpServers, _apiKeys } } - 结构化模式（推荐）
- *   2. { dirSegments, rawJson } - 原始 JSON 模式（高级，会做防御性校验）
+ *   1. { projectId, mcpJson: { mcpServers, _apiKeys } } - 结构化模式（推荐）
+ *   2. { projectId, rawJson } - 原始 JSON 模式（高级，会做防御性校验）
  */
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { dirSegments } = body as { dirSegments?: string[] };
+  const { projectId } = body as { projectId?: string };
 
-  if (!Array.isArray(dirSegments) || dirSegments.length === 0) {
+  if (!projectId) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
+  const dirSegments = ["projects", projectId];
 
   // ----- 模式 1: 结构化模式 -----
   if (body.mcpJson !== undefined) {

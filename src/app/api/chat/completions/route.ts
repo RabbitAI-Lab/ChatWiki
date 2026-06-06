@@ -4,7 +4,7 @@ import { streamModelResponse } from "@/lib/model-service";
 import type { ChatCompletionRequest } from "@/lib/types";
 import { ModelError } from "@/lib/types";
 import path from "node:path";
-import { getDataRoot, readProjectMeta } from "@/lib/fs";
+import { getDataRoot } from "@/lib/fs";
 import { db } from "@/db";
 import { systemPrompts } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -32,18 +32,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Construct cwd from DATA_ROOT and projectId
-  // 首先查找当前用户目录，再尝试通过所有项目元数据找到项目实际位置（支持成员访问）
   let cwd: string | undefined;
   if (projectId) {
-    // 优先从当前用户的目录查找
-    const ownPath = ["personal", auth.id, "projects", projectId];
-    const ownMeta = readProjectMeta(ownPath);
-    if (ownMeta) {
-      cwd = path.join(getDataRoot(), ...ownPath);
-    } else {
-      // 回退到 default（兼容迁移前数据）
-      cwd = path.join(getDataRoot(), "personal", "default", "projects", projectId);
-    }
+    cwd = path.join(getDataRoot(), "projects", projectId);
   }
 
   // Inject cwd info into the system message
