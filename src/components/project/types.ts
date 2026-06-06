@@ -1,7 +1,7 @@
 import type { TreeNode } from "@/lib/tree";
 import type { Repository, SandboxStatus, ProjectMember, GitNexusStatus } from "@/lib/fs";
 
-import type { DocumentActivity } from "@/lib/types";
+import type { DocumentActivity, RecentChat } from "@/lib/types";
 
 /** 固定标签 ID：项目信息页 */
 export const PROJECT_INFO_TAB = "__project_info__" as const;
@@ -40,12 +40,8 @@ export interface AccountInfo {
   enterpriseName?: string;
 }
 
-/** 最近聊天记录摘要 */
-export interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-}
+/** 最近聊天记录摘要（已移至 @/lib/types） */
+export type { RecentChat };
 
 /** 主组件 Props — 对外接口保持不变 */
 export interface ProjectWorkspaceProps {

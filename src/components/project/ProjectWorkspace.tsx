@@ -381,8 +381,14 @@ export default function ProjectWorkspace({
   }, [authFetch, t]);
 
   const handleNewChat = useCallback(() => {
-    router.push(`/chat/new?project=${projectId}`);
-  }, [router, projectId]);
+    setActiveChatId(null);
+    setActiveChatTitle("New Chat");
+    setActiveChatMessages([]);
+    setActiveChatModelId(undefined);
+    setActiveChatTemplateId(undefined);
+    setChatKey((k) => k + 1);
+    setActiveTabId(CHAT_TAB);
+  }, []);
 
   const handleNavigateToDocument = useCallback(async (documentPath: string) => {
     try {
@@ -431,6 +437,7 @@ export default function ProjectWorkspace({
         onRenameConfirm={handleRenameConfirm}
         onRenameCancel={handleRenameCancel}
         onRenamingNameChange={setRenamingName}
+        onRefresh={() => router.refresh()}
       />
 
       {/* Right: Tab system */}

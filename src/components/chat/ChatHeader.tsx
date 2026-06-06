@@ -51,7 +51,7 @@ export default function ChatHeader({
 }: ChatHeaderProps) {
   const t = useTranslations("chat");
   return (
-    <div className="flex items-center justify-between px-3 h-[41px] bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700">
+    <div className={`flex items-center justify-between px-3 ${embedded ? 'py-1.5' : 'h-[41px]'} bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700`}>
       <div className="flex items-center gap-2 min-w-0">
         {embedded && onBack && (
           <Button

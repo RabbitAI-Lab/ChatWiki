@@ -48,6 +48,7 @@ export const chats = sqliteTable("chats", {
   workspaceId: text("workspace_id"),  // nullable，记录从哪个 workspace 发起
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  updatedBy: text("updated_by"),  // 最后修改者用户 ID
 });
 
 // chat_messages: 聊天消息
@@ -148,6 +149,7 @@ export const documentActivities = sqliteTable("document_activities", {
   documentTitle: text("document_title").notNull(),
   action: text("action", { enum: ["create", "update", "delete", "rename"] }).notNull(),
   oldTitle: text("old_title"),
+  userId: text("user_id"),  // 操作者用户 ID（nullable，兼容旧数据和 MCP 操作）
   createdAt: text("created_at").notNull(),
 });
 
@@ -282,6 +284,9 @@ export const plans = sqliteTable("plans", {
   features: text("features").notNull().default("[]"),              // JSON: [{name, included}]
   enabled: integer("enabled").notNull().default(1),
   sortOrder: integer("sort_order").notNull().default(0),
+  // Token 配额：月/年配额，0=无限
+  tokenLimitMonthly: integer("token_limit_monthly").notNull().default(0),
+  tokenLimitYearly: integer("token_limit_yearly").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -328,6 +333,28 @@ export const entities = sqliteTable("entities", {
   skillsStatus: text("skills_status"),        // JSON: ProjectSkills
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+// token_usage_logs: Token 用量日志（每次 API 调用一行）
+export const tokenUsageLogs = sqliteTable("token_usage_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull(),
+  modelId: integer("model_id").notNull(),
+  chatId: integer("chat_id"),
+  backend: text("backend", { enum: ["sdk", "acp"] }).notNull().default("sdk"),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  cacheCreationInputTokens: integer("cache_creation_input_tokens").notNull().default(0),
+  cacheReadInputTokens: integer("cache_read_input_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  costUsd: integer("cost_usd").notNull().default(0),  // 万分之美元
+  contextSize: integer("context_size"),
+  contextUsed: integer("context_used"),
+  durationMs: integer("duration_ms").notNull().default(0),
+  numTurns: integer("num_turns").notNull().default(1),
+  projectId: text("project_id"),
+  workspaceId: text("workspace_id"),
+  createdAt: text("created_at").notNull(),
 });
 
 // entity_repositories: 仓库子表

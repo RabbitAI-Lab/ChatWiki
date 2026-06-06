@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   const { modelId, messages, projectId } = body;
   const workspaceId = (body as Record<string, unknown>).workspaceId as string | undefined;
   const chatId = (body as Record<string, unknown>).chatId as number | undefined;
+  console.log("[Route] /api/chat/completions modelId=", modelId, "userId=", auth.id, "projectId=", projectId ?? "(none)", "workspaceId=", workspaceId ?? "(none)", "chatId=", chatId ?? "(none)");
   const _systemPrompt = body.systemPrompt; // reserved for future per-request override
   void _systemPrompt;
 

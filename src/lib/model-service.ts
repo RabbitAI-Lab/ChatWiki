@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { ModelError } from "./types";
 import type { StreamEvent } from "./types";
 import { readProjectMcpConfig as readProjectMcpConfigFromFs, getDataRoot } from "./fs";
+import { tokenUsageLogs } from "@/db/schema";
 
 type ModelConfigRow = {
   id: number;
@@ -76,7 +77,14 @@ export async function* streamModelResponse(
   const config = resolveModelConfig(modelId);
 
   // ACP 后端分流
+  console.log("[ModelService] backend=", config.backend, "userId=", options?.userId || "(none)", "chatId=", options?.chatId ?? "(none)");
   if (config.backend === "acp" && options?.userId && options?.chatId) {
+    console.log("[ACP] ========== ACP 分流触发 ==========");
+    console.log("[ACP] modelId:", modelId, "provider:", config.provider, "modelName:", config.modelName);
+    console.log("[ACP] userId:", options.userId, "projectId:", options.projectId ?? "(none)", "workspaceId:", options.workspaceId ?? "(none)");
+    console.log("[ACP] chatId:", options.chatId, "cwd:", options.cwd ?? process.cwd());
+    console.log("[ACP] messages count:", messages.length);
+    console.log("[ACP] ============================================");
     const { streamAcpModelResponse } = await import("./acp-model-service");
     yield* streamAcpModelResponse(modelId, messages, {
       userId: options.userId,
@@ -87,6 +95,7 @@ export async function* streamModelResponse(
     });
     return;
   }
+  console.log("[ModelService] 使用 SDK 直调模式 (backend=", config.backend, ")");
 
   // Format conversation as prompt text
   const promptParts: string[] = [];
@@ -274,7 +283,7 @@ export async function* streamModelResponse(
   };
   sdkOptions.allowedTools = [
     "mcp__rabbitdocs_client__*",
-    "mcp__rabbitdocs__*",
+    "mcp__rabbit-docs-mcp__*",
     "mcp__gitnexus__*",
     "mcp__zhipu-web-search-sse__*",
     "Read", "Write", "Edit",
@@ -380,6 +389,71 @@ export async function* streamModelResponse(
           "has signature:",
           !!lastThinkingSignature
         );
+
+        // ── Token usage 采集 ──
+        const msgAny = message as Record<string, unknown>;
+        const usage = msgAny.usage as {
+          input_tokens: number;
+          output_tokens: number;
+          cache_creation_input_tokens: number;
+          cache_read_input_tokens: number;
+        } | undefined;
+        const apiUsage = msgAny.apiUsage as {
+          input_tokens: number;
+          output_tokens: number;
+          cache_creation_input_tokens: number;
+          cache_read_input_tokens: number;
+        } | undefined;
+        const tokenUsage = usage || apiUsage;
+        const totalCostUsd = msgAny.total_cost_usd as number | undefined;
+        const durationMs = msgAny.duration_ms as number | undefined;
+        const numTurns = msgAny.num_turns as number | undefined;
+
+        if (tokenUsage) {
+          const totalTokens = (tokenUsage.input_tokens || 0) + (tokenUsage.output_tokens || 0);
+          console.log(
+            "[AgentSDK] token usage: input=", tokenUsage.input_tokens,
+            "output=", tokenUsage.output_tokens,
+            "total=", totalTokens,
+            "cost=", totalCostUsd
+          );
+          // 持久化到 token_usage_logs
+          try {
+            db.insert(tokenUsageLogs).values({
+              userId: options?.userId || "unknown",
+              modelId,
+              chatId: options?.chatId,
+              backend: "sdk",
+              inputTokens: tokenUsage.input_tokens || 0,
+              outputTokens: tokenUsage.output_tokens || 0,
+              cacheCreationInputTokens: tokenUsage.cache_creation_input_tokens || 0,
+              cacheReadInputTokens: tokenUsage.cache_read_input_tokens || 0,
+              totalTokens,
+              costUsd: Math.round((totalCostUsd || 0) * 10000),
+              durationMs: durationMs || 0,
+              numTurns: numTurns || 1,
+              projectId: options?.projectId,
+              workspaceId: options?.workspaceId,
+              createdAt: new Date().toISOString(),
+            }).run();
+          } catch (err) {
+            console.error("[TokenUsage] failed to log usage:", err);
+          }
+
+          // 向前端发送 usage 事件
+          yield {
+            type: "usage" as const,
+            inputTokens: tokenUsage.input_tokens || 0,
+            outputTokens: tokenUsage.output_tokens || 0,
+            cacheCreationInputTokens: tokenUsage.cache_creation_input_tokens || 0,
+            cacheReadInputTokens: tokenUsage.cache_read_input_tokens || 0,
+            totalTokens,
+            costUsd: totalCostUsd,
+            durationMs,
+            numTurns,
+          };
+        }
+
         yield {
           type: "done",
           fullText: resultText,

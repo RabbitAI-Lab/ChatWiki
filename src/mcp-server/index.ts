@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import { randomUUID } from "node:crypto";
+import { z } from "zod/v4";
 import { registerProjectTools } from "./tools/project";
 import { registerFileTools } from "./tools/file";
 import { registerDirectoryTools } from "./tools/directory";
@@ -18,6 +19,9 @@ function createMcpServer(): McpServer {
   registerFileTools(server);
   registerDirectoryTools(server);
   registerTemplateTools(server);
+  // Client tools (refresh_file_tree, preview_html) — 供 ACP Agent 使用
+  // 实际动作由前端通过 SSE tool_call 事件执行，这里只返回固定文本
+  registerClientTools(server);
   return server;
 }
 
@@ -86,4 +90,43 @@ export function startMcpServer() {
       `[MCP] RabbitDocs MCP Server running on http://${HOST}:${PORT}/mcp`
     );
   });
+}
+
+/**
+ * 注册 client tools（refresh_file_tree, preview_html）到 MCP server。
+ * 这些工具用于通知前端刷新文件树或预览 HTML 文件。
+ * ACP Agent 通过 MCP 调用这些工具，前端通过 SSE tool_call 事件执行实际动作。
+ */
+function registerClientTools(server: McpServer) {
+  server.registerTool(
+    "refresh_file_tree",
+    {
+      description:
+        "Refresh the file tree in the user's UI. Call this tool after you create, delete, or rename files or directories so the user immediately sees the updated file tree.",
+    },
+    async () => ({
+      content: [
+        { type: "text" as const, text: "File tree refresh notification sent." },
+      ],
+    })
+  );
+
+  server.registerTool(
+    "preview_html",
+    {
+      description:
+        "Open or switch to an HTML file in the project workspace tab. The path is relative to the project root, e.g. 'docs/index.html'.",
+      inputSchema: z.object({ path: z.string().describe("HTML file path relative to the project root, e.g. 'docs/foo.html'") }),
+    },
+    async ({ path }: { path: string }) => {
+      if (!path || typeof path !== "string" || !path.endsWith(".html")) {
+        throw new Error("preview_html only accepts .html files");
+      }
+      return {
+        content: [
+          { type: "text" as const, text: `Preview requested for ${path}` },
+        ],
+      };
+    }
+  );
 }

@@ -2,13 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ReactElement } from "react";
-import type { DocumentActivity } from "@/lib/types";
-
-interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-}
+import type { DocumentActivity, RecentChat } from "@/lib/types";
 
 interface ActivityPanelProps {
   recentChats: RecentChat[];
@@ -105,9 +99,16 @@ export default function ActivityPanel({
                 <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                <span className="flex-1 text-sm text-gray-700 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {chat.title || t('activity.newChat')}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="block text-sm text-gray-700 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {chat.title || t('activity.newChat')}
+                  </span>
+                  <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    {chat.creatorName && `${t('activity.by')} ${chat.creatorName}`}
+                    {chat.modifierName && chat.creatorName !== chat.modifierName &&
+                      ` · ${t('activity.lastModifiedBy')} ${chat.modifierName}`}
+                  </span>
+                </div>
                 <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                   {formatDate(chat.updatedAt)}
                 </span>
@@ -149,6 +150,9 @@ export default function ActivityPanel({
                   </span>
                   <span className={`text-xs shrink-0 ${config.color}`}>
                     {t(config.labelKey)}
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                    {doc.userName || t('activity.systemUser')}
                   </span>
                   <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                     {formatDate(doc.createdAt)}

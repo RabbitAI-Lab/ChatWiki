@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
-import { documentActivities } from "@/db/schema";
+import { documentActivities, users } from "@/db/schema";
 import { eq, gte, desc, and } from "drizzle-orm";
 import { getApiT } from "@/lib/i18n-api";
 
@@ -24,8 +24,19 @@ export async function GET(req: NextRequest) {
   }
 
   const activities = db
-    .select()
+    .select({
+      id: documentActivities.id,
+      projectId: documentActivities.projectId,
+      documentPath: documentActivities.documentPath,
+      documentTitle: documentActivities.documentTitle,
+      action: documentActivities.action,
+      oldTitle: documentActivities.oldTitle,
+      userId: documentActivities.userId,
+      userName: users.name,
+      createdAt: documentActivities.createdAt,
+    })
     .from(documentActivities)
+    .leftJoin(users, eq(documentActivities.userId, users.id))
     .where(and(...conditions))
     .orderBy(desc(documentActivities.createdAt))
     .limit(limit)

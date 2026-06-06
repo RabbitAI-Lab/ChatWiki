@@ -13,6 +13,8 @@ interface Chat {
   workspaceId: string | null;
   modelName: string | null;
   templateName: string | null;
+  creatorName: string | null;
+  modifierName: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +30,29 @@ interface ChatsData {
 interface ProjectMeta {
   id: string;
   name: string;
+  ownerId?: string;
+}
+
+type TabScope = "owned" | "participated";
+
+// Project icon (folder)
+function ProjectIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+// Workspace icon (layers)
+function WorkspaceIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  );
 }
 
 export default function ChatsPageClient() {
@@ -36,50 +61,65 @@ export default function ChatsPageClient() {
   const t = useTranslations('chatsPage');
   const ts = useTranslations('settings');
   const [data, setData] = useState<ChatsData | null>(null);
-  const [projectMap, setProjectMap] = useState<Map<string, string>>(new Map());
-  const [workspaceMap, setWorkspaceMap] = useState<Map<string, string>>(new Map());
+  const [allProjects, setAllProjects] = useState<ProjectMeta[]>([]);
+  const [allWorkspaces, setAllWorkspaces] = useState<ProjectMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<TabScope>("owned");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const pageSize = 20;
 
+  // Build maps from allProjects/allWorkspaces (which include both owned and member entities)
+  const projectMap = (() => {
+    const map = new Map<string, string>();
+    for (const p of allProjects) map.set(p.id, p.name);
+    return map;
+  })();
+  const workspaceMap = (() => {
+    const map = new Map<string, string>();
+    for (const w of allWorkspaces) map.set(w.id, w.name);
+    return map;
+  })();
+
+  // Fetch all projects & workspaces (includes member entities)
   useEffect(() => {
     if (authLoading || !user) return;
     authFetch(`/api/fs/projects?type=personal&accountId=${user.id}`)
       .then((res) => res.json())
-      .then((projects: ProjectMeta[] | { error: string }) => {
-        if (Array.isArray(projects)) {
-          const map = new Map<string, string>();
-          for (const p of projects) map.set(p.id, p.name);
-          setProjectMap(map);
-        }
+      .then((data: ProjectMeta[] | { error: string }) => {
+        if (Array.isArray(data)) setAllProjects(data);
       });
     authFetch(`/api/fs/workspaces?type=personal&accountId=${user.id}`)
       .then((res) => res.json())
-      .then((workspaces: ProjectMeta[] | { error: string }) => {
-        if (Array.isArray(workspaces)) {
-          const map = new Map<string, string>();
-          for (const w of workspaces) map.set(w.id, w.name);
-          setWorkspaceMap(map);
-        }
+      .then((data: ProjectMeta[] | { error: string }) => {
+        if (Array.isArray(data)) setAllWorkspaces(data);
       });
   }, [authLoading, user, authFetch]);
 
+  // Fetch chats based on activeTab
   useEffect(() => {
     if (authLoading || !user) return;
-    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
+    setLoading(true);
+    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}&scope=${activeTab}`)
       .then((res) => res.json())
       .then((json) => {
         setData(json);
         setLoading(false);
       });
-  }, [page, authLoading, user, authFetch]);
+  }, [page, activeTab, authLoading, user, authFetch]);
+
+  const handleTabChange = (tab: TabScope) => {
+    setActiveTab(tab);
+    setPage(1);
+    setConfirmDeleteId(null);
+    setShowClearConfirm(false);
+  };
 
   const handleDelete = async (chatId: number) => {
     await authFetch(`/api/chats/${chatId}`, { method: "DELETE" });
     setConfirmDeleteId(null);
-    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
+    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}&scope=${activeTab}`)
       .then((res) => res.json())
       .then((json) => setData(json));
   };
@@ -87,7 +127,7 @@ export default function ChatsPageClient() {
   const handleClearAll = async () => {
     await authFetch("/api/chats", { method: "DELETE" });
     setShowClearConfirm(false);
-    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}`)
+    authFetch(`/api/chats?page=${page}&pageSize=${pageSize}&scope=${activeTab}`)
       .then((res) => res.json())
       .then((json) => setData(json));
     router.refresh();
@@ -104,15 +144,38 @@ export default function ChatsPageClient() {
     });
   };
 
+  const renderLocation = (chat: Chat) => {
+    if (chat.projectId) {
+      const name = projectMap.get(chat.projectId) || chat.projectId;
+      return (
+        <span className="flex items-center gap-1.5">
+          <ProjectIcon className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+          <span className="truncate">{name}</span>
+        </span>
+      );
+    }
+    if (chat.workspaceId) {
+      const name = workspaceMap.get(chat.workspaceId) || chat.workspaceId;
+      return (
+        <span className="flex items-center gap-1.5">
+          <WorkspaceIcon className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
+          <span className="truncate">{name}</span>
+        </span>
+      );
+    }
+    return <span className="text-gray-300 dark:text-zinc-600">-</span>;
+  };
+
   return (
     <div className="h-full flex flex-col p-6">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('title')}</h1>
         <span className="flex items-center gap-3">
           <span className="text-sm text-gray-400 dark:text-gray-500">
             {data ? t('totalChats', { count: data.total }) : ""}
           </span>
-          {data && data.total > 0 && (
+          {activeTab === "owned" && data && data.total > 0 && (
             <span className="relative">
               <button
                 onClick={() => setShowClearConfirm(true)}
@@ -139,6 +202,31 @@ export default function ChatsPageClient() {
         </span>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-4 border-b border-gray-200 dark:border-zinc-700">
+        <button
+          onClick={() => handleTabChange("owned")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "owned"
+              ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400"
+              : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
+          }`}
+        >
+          {t('tabMyEntities')}
+        </button>
+        <button
+          onClick={() => handleTabChange("participated")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "participated"
+              ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400"
+              : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
+          }`}
+        >
+          {t('tabParticipated')}
+        </button>
+      </div>
+
+      {/* Content */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-gray-400 dark:text-gray-500">{t('loading')}</div>
@@ -146,31 +234,34 @@ export default function ChatsPageClient() {
       ) : data && data.chats.length > 0 ? (
         <>
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ tableLayout: "fixed" }}>
               <thead>
                 <tr className="border-b border-gray-200 dark:border-zinc-700">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "300px" }}>
                     {ts('columnTitle')}
                   </th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-56">
-                    {ts('columnProject')}
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "192px" }}>
+                    {t('columnLocation')}
                   </th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">
-                    {ts('columnWorkspace')}
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "112px" }}>
+                    {t('columnCreator')}
                   </th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-36">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "112px" }}>
+                    {t('columnModifier')}
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "144px" }}>
                     {ts('columnModel')}
                   </th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-36">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "144px" }}>
                     {ts('columnTemplate')}
                   </th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-44">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "176px" }}>
                     {ts('columnCreated')}
                   </th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-44">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{ width: "176px" }}>
                     {ts('columnUpdated')}
                   </th>
-                  <th className="w-12"></th>
+                  <th style={{ width: "48px" }}></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-zinc-700/50">
@@ -187,26 +278,29 @@ export default function ChatsPageClient() {
                     className="hover:bg-blue-50 dark:hover:bg-zinc-700/50 cursor-pointer transition-colors"
                   >
                     <td className="py-3 px-4">
-                      <span className="text-sm text-gray-800 dark:text-gray-100">
+                      <span className="text-sm text-gray-800 dark:text-gray-100 truncate block">
                         {chat.title}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
-                      {chat.projectId ? (projectMap.get(chat.projectId) || chat.projectId) : <span className="text-gray-300 dark:text-zinc-600">-</span>}
+                      {renderLocation(chat)}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
-                      {chat.workspaceId ? (workspaceMap.get(chat.workspaceId) || chat.workspaceId) : <span className="text-gray-300 dark:text-zinc-600">-</span>}
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {chat.creatorName || <span className="text-gray-300 dark:text-zinc-600">-</span>}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {chat.modifierName || <span className="text-gray-300 dark:text-zinc-600">-</span>}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 truncate">
                       {chat.modelName || <span className="text-gray-300 dark:text-zinc-600">-</span>}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 truncate">
                       {chat.templateName || <span className="text-gray-300 dark:text-zinc-600">-</span>}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {formatDate(chat.createdAt)}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
+                    <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {formatDate(chat.updatedAt)}
                     </td>
                     <td className="py-3 px-4">

@@ -29,6 +29,7 @@ interface WorkspaceSidebarProps {
   onRenameConfirm: () => void;
   onRenameCancel: () => void;
   onRenamingNameChange: (name: string) => void;
+  onRefresh?: () => void;
 }
 
 export default function WorkspaceSidebar({
@@ -49,12 +50,26 @@ export default function WorkspaceSidebar({
   onRenameConfirm,
   onRenameCancel,
   onRenamingNameChange,
+  onRefresh,
 }: WorkspaceSidebarProps) {
   const t = useTranslations('workspace');
+  const tc = useTranslations('common');
   return (
     <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
-      <div className="px-3 h-[41px] flex items-center border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+      <div className="px-3 h-[41px] flex items-center justify-between border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{t('documents', { name: workspaceName })}</h3>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
+            title={tc('refresh')}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="px-2 py-1.5 border-b border-gray-100 dark:border-zinc-700 dark:border-zinc-700 flex gap-1">

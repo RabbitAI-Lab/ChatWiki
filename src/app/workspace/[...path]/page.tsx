@@ -1,7 +1,8 @@
 import { readWorkspaceMeta, listWorkspaceProjects, listTree, stripTreePrefix, readDocument } from "@/lib/fs";
 import { db } from "@/db";
-import { chats, documentActivities } from "@/db/schema";
+import { chats, documentActivities, users } from "@/db/schema";
 import { gte, desc, eq, and, inArray } from "drizzle-orm";
+import { aliasedTable } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/tokens";
@@ -76,14 +77,20 @@ export default async function WorkspacePage({
     gte(chats.updatedAt, twentyDaysAgo),
   ];
 
+  const modifierUser = aliasedTable(users, "modifier_user");
+
   const recentChats = db
     .select({
       id: chats.id,
       title: chats.title,
       updatedAt: chats.updatedAt,
       projectId: chats.projectId,
+      creatorName: users.name,
+      modifierName: modifierUser.name,
     })
     .from(chats)
+    .leftJoin(users, eq(chats.userId, users.id))
+    .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(and(...chatConditions))
     .orderBy(desc(chats.updatedAt))
     .all();
@@ -93,8 +100,19 @@ export default async function WorkspacePage({
     projectIds.length === 0
       ? []
       : db
-          .select()
+          .select({
+            id: documentActivities.id,
+            projectId: documentActivities.projectId,
+            documentPath: documentActivities.documentPath,
+            documentTitle: documentActivities.documentTitle,
+            action: documentActivities.action,
+            oldTitle: documentActivities.oldTitle,
+            userId: documentActivities.userId,
+            userName: users.name,
+            createdAt: documentActivities.createdAt,
+          })
           .from(documentActivities)
+          .leftJoin(users, eq(documentActivities.userId, users.id))
           .where(
             and(
               inArray(documentActivities.projectId, projectIds),

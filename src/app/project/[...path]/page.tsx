@@ -1,7 +1,8 @@
 import { listTree, readDocument, readProjectMeta, stripTreePrefix } from "@/lib/fs";
 import { db } from "@/db";
-import { chats, accounts, documentActivities } from "@/db/schema";
+import { chats, accounts, documentActivities, users } from "@/db/schema";
 import { gte, desc, eq, and } from "drizzle-orm";
+import { aliasedTable } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/tokens";
@@ -84,17 +85,39 @@ export default async function ProjectPage({
     gte(chats.updatedAt, twentyDaysAgo),
     eq(chats.projectId, projectId),
   ];
+  const modifierUser = aliasedTable(users, "modifier_user");
+
   const recentChats = db
-    .select({ id: chats.id, title: chats.title, updatedAt: chats.updatedAt })
+    .select({
+      id: chats.id,
+      title: chats.title,
+      updatedAt: chats.updatedAt,
+      projectId: chats.projectId,
+      creatorName: users.name,
+      modifierName: modifierUser.name,
+    })
     .from(chats)
+    .leftJoin(users, eq(chats.userId, users.id))
+    .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(and(...chatConditions))
     .orderBy(desc(chats.updatedAt))
     .all();
 
   // Fetch recent document activities for this project (last 20 days)
   const recentDocuments = db
-    .select()
+    .select({
+      id: documentActivities.id,
+      projectId: documentActivities.projectId,
+      documentPath: documentActivities.documentPath,
+      documentTitle: documentActivities.documentTitle,
+      action: documentActivities.action,
+      oldTitle: documentActivities.oldTitle,
+      userId: documentActivities.userId,
+      userName: users.name,
+      createdAt: documentActivities.createdAt,
+    })
     .from(documentActivities)
+    .leftJoin(users, eq(documentActivities.userId, users.id))
     .where(and(
       eq(documentActivities.projectId, projectId),
       gte(documentActivities.createdAt, twentyDaysAgo)

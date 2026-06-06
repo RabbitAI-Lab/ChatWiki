@@ -51,7 +51,7 @@ export default function ChatHistoryPopover({
       setLoading(true);
     }
     try {
-      const res = await authFetch(`/api/chats?page=${pageNum}&pageSize=${PAGE_SIZE}`);
+      const res = await authFetch(`/api/chats?page=${pageNum}&pageSize=${PAGE_SIZE}&scope=all`);
       if (res.ok) {
         const data: ChatsResponse = await res.json();
         if (append) {

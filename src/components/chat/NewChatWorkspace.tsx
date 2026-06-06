@@ -79,7 +79,7 @@ export default function NewChatWorkspace() {
   const refreshRecentChats = useCallback(async (projectId: string) => {
     const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const res = await authFetch(`/api/chats?projectId=${projectId}&since=${twentyDaysAgo}&pageSize=20`);
+      const res = await authFetch(`/api/chats?projectId=${projectId}&since=${twentyDaysAgo}&pageSize=20&scope=all`);
       const data = await res.json();
       setRecentChats(data.chats || []);
     } catch {
@@ -197,17 +197,30 @@ export default function NewChatWorkspace() {
         {selectedProjectId ? (
           <>
             {/* Selected project header */}
-            <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center gap-2">
+            <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={handleBack}
+                  className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors shrink-0"
+                  title={t("newChatWorkspace.backToProjectList")}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{selectedProjectName} {t("tabs.documents")}</h3>
+              </div>
               <button
-                onClick={handleBack}
-                className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                title={t("newChatWorkspace.backToProjectList")}
+                onClick={() => fileTree.refreshTree()}
+                disabled={fileTree.treeLoading}
+                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
+                title={tc("refresh")}
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6" />
+                <svg className={`w-3.5 h-3.5 ${fileTree.treeLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                 </svg>
               </button>
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{selectedProjectName} {t("tabs.documents")}</h3>
             </div>
 
             {/* File tree toolbar */}

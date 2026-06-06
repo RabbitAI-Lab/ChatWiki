@@ -7,6 +7,8 @@ import type { StreamEvent } from "./types";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { getOrCreateEntry, getOrCreateSession, buildPoolKey, type AcpPoolConfig } from "./acp-pool";
 import { resolveModelConfig } from "./model-service";
+import { db } from "@/db";
+import { tokenUsageLogs } from "@/db/schema";
 
 export async function* streamAcpModelResponse(
   modelId: number,
@@ -38,26 +40,45 @@ export async function* streamAcpModelResponse(
     extraEnvJson: config.extraEnvJson,
   };
 
+  console.log("[ACP] streamAcpModelResponse 开始");
+  console.log("[ACP]   modelId:", modelId);
+  console.log("[ACP]   key:", key);
+  console.log("[ACP]   poolConfig.cwd:", poolConfig.cwd);
+  console.log("[ACP]   poolConfig.modelName:", poolConfig.modelName);
+  console.log("[ACP]   poolConfig.baseUrl:", poolConfig.baseUrl);
+  console.log("[ACP]   messages count:", messages.length);
+  console.log("[ACP]   options.userId:", options.userId);
+  console.log("[ACP]   options.chatId:", options.chatId);
+
   let accumulatedText = "";
   let accumulatedThinking = "";
 
   try {
     // 1. 获取或创建连接池 entry
+    console.log("[ACP] 获取连接池 entry, key=", key);
     const entry = await getOrCreateEntry(key, poolConfig);
+    console.log("[ACP] 连接池 entry 就绪, key=", key, "closed=", entry.closed);
 
     // 2. 获取或创建 session（按 chatId 复用）
     const chatIdStr = String(options.chatId);
+    const isNewSession = !entry.sessions.has(chatIdStr);
+    console.log("[ACP] 获取 session, chatId=", chatIdStr, "isNewSession=", isNewSession);
     const sessionId = await getOrCreateSession(entry, chatIdStr, poolConfig.cwd);
+    console.log("[ACP] sessionId=", sessionId);
 
     // 3. 准备 prompt 消息
-    // ACP 模式下仅发送最新一条用户消息（Agent 自身维护上下文）
-    // 但如果是新 session（第一轮），需要发送完整消息
-    const promptMessages = buildPromptMessages(messages, entry.sessions.has(chatIdStr));
+    const isContinuation = entry.sessions.has(chatIdStr);
+    const promptMessages = buildPromptMessages(messages, isContinuation);
+    console.log("[ACP] prompt 消息准备完毕, isContinuation=", isContinuation, "promptBlocks=", promptMessages.length);
+    if (promptMessages[0] && promptMessages[0].type === "text") {
+      console.log("[ACP] prompt text length=", promptMessages[0].text.length, "preview=", promptMessages[0].text.slice(0, 200));
+    }
 
     // 4. 重置 client 事件队列
     entry.clientRef.resetForNewPrompt();
 
-    // 5. 发起 prompt（异步，事件通过 sessionUpdate 回调推入队列）
+    // 5. 发起 prompt
+    console.log("[ACP] 发起 prompt, sessionId=", sessionId);
     const promptPromise = entry.connection
       .prompt({
         sessionId,
@@ -76,18 +97,21 @@ export async function* streamAcpModelResponse(
       });
 
     // 6. 同时消费事件队列和等待 prompt 完成
-    let promptDone = false;
+    let _promptDone = false;
     let promptError: Error | null = null;
 
     // 后台等待 prompt 完成
     void promptPromise.catch((err: unknown) => {
       promptError = err instanceof Error ? err : new Error(String(err));
     }).finally(() => {
-      promptDone = true;
+      _promptDone = true;
     });
 
     // 消费事件流
+    console.log("[ACP] 开始消费事件流...");
+    let eventCount = 0;
     for await (const event of entry.clientRef.drainEvents()) {
+      eventCount++;
       if (event.type === "text_delta") {
         accumulatedText += event.text;
         yield event;
@@ -97,9 +121,13 @@ export async function* streamAcpModelResponse(
         accumulatedThinking += event.text;
         yield event;
       } else if (event.type === "tool_call") {
+        console.log("[ACP] tool_call event:", event.toolName);
         yield event;
+      } else {
+        console.log("[ACP] unhandled event type:", event.type);
       }
     }
+    console.log("[ACP] 事件流结束, total events=", eventCount);
 
     // 7. 检查 prompt 是否有错误
     if (promptError) {
@@ -113,11 +141,60 @@ export async function* streamAcpModelResponse(
 
     // 8. 发送 done 事件
     console.log(
-      "[ACP] response complete: key=${key} textLength=",
+      "[ACP] response complete: key=", key, "textLength=",
       accumulatedText.length,
       "thinkingLength=",
       accumulatedThinking.length
     );
+
+    // ── Token usage 采集（ACP 模式） ──
+    const finalUsage = entry.clientRef.getLastUsageUpdate();
+    if (finalUsage) {
+      const prevUsed = entry.clientRef.getPrevUsageUsed();
+      const incrementalUsed = Math.max(0, finalUsage.used - prevUsed);
+      console.log(
+        "[ACP] usage: used=", finalUsage.used,
+        "prevUsed=", prevUsed,
+        "incremental=", incrementalUsed,
+        "contextSize=", finalUsage.size
+      );
+      try {
+        db.insert(tokenUsageLogs).values({
+          userId: options.userId,
+          modelId,
+          chatId: options.chatId,
+          backend: "acp",
+          inputTokens: 0,
+          outputTokens: incrementalUsed,
+          cacheCreationInputTokens: 0,
+          cacheReadInputTokens: 0,
+          totalTokens: incrementalUsed,
+          costUsd: finalUsage.cost
+            ? Math.round(finalUsage.cost.amount * 10000)
+            : 0,
+          contextSize: finalUsage.size,
+          contextUsed: finalUsage.used,
+          projectId: options.projectId,
+          workspaceId: options.workspaceId,
+          createdAt: new Date().toISOString(),
+        }).run();
+      } catch (err) {
+        console.error("[ACP TokenUsage] failed to log:", err);
+      }
+
+      // 向前端发送 usage 事件
+      yield {
+        type: "usage" as const,
+        inputTokens: 0,
+        outputTokens: incrementalUsed,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        totalTokens: incrementalUsed,
+        costUsd: finalUsage.cost?.amount,
+        contextSize: finalUsage.size,
+        contextUsed: finalUsage.used,
+      };
+    }
 
     yield {
       type: "done",

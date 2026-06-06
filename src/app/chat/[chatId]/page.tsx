@@ -1,6 +1,7 @@
 import { db } from "@/db";
-import { chats, chatMessages, documentActivities } from "@/db/schema";
+import { chats, chatMessages, documentActivities, users } from "@/db/schema";
 import { gte, desc, eq, and } from "drizzle-orm";
+import { aliasedTable } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/tokens";
@@ -66,8 +67,8 @@ export default async function ChatPage({
   let initialTree: TreeNode[] = [];
   let projectName: string | undefined;
   let projectMeta: ProjectMeta | null = null;
-  let recentChats: Array<{ id: number; title: string; updatedAt: string }> = [];
-  let recentDocuments: Array<typeof documentActivities.$inferSelect> = [];
+  let recentChats: Array<{ id: number; title: string; updatedAt: string; projectId: string | null; creatorName: string | null; modifierName: string | null }> = [];
+  let recentDocuments: Array<{ id: number; projectId: string; documentPath: string; documentTitle: string; action: "create" | "update" | "delete" | "rename"; oldTitle: string | null; userId: string | null; userName: string | null; createdAt: string }> = [];
 
   if (chat.projectId) {
     const projectDirSegments = findProjectDirSegments(chat.projectId, currentUserId);
@@ -86,16 +87,38 @@ export default async function ChatPage({
       gte(chats.updatedAt, twentyDaysAgo),
       eq(chats.projectId, chat.projectId!),
     ];
+    const modifierUser = aliasedTable(users, "modifier_user");
+
     recentChats = db
-      .select({ id: chats.id, title: chats.title, updatedAt: chats.updatedAt })
+      .select({
+        id: chats.id,
+        title: chats.title,
+        updatedAt: chats.updatedAt,
+        projectId: chats.projectId,
+        creatorName: users.name,
+        modifierName: modifierUser.name,
+      })
       .from(chats)
+      .leftJoin(users, eq(chats.userId, users.id))
+      .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
       .where(and(...chatFilterConditions))
       .orderBy(desc(chats.updatedAt))
       .all();
 
     recentDocuments = db
-      .select()
+      .select({
+        id: documentActivities.id,
+        projectId: documentActivities.projectId,
+        documentPath: documentActivities.documentPath,
+        documentTitle: documentActivities.documentTitle,
+        action: documentActivities.action,
+        oldTitle: documentActivities.oldTitle,
+        userId: documentActivities.userId,
+        userName: users.name,
+        createdAt: documentActivities.createdAt,
+      })
       .from(documentActivities)
+      .leftJoin(users, eq(documentActivities.userId, users.id))
       .where(and(
         eq(documentActivities.projectId, chat.projectId),
         gte(documentActivities.createdAt, twentyDaysAgo)

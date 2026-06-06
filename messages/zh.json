@@ -549,6 +549,10 @@
       "discountPercentage": "百分比（如 8.5折）",
       "discountFixed": "固定价格",
       "sectionSettings": "设置",
+      "sectionTokenQuota": "Token 配额",
+      "formTokenLimitMonthly": "月 Token 配额",
+      "formTokenLimitYearly": "年 Token 配额",
+      "tokenLimitTooltip": "0 = 无限制",
       "formStatus": "状态",
       "formStatusEnabled": "已启用",
       "formStatusDisabled": "已禁用",
@@ -934,7 +938,11 @@
       "actionModified": "已修改",
       "actionDeleted": "已删除",
       "actionRenamed": "已重命名",
-      "deleted": "已删除"
+      "deleted": "已删除",
+      "by": "由",
+      "unknownUser": "未知用户",
+      "systemUser": "系统",
+      "lastModifiedBy": "最后修改"
     }
   },
   "project": {
@@ -1144,7 +1152,11 @@
       "actionModified": "已修改",
       "actionDeleted": "已删除",
       "actionRenamed": "已重命名",
-      "deleted": "已删除"
+      "deleted": "已删除",
+      "by": "由",
+      "unknownUser": "未知用户",
+      "systemUser": "系统",
+      "lastModifiedBy": "最后修改"
     },
     "shareHtml": {
       "title": "分享为 HTML",
@@ -1308,7 +1320,12 @@
     "startNewChat": "开始新对话",
     "previous": "上一页",
     "next": "下一页",
-    "pageInfo": "第 {page} / {totalPages} 页"
+    "pageInfo": "第 {page} / {totalPages} 页",
+    "tabMyEntities": "我的项目/空间",
+    "tabParticipated": "我参与的项目/空间",
+    "columnLocation": "位置",
+    "columnCreator": "创建人",
+    "columnModifier": "修改人"
   },
   "todosPage": {
     "title": "待办事项",
@@ -1375,7 +1392,25 @@
     "subscribeSuccess": "订阅成功！",
     "failedToSubscribe": "订阅失败",
     "savePerYear": "每年节省 {amount}",
-    "cancel": "取消"
+    "cancel": "取消",
+    "tokenUsage": "Token 用量",
+    "tokensUsed": "已使用 Token",
+    "tokensRemaining": "剩余: {count}",
+    "unlimited": "无限制",
+    "noQuota": "未配置 Token 配额",
+    "inputTokens": "输入 Token",
+    "outputTokens": "输出 Token",
+    "cacheTokens": "缓存 Token",
+    "requestsCount": "请求数",
+    "period": "周期",
+    "usageTrends": "用量趋势",
+    "tpm": "每分钟 Token 数",
+    "rpm": "每分钟请求数",
+    "last1h": "最近 1 小时",
+    "last24h": "最近 24 小时",
+    "last7d": "最近 7 天",
+    "last30d": "最近 30 天",
+    "noUsageData": "暂无用量数据"
   },
   "sandboxPage": {
     "title": "项目沙箱",

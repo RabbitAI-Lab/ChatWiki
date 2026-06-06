@@ -51,11 +51,25 @@ export function mapAcpUpdateToStreamEvents(update: SessionUpdate): StreamEvent[]
         });
       }
       // 非 client tool 的 tool_call 只记录日志，不映射到前端
-      console.log("[ACP] tool_call:", title, "toolName:", toolName);
+      console.log("[ACP Mapper] tool_call:", title, "toolName:", toolName);
       break;
     }
 
-    case "tool_call_update":
+    case "tool_call_update": {
+      // 检测文件写入/编辑完成，自动触发文件树刷新
+      const tcu = update as Record<string, unknown>;
+      const status = tcu.status as string | undefined;
+      const title = tcu.title as string | undefined;
+      if (status === "completed" && title) {
+        const toolName = extractToolName(title);
+        if (toolName === "Write" || toolName === "Edit") {
+          console.log(`[ACP Mapper] auto refresh_file_tree: tool=${toolName} completed`);
+          events.push({ type: "tool_call", toolName: "refresh_file_tree", args: {} });
+        }
+      }
+      console.log("[ACP Mapper] session update:", updateType, "status=", status, "title=", title);
+      break;
+    }
     case "plan":
     case "plan_update":
     case "plan_removed":
@@ -66,12 +80,12 @@ export function mapAcpUpdateToStreamEvents(update: SessionUpdate): StreamEvent[]
     case "usage_update":
     case "user_message_chunk": {
       // 这些更新类型不需要映射到前端，仅记录日志
-      console.log("[ACP] session update:", updateType);
+      console.log("[ACP Mapper] session update:", updateType);
       break;
     }
 
     default: {
-      console.log("[ACP] unknown session update:", updateType);
+      console.log("[ACP Mapper] unknown session update:", updateType);
       break;
     }
   }

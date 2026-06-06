@@ -549,6 +549,10 @@
       "discountPercentage": "Percentage (e.g. 15% off)",
       "discountFixed": "Fixed price",
       "sectionSettings": "Settings",
+      "sectionTokenQuota": "Token Quota",
+      "formTokenLimitMonthly": "Monthly Token Limit",
+      "formTokenLimitYearly": "Yearly Token Limit",
+      "tokenLimitTooltip": "0 = unlimited",
       "formStatus": "Status",
       "formStatusEnabled": "Enabled",
       "formStatusDisabled": "Disabled",
@@ -934,7 +938,11 @@
       "actionModified": "Modified",
       "actionDeleted": "Deleted",
       "actionRenamed": "Renamed",
-      "deleted": "Deleted"
+      "deleted": "Deleted",
+      "by": "by",
+      "unknownUser": "Unknown",
+      "systemUser": "System",
+      "lastModifiedBy": "Last modified"
     }
   },
   "project": {
@@ -1144,7 +1152,11 @@
       "actionModified": "Modified",
       "actionDeleted": "Deleted",
       "actionRenamed": "Renamed",
-      "deleted": "Deleted"
+      "deleted": "Deleted",
+      "by": "by",
+      "unknownUser": "Unknown",
+      "systemUser": "System",
+      "lastModifiedBy": "Last modified"
     },
     "shareHtml": {
       "title": "Share as HTML",
@@ -1308,7 +1320,12 @@
     "startNewChat": "Start new chat",
     "previous": "Previous",
     "next": "Next",
-    "pageInfo": "Page {page} / {totalPages}"
+    "pageInfo": "Page {page} / {totalPages}",
+    "tabMyEntities": "My Projects & Workspaces",
+    "tabParticipated": "Participated",
+    "columnLocation": "Location",
+    "columnCreator": "Creator",
+    "columnModifier": "Modifier"
   },
   "todosPage": {
     "title": "Todo",
@@ -1375,7 +1392,25 @@
     "subscribeSuccess": "Subscribed successfully!",
     "failedToSubscribe": "Failed to subscribe",
     "savePerYear": "Save {amount}/yr",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "tokenUsage": "Token Usage",
+    "tokensUsed": "Tokens Used",
+    "tokensRemaining": "Remaining: {count}",
+    "unlimited": "Unlimited",
+    "noQuota": "No token quota configured",
+    "inputTokens": "Input Tokens",
+    "outputTokens": "Output Tokens",
+    "cacheTokens": "Cache Tokens",
+    "requestsCount": "Requests",
+    "period": "Period",
+    "usageTrends": "Usage Trends",
+    "tpm": "Tokens per Minute",
+    "rpm": "Requests per Minute",
+    "last1h": "Last 1 Hour",
+    "last24h": "Last 24 Hours",
+    "last7d": "Last 7 Days",
+    "last30d": "Last 30 Days",
+    "noUsageData": "No usage data yet"
   },
   "sandboxPage": {
     "title": "Project Sandbox",

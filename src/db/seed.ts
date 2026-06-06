@@ -197,7 +197,7 @@ export async function seed() {
 Before using the RabbitDocs MCP, check if it is already installed.
 MCP configuration:
 {
-  "rabbitdocs": {
+  "rabbit-docs-mcp": {
     "type": "http",
     "url": "http://127.0.0.1:4001/mcp"
   }

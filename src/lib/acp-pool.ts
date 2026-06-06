@@ -123,10 +123,20 @@ export async function getOrCreateSession(
   }
 
   // 创建新 session
+  const mcpPort = parseInt(process.env.MCP_PORT || "4001");
+  const mcpHost = process.env.MCP_HOST || "127.0.0.1";
   console.log(`[ACP Pool] creating session: key=${entry.key} chatId=${chatId}`);
   const { sessionId } = await entry.connection.newSession({
     cwd,
-    mcpServers: [],
+    mcpServers: [
+      // ChatWiki MCP server（包含 refresh_file_tree、preview_html 等工具）
+      {
+        type: "http" as const,
+        name: "rabbitdocs_client",
+        url: `http://${mcpHost}:${mcpPort}/mcp`,
+        headers: [],
+      },
+    ],
   });
 
   entry.sessions.set(chatId, sessionId);
@@ -209,7 +219,7 @@ async function createEntry(key: string, config: AcpPoolConfig): Promise<AcpPoolE
     Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>
   );
 
-  const clientRef = new ChatWikiAcpClient();
+  const clientRef = new ChatWikiAcpClient(config.cwd);
   const connection = new ClientSideConnection(
     () => clientRef,
     stream

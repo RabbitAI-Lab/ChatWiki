@@ -39,6 +39,7 @@ export async function PATCH(
 
   const updates: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
+    updatedBy: auth.id,
   };
   if (title !== undefined) updates.title = title;
   if (modelId !== undefined) updates.modelId = modelId;

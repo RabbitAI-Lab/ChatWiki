@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { App } from "antd";
 import { useFloatingChat } from "@/components/chat/FloatingChatContext";
 import { TreeNode, computeDefaultDirName, computeDefaultFileName, findChildren, findNodeByPath, renameNodeInTree, insertNode } from "@/lib/tree";
-import type { DocumentActivity } from "@/lib/types";
+import type { DocumentActivity, RecentChat } from "@/lib/types";
 import type { WorkspaceMeta, ProjectMeta } from "@/lib/fs";
 
 import type { FileTab } from "./types";
@@ -15,13 +15,6 @@ import { WORKSPACE_INFO_TAB, CHAT_TAB } from "./types";
 import WorkspaceSidebar from "./WorkspaceSidebar";
 import WorkspaceTabBar from "./WorkspaceTabBar";
 import WorkspaceEditorArea from "./WorkspaceEditorArea";
-
-interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-  projectId: string | null;
-}
 
 interface WorkspaceDetailProps {
   workspaceMeta: WorkspaceMeta;
@@ -478,6 +471,7 @@ export default function WorkspaceDetail({
         onRenameConfirm={handleRenameConfirm}
         onRenameCancel={handleRenameCancel}
         onRenamingNameChange={setRenamingName}
+        onRefresh={() => router.refresh()}
       />
 
       {/* Right: Tab system */}

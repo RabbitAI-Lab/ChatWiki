@@ -2,14 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ReactElement } from "react";
-import type { DocumentActivity } from "@/lib/types";
-
-interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-  projectId: string | null; // 所属 project，可能为 null（游离 chat）
-}
+import type { DocumentActivity, RecentChat } from "@/lib/types";
 
 interface WorkspaceActivityPanelProps {
   recentChats: RecentChat[];
@@ -147,7 +140,7 @@ export default function WorkspaceActivityPanel({
             {recentChats.map((chat) => (
               <button
                 key={chat.id}
-                onClick={() => onSwitchToChat(chat.id, chat.projectId)}
+                onClick={() => onSwitchToChat(chat.id, chat.projectId ?? null)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors text-left group"
               >
                 <svg
@@ -159,9 +152,16 @@ export default function WorkspaceActivityPanel({
                 >
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                <span className="flex-1 text-sm text-gray-700 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {chat.title || t('activity.newChat')}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="block text-sm text-gray-700 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {chat.title || t('activity.newChat')}
+                  </span>
+                  <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    {chat.creatorName && `${t('activity.by')} ${chat.creatorName}`}
+                    {chat.modifierName && chat.creatorName !== chat.modifierName &&
+                      ` · ${t('activity.lastModifiedBy')} ${chat.modifierName}`}
+                  </span>
+                </div>
                 <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                   {formatDate(chat.updatedAt)}
                 </span>
@@ -213,6 +213,9 @@ export default function WorkspaceActivityPanel({
                   </span>
                   <span className={`text-xs shrink-0 ${config.color}`}>
                     {t(config.labelKey)}
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                    {doc.userName || t('activity.systemUser')}
                   </span>
                   <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                     {formatDate(doc.createdAt)}

@@ -1,12 +1,9 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import type { RecentChat } from "@/lib/types";
 
-export interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-}
+export type { RecentChat };
 
 const CHAT_TAB = "__chat__" as const;
 

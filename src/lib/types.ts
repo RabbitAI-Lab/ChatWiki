@@ -22,6 +22,19 @@ export type StreamToolCallEvent = {
   toolName: string;
   args: Record<string, unknown>;
 };
+export type StreamUsageEvent = {
+  type: "usage";
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationInputTokens: number;
+  cacheReadInputTokens: number;
+  totalTokens: number;
+  costUsd?: number;
+  contextSize?: number;
+  contextUsed?: number;
+  durationMs?: number;
+  numTurns?: number;
+};
 export type StreamEvent =
   | StreamDeltaEvent
   | StreamThinkingStartEvent
@@ -29,7 +42,8 @@ export type StreamEvent =
   | StreamThinkingSignatureEvent
   | StreamDoneEvent
   | StreamErrorEvent
-  | StreamToolCallEvent;
+  | StreamToolCallEvent
+  | StreamUsageEvent;
 
 // API 请求类型
 export type ChatCompletionRequest = {
@@ -50,7 +64,19 @@ export interface DocumentActivity {
   documentTitle: string;
   action: "create" | "update" | "delete" | "rename";
   oldTitle?: string | null;
+  userId?: string | null;
+  userName?: string | null;   // JOIN users 解析出的用户名
   createdAt: string;
+}
+
+/** 最近聊天记录摘要 */
+export interface RecentChat {
+  id: number;
+  title: string;
+  updatedAt: string;
+  projectId: string | null;
+  creatorName?: string | null;    // 创建人名称
+  modifierName?: string | null;   // 最后修改人名称
 }
 
 // 自定义错误类

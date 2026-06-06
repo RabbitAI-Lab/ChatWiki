@@ -1,50 +1,114 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
-import { chats, modelConfigs, templates } from "@/db/schema";
+import { chats, modelConfigs, templates, users, entities, entityMembers } from "@/db/schema";
 import { and, desc, eq, gte, isNull, or, sql, inArray, SQL } from "drizzle-orm";
-import { findMemberEntityIds } from "@/lib/fs";
+import { aliasedTable } from "drizzle-orm";
 
-// GET /api/chats?page=1&pageSize=20&projectId=xxx&since=ISO_DATE
+// GET /api/chats?page=1&pageSize=20&scope=owned|participated|all&projectId=xxx&since=ISO_DATE
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const url = new URL(req.url);
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const pageSize = Math.max(1, Math.min(100, Number(url.searchParams.get("pageSize") ?? "20")));
+  const scope = url.searchParams.get("scope") || "owned";
   const projectId = url.searchParams.get("projectId");
   const workspaceId = url.searchParams.get("workspaceId");
   const since = url.searchParams.get("since");
   const offset = (page - 1) * pageSize;
 
-  // 用户隔离: 显示自己的 chats + 项目成员可见的 chats（userId 为 null 的旧数据也可见）
-  const userCondition = or(eq(chats.userId, auth.id), isNull(chats.userId));
-
-  // 查找用户作为成员的项目 ID，这些项目的 chats 也应该可见
-  const memberProjectIds = findMemberEntityIds(auth.id, "projects", ".project.json");
-  const memberWorkspaceIds = findMemberEntityIds(auth.id, "workspace", ".workspace.json");
-
-  // 构建成员可见的 chats 条件：项目或工作空间关联的 chats
-  let memberCondition: SQL | undefined = undefined;
-  if (memberProjectIds.length > 0 || memberWorkspaceIds.length > 0) {
-    const memberParts: SQL[] = [];
-    if (memberProjectIds.length > 0) {
-      memberParts.push(inArray(chats.projectId, memberProjectIds));
-    }
-    if (memberWorkspaceIds.length > 0) {
-      memberParts.push(inArray(chats.workspaceId, memberWorkspaceIds));
-    }
-    // 成员 chats 条件：属于成员项目/工作空间的（不要求 userId 匹配）
-    memberCondition = memberParts.length === 1 ? memberParts[0] : or(...memberParts);
-  }
-
-  // 综合条件：自己的 chats OR 成员项目/工作空间的 chats
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const conditions: any[] = [];
-  if (memberCondition) {
-    conditions.push(or(userCondition, memberCondition)!);
+
+  if (scope === "all") {
+    // 兼容旧调用: 显示自己的 chats + 成员项目/工作空间的 chats
+    const userCondition = or(eq(chats.userId, auth.id), isNull(chats.userId));
+    const ownedEntities = db
+      .select({ id: entities.id, type: entities.type })
+      .from(entities)
+      .where(eq(entities.ownerId, auth.id))
+      .all();
+    const ownedProjectIds = ownedEntities.filter(e => e.type === "project").map(e => e.id);
+    const ownedWorkspaceIds = ownedEntities.filter(e => e.type === "workspace").map(e => e.id);
+    const memberProjectIds = [...ownedProjectIds];
+    const memberWorkspaceIds = [...ownedWorkspaceIds];
+    // 查找参与的实体
+    const memberRows = db
+      .select({ entityId: entityMembers.entityId })
+      .from(entityMembers)
+      .where(eq(entityMembers.userId, auth.id))
+      .all();
+    if (memberRows.length > 0) {
+      const memberEntities = db
+        .select({ id: entities.id, type: entities.type })
+        .from(entities)
+        .where(inArray(entities.id, memberRows.map(r => r.entityId)))
+        .all();
+      for (const e of memberEntities) {
+        if (e.type === "project" && !memberProjectIds.includes(e.id)) memberProjectIds.push(e.id);
+        if (e.type === "workspace" && !memberWorkspaceIds.includes(e.id)) memberWorkspaceIds.push(e.id);
+      }
+    }
+    const memberParts: SQL[] = [];
+    if (memberProjectIds.length > 0) memberParts.push(inArray(chats.projectId, memberProjectIds));
+    if (memberWorkspaceIds.length > 0) memberParts.push(inArray(chats.workspaceId, memberWorkspaceIds));
+    if (memberParts.length > 0) {
+      conditions.push(or(userCondition!, ...memberParts)!);
+    } else {
+      conditions.push(userCondition!);
+    }
+  } else if (scope === "owned") {
+    // "我的项目/空间": 查 entities 表中 ownerId = auth.id 的 project/workspace
+    const ownedEntities = db
+      .select({ id: entities.id, type: entities.type })
+      .from(entities)
+      .where(eq(entities.ownerId, auth.id))
+      .all();
+    const ownedProjectIds = ownedEntities.filter(e => e.type === "project").map(e => e.id);
+    const ownedWorkspaceIds = ownedEntities.filter(e => e.type === "workspace").map(e => e.id);
+
+    const parts: SQL[] = [];
+    if (ownedProjectIds.length > 0) parts.push(inArray(chats.projectId, ownedProjectIds));
+    if (ownedWorkspaceIds.length > 0) parts.push(inArray(chats.workspaceId, ownedWorkspaceIds));
+    // 同时包含无项目关联的个人会话
+    parts.push(and(isNull(chats.projectId), isNull(chats.workspaceId))!);
+    // 兼容旧数据：userId = auth.id 但没有关联项目的
+    parts.push(eq(chats.userId, auth.id));
+    conditions.push(or(...parts)!);
   } else {
-    conditions.push(userCondition);
+    // "我参与的": 查 entityMembers 表中 userId = auth.id 且 ownerId != auth.id
+    const memberRows = db
+      .select({ entityId: entityMembers.entityId })
+      .from(entityMembers)
+      .where(
+        and(
+          eq(entityMembers.userId, auth.id),
+          sql`${entityMembers.ownerId} != ${auth.id}`
+        )
+      )
+      .all();
+    const participatedIds = memberRows.map(r => r.entityId);
+    if (participatedIds.length === 0) {
+      // 没有参与的实体，直接返回空
+      return NextResponse.json({ chats: [], total: 0, page, pageSize, totalPages: 0 });
+    }
+    // 分别查这些 ID 是 project 还是 workspace
+    const participatedEntities = db
+      .select({ id: entities.id, type: entities.type })
+      .from(entities)
+      .where(inArray(entities.id, participatedIds))
+      .all();
+    const participatedProjectIds = participatedEntities.filter(e => e.type === "project").map(e => e.id);
+    const participatedWorkspaceIds = participatedEntities.filter(e => e.type === "workspace").map(e => e.id);
+
+    const parts: SQL[] = [];
+    if (participatedProjectIds.length > 0) parts.push(inArray(chats.projectId, participatedProjectIds));
+    if (participatedWorkspaceIds.length > 0) parts.push(inArray(chats.workspaceId, participatedWorkspaceIds));
+    if (parts.length > 0) {
+      conditions.push(or(...parts)!);
+    }
   }
+
   if (projectId) {
     conditions.push(projectId === "__none__" ? isNull(chats.projectId) : eq(chats.projectId, projectId));
   }
@@ -63,6 +127,9 @@ export async function GET(req: NextRequest) {
     .get();
   const total = totalResult?.count ?? 0;
 
+  const creatorUser = aliasedTable(users, "creator_user");
+  const modifierUser = aliasedTable(users, "modifier_user");
+
   const rows = db
     .select({
       id: chats.id,
@@ -75,10 +142,14 @@ export async function GET(req: NextRequest) {
       updatedAt: chats.updatedAt,
       modelName: modelConfigs.name,
       templateName: templates.name,
+      creatorName: creatorUser.name,
+      modifierName: modifierUser.name,
     })
     .from(chats)
     .leftJoin(modelConfigs, eq(chats.modelId, modelConfigs.id))
     .leftJoin(templates, eq(chats.templateId, templates.id))
+    .leftJoin(creatorUser, eq(chats.userId, creatorUser.id))
+    .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(whereCondition)
     .orderBy(desc(chats.updatedAt))
     .limit(pageSize)

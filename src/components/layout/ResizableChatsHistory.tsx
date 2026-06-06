@@ -63,7 +63,7 @@ export default function ResizableChatsHistory() {
 
   // Fetch chats from API (user-isolated)
   const fetchChats = useCallback(() => {
-    authFetch("/api/chats?pageSize=50")
+    authFetch("/api/chats?pageSize=50&scope=all")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.chats) {

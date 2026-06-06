@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
 import type { Repository, SandboxStatus, ProjectMember, GitNexusStatus } from "@/lib/fs";
-import type { DocumentActivity } from "@/lib/types";
+import type { DocumentActivity, RecentChat } from "@/lib/types";
 import WorkspaceActivityPanel from "./WorkspaceActivityPanel";
 import WorkspaceProjectsPanel from "./WorkspaceProjectsPanel";
 import WorkspaceIntegrationPanel from "./WorkspaceIntegrationPanel";
@@ -35,13 +35,6 @@ interface LinkedProject {
   createdAt: string;
   accountId: string;
   accountType: string;
-}
-
-interface RecentChat {
-  id: number;
-  title: string;
-  updatedAt: string;
-  projectId: string | null; // 所属 project，可能为 null（游离 chat）
 }
 
 type SubTab =

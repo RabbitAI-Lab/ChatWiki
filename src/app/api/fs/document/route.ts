@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
       documentPath: meta.documentPath,
       documentTitle: meta.documentTitle,
       action: existing !== null ? "update" : "create",
+      userId: auth.id,
       createdAt: new Date().toISOString(),
     }).run();
   } else {
@@ -157,6 +158,7 @@ export async function DELETE(req: NextRequest) {
       documentPath: meta.documentPath,
       documentTitle: meta.documentTitle,
       action: "delete",
+      userId: auth.id,
       createdAt: new Date().toISOString(),
     }).run();
 
@@ -210,6 +212,7 @@ export async function PATCH(req: NextRequest) {
       documentTitle: newTitle.replace(/\.(md|html)$/, ""),
       action: "rename",
       oldTitle,
+      userId: auth.id,
       createdAt: new Date().toISOString(),
     }).run();
 

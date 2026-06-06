@@ -62,9 +62,9 @@ export async function POST(
     createdAt: new Date().toISOString(),
   }).run();
 
-  // Update chat's updatedAt
+  // Update chat's updatedAt and updatedBy
   db.update(chats)
-    .set({ updatedAt: new Date().toISOString() })
+    .set({ updatedAt: new Date().toISOString(), updatedBy: auth.id })
     .where(eq(chats.id, parseInt(chatId)))
     .run();
 

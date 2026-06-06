@@ -33,6 +33,8 @@ export async function PATCH(
   }
   if (body.enabled !== undefined) updateData.enabled = body.enabled;
   if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
+  if (body.tokenLimitMonthly !== undefined) updateData.tokenLimitMonthly = body.tokenLimitMonthly;
+  if (body.tokenLimitYearly !== undefined) updateData.tokenLimitYearly = body.tokenLimitYearly;
 
   db.update(plans)
     .set(updateData)

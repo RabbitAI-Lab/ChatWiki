@@ -124,6 +124,8 @@ export default function PlansPageClient({ initialPlans }: Props) {
         discountValue: record.discountValue,
         enabled: record.enabled,
         sortOrder: record.sortOrder,
+        tokenLimitMonthly: (record as unknown as Record<string, unknown>).tokenLimitMonthly as number || 0,
+        tokenLimitYearly: (record as unknown as Record<string, unknown>).tokenLimitYearly as number || 0,
         featureList: parsedFeatures,
       });
       setModalOpen(true);
@@ -367,6 +369,8 @@ export default function PlansPageClient({ initialPlans }: Props) {
             defaultCurrency: "CNY",
             discountType: "none",
             discountValue: 0,
+            tokenLimitMonthly: 0,
+            tokenLimitYearly: 0,
             priceList: [],
             featureList: [],
           }}
@@ -489,6 +493,19 @@ export default function PlansPageClient({ initialPlans }: Props) {
             </Form.Item>
             <Form.Item label={t('plansPage.formDiscountValue')} name="discountValue">
               <InputNumber min={0} className="w-full" />
+            </Form.Item>
+          </div>
+
+          <div className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-4 mb-2">
+            {t('plansPage.sectionTokenQuota')}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item label={t('plansPage.formTokenLimitMonthly')} name="tokenLimitMonthly" tooltip={t('plansPage.tokenLimitTooltip')}>
+              <InputNumber min={0} className="w-full" placeholder="0" />
+            </Form.Item>
+            <Form.Item label={t('plansPage.formTokenLimitYearly')} name="tokenLimitYearly" tooltip={t('plansPage.tokenLimitTooltip')}>
+              <InputNumber min={0} className="w-full" placeholder="0" />
             </Form.Item>
           </div>
 

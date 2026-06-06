@@ -214,10 +214,21 @@ export default function ChatPageContent({
     <div className="flex h-full">
       {/* Left Panel - File Tree */}
       <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
-        <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center gap-2">
+        <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
             {projectName || projectId} {t("tabs.documents")}
           </h3>
+          <button
+            onClick={() => fileTree.refreshTree()}
+            disabled={fileTree.treeLoading}
+            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
+            title={tc("refresh")}
+          >
+            <svg className={`w-3.5 h-3.5 ${fileTree.treeLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+          </button>
         </div>
 
         <FileTreeToolbar

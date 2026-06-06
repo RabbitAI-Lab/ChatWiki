@@ -12,12 +12,16 @@ import {
   Typography,
   Segmented,
   App,
+  Progress,
+  Statistic,
+  Tooltip,
 } from "antd";
 import {
   CheckOutlined,
   CloseOutlined,
   CrownOutlined,
   RocketOutlined,
+  DashboardOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text, Paragraph } = Typography;
@@ -61,6 +65,31 @@ interface Subscription {
   planFeatures: string;
   planDefaultCurrency: string;
   planSortOrder: number;
+}
+
+interface UsageSummary {
+  subscription: {
+    planId: number;
+    planTitle: string;
+    billingCycle: string;
+    startedAt: string;
+    expiresAt: string;
+  } | null;
+  quota: {
+    limit: number;
+    used: number;
+    remaining: number;
+    percentage: number;
+    periodStart: string;
+    unlimited: boolean;
+  } | null;
+  breakdown: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheCreationTokens: number;
+    cacheReadTokens: number;
+  };
+  requestCount: number;
 }
 
 // ── Constants ──
@@ -142,6 +171,7 @@ export default function BillingPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<number | null>(null);
+  const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
 
   // loadData is for button handlers (onOk refresh after subscribe).
   // Initial data fetch is done inline in useEffect below.
@@ -149,9 +179,10 @@ export default function BillingPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const [plansRes, subRes] = await Promise.all([
+      const [plansRes, subRes, usageRes] = await Promise.all([
         authFetch("/api/plans"),
         authFetch("/api/subscriptions"),
+        authFetch("/api/usage/summary"),
       ]);
       if (plansRes.ok) {
         const plansData: Plan[] = await plansRes.json();
@@ -160,6 +191,10 @@ export default function BillingPage() {
       if (subRes.ok) {
         const subData = await subRes.json();
         setSubscription(subData.subscription);
+      }
+      if (usageRes.ok) {
+        const usageData: UsageSummary = await usageRes.json();
+        setUsageSummary(usageData);
       }
     } catch {
       // ignore
@@ -174,7 +209,8 @@ export default function BillingPage() {
     Promise.all([
       authFetch("/api/plans"),
       authFetch("/api/subscriptions"),
-    ]).then(([plansRes, subRes]) => {
+      authFetch("/api/usage/summary"),
+    ]).then(([plansRes, subRes, usageRes]) => {
       if (cancelled) return;
       if (plansRes.ok) {
         plansRes.json().then((plansData: Plan[]) => {
@@ -184,6 +220,11 @@ export default function BillingPage() {
       if (subRes.ok) {
         subRes.json().then((subData) => {
           if (!cancelled) setSubscription(subData.subscription);
+        });
+      }
+      if (usageRes.ok) {
+        usageRes.json().then((usageData: UsageSummary) => {
+          if (!cancelled) setUsageSummary(usageData);
         });
       }
       setLoading(false);
@@ -300,6 +341,94 @@ export default function BillingPage() {
           </Card>
         </div>
       )}
+
+      {/* Token Usage Overview */}
+      {usageSummary?.quota && usageSummary.subscription && (() => {
+        const quota = usageSummary.quota!;
+        const sub = usageSummary.subscription!;
+        return (
+        <div className="mb-8">
+          <Card
+            className="shadow-sm"
+            title={
+              <div className="flex items-center gap-2">
+                <DashboardOutlined className="text-blue-500" />
+                <span className="text-gray-900 dark:text-gray-100">{t('tokenUsage')}</span>
+                <Tag color="blue" className="text-xs">{sub.planTitle}</Tag>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              {/* Progress Bar */}
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <Text type="secondary" className="text-sm">
+                    {t('tokensUsed')}
+                  </Text>
+                  <Text className="text-sm text-gray-600 dark:text-gray-400">
+                    {quota.unlimited
+                      ? t('unlimited')
+                      : t('tokensRemaining', { count: quota.remaining.toLocaleString() })}
+                  </Text>
+                </div>
+                <Progress
+                  percent={quota.unlimited ? Math.min(quota.used / 100000 * 100, 100) : quota.percentage}
+                  strokeColor={quota.percentage > 90 ? "#ff4d4f" : quota.percentage > 70 ? "#faad14" : "#1677ff"}
+                  format={() =>
+                    quota.unlimited
+                      ? `${quota.used.toLocaleString()} tokens`
+                      : `${quota.used.toLocaleString()} / ${quota.limit.toLocaleString()}`
+                  }
+                />
+              </div>
+
+              {/* Breakdown Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                <Tooltip title={t('inputTokens')}>
+                  <Statistic
+                    title={t('inputTokens')}
+                    value={usageSummary.breakdown.inputTokens}
+                    className="text-center"
+                    styles={{ content: { fontSize: '16px' } }}
+                  />
+                </Tooltip>
+                <Tooltip title={t('outputTokens')}>
+                  <Statistic
+                    title={t('outputTokens')}
+                    value={usageSummary.breakdown.outputTokens}
+                    className="text-center"
+                    styles={{ content: { fontSize: '16px' } }}
+                  />
+                </Tooltip>
+                <Tooltip title={t('cacheTokens')}>
+                  <Statistic
+                    title={t('cacheTokens')}
+                    value={usageSummary.breakdown.cacheCreationTokens + usageSummary.breakdown.cacheReadTokens}
+                    className="text-center"
+                    styles={{ content: { fontSize: '16px' } }}
+                  />
+                </Tooltip>
+                <Tooltip title={t('requestsCount')}>
+                  <Statistic
+                    title={t('requestsCount')}
+                    value={usageSummary.requestCount}
+                    className="text-center"
+                    styles={{ content: { fontSize: '16px' } }}
+                  />
+                </Tooltip>
+              </div>
+
+              {/* Period info */}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-zinc-700">
+                <Text type="secondary" className="text-xs">
+                  {t('period')}: {new Date(quota.periodStart).toLocaleDateString()} — {new Date(sub.expiresAt).toLocaleDateString()}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </div>
+        );
+      })()}
 
       {/* Billing Cycle Toggle */}
       {plans.length > 0 && (
