@@ -91,7 +91,13 @@ export function listOrgs(enterpriseId: string): string[] {
  * Recursively list a directory tree: directories and files matching the provided extensions.
  * Default behavior (exts = [".md"]) preserves backward compatibility with the original
  * Markdown-only tree.
+ *
+ * When exts is an empty array, all files are accepted (useful for workspace root view).
+ * Hidden directories (starting with ".") and "node_modules" are always excluded.
  */
+const HIDDEN_DIR_PATTERN = /^\./;
+const EXCLUDED_DIRS = new Set(["node_modules"]);
+
 export function listTree(dirSegments: string[], exts: string[] = [".md"]): TreeNode[] {
   const dirPath = path.join(getDataRoot(), ...dirSegments);
   if (!fs.existsSync(dirPath)) return [];
@@ -103,9 +109,13 @@ export function listTree(dirSegments: string[], exts: string[] = [".md"]): TreeN
   // Folders and files are interleaved by name, not grouped.
   const sorted = entries.sort((a, b) => a.name.localeCompare(b.name));
 
+  const acceptAll = exts.length === 0;
+
   for (const entry of sorted) {
     const relPath = path.join(...dirSegments, entry.name);
     if (entry.isDirectory()) {
+      // Skip hidden and excluded directories
+      if (HIDDEN_DIR_PATTERN.test(entry.name) || EXCLUDED_DIRS.has(entry.name)) continue;
       result.push({
         name: entry.name,
         type: "directory",
@@ -113,7 +123,7 @@ export function listTree(dirSegments: string[], exts: string[] = [".md"]): TreeN
         children: listTree([...dirSegments, entry.name], exts),
       });
     } else {
-      const matchedExt = exts.find((ext) => entry.name.endsWith(ext));
+      const matchedExt = acceptAll || exts.find((ext) => entry.name.endsWith(ext));
       if (matchedExt) {
         result.push({
           name: entry.name,

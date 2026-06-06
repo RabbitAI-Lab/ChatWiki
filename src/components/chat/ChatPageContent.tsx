@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/useAuth";
 import { useFloatingChat } from "./FloatingChatContext";
 import ChatWorkspace from "@/components/chat/ChatWorkspace";
 import FileTree from "@/components/ui/FileTree";
+import FileTreeFooter, { type TreeViewMode } from "@/components/ui/FileTreeFooter";
 import ProjectInfoTab from "@/components/project/ProjectInfoTab";
 import TabButton from "@/components/chat/TabButton";
 import FileTreeToolbar from "@/components/chat/FileTreeToolbar";
@@ -89,6 +90,7 @@ export default function ChatPageContent({
   const [recentChats] = useState(initialRecentChats);
   const [recentDocuments] = useState(initialRecentDocuments);
   const [mentionFile, setMentionFile] = useState<string | null>(null);
+  const [treeView, setTreeView] = useState<TreeViewMode>("docs");
 
   const projectPath = projectId ? `projects/${projectId}/docs` : "";
 
@@ -114,6 +116,16 @@ export default function ChatPageContent({
       tabSystem.setActiveTabId(relativePath);
     }, [tabSystem]),
   });
+
+  // Lazy-load root tree when switching to workspace view
+  const handleViewChange = useCallback((view: TreeViewMode) => {
+    setTreeView(view);
+    if (view === "workspace" && fileTree.rootTree.length === 0) {
+      fileTree.refreshRootTree();
+    }
+  }, [fileTree]);
+
+  const displayTree = treeView === "docs" ? fileTree.tree : fileTree.rootTree;
 
   // Chat switching
   const chatSwitching = useChatSwitching({
@@ -149,11 +161,13 @@ export default function ChatPageContent({
     tabSystem.handleFileClick(node);
   }, [projectPath, tabSystem, message, authFetch, t]);
 
-  const handleToolCall = useCallback(({ toolName }: { toolName: string }) => {
+  const handleToolCall = useCallback(({ toolName, args }: { toolName: string; args: Record<string, unknown> }) => {
     if (toolName === "refresh_file_tree") {
       fileTree.refreshTree();
+    } else if (toolName === "refresh_file_content" && args && typeof args.path === "string") {
+      tabSystem.refreshFileContent(args.path);
     }
-  }, [fileTree]);
+  }, [fileTree, tabSystem]);
 
   // --- Shared tab bar helpers ---
 
@@ -212,6 +226,15 @@ export default function ChatPageContent({
 
   return (
     <div className="flex h-full">
+      {/* Hidden upload input */}
+      <input
+        ref={fileTree.uploadInputRef}
+        type="file"
+        accept=".md,.html,.txt"
+        multiple
+        className="hidden"
+        onChange={fileTree.handleUploadChange}
+      />
       {/* Left Panel - File Tree */}
       <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
         <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-between gap-2">
@@ -234,6 +257,7 @@ export default function ChatPageContent({
         <FileTreeToolbar
           onCreateFile={() => fileTree.handleCreateFile("")}
           onCreateDir={() => fileTree.handleCreateDir("")}
+          onUpload={() => fileTree.triggerUpload("")}
           disabled={fileTree.renamingPath !== null}
         />
 
@@ -244,7 +268,7 @@ export default function ChatPageContent({
           </div>
         ) : (
           <FileTree
-            tree={fileTree.tree}
+            tree={displayTree}
             mode="editable"
             selectedPath={tabSystem.activeTabId !== CHAT_TAB && tabSystem.activeTabId !== PROJECT_INFO_TAB ? tabSystem.activeTabId : null}
             onFileClick={(node) => tabSystem.handleFileClick(node)}
@@ -267,8 +291,11 @@ export default function ChatPageContent({
             onRenameCancel={fileTree.handleRenameCancel}
             renameInputRef={fileTree.renameInputRef}
             onStartRename={fileTree.handleStartRename}
+            onUpload={(parentPath) => fileTree.triggerUpload(parentPath)}
           />
         )}
+
+        <FileTreeFooter activeView={treeView} onViewChange={handleViewChange} />
       </div>
 
       {/* Right Panel - Tab System */}

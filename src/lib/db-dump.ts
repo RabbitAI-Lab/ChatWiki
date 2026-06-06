@@ -75,7 +75,7 @@ function safeTableName(name: string, allowed: Set<string>): string {
 
 export function getDatabaseInfo(): DatabaseInfo {
   const sqlite = getSqlite();
-  const stat = fs.statSync(dbPath);
+  const stat = fs.statSync(dbPath());
 
   const tableNames = getUserTableNames(sqlite);
   const tableNameSet = new Set(tableNames);
@@ -106,7 +106,7 @@ export function getDatabaseInfo(): DatabaseInfo {
     integrityResult.length === 1 && integrityResult[0].integrity_check === "ok";
 
   return {
-    filePath: dbPath,
+    filePath: dbPath(),
     fileSizeBytes: stat.size,
     fileSizeHuman: formatBytes(stat.size),
     lastModified: stat.mtime.toISOString(),

@@ -60,6 +60,8 @@ interface WorkspaceInfoTabProps {
   onWorkspaceDeleted: () => void;
   accountType: string;
   accountId: string;
+  /** URL 参数传入的子Tab初始值 */
+  initialSubTab?: string;
 }
 
 const SUB_TAB_KEYS: SubTab[] = [
@@ -86,8 +88,13 @@ export default function WorkspaceInfoTab({
   onWorkspaceDeleted,
   accountType,
   accountId,
+  initialSubTab,
 }: WorkspaceInfoTabProps) {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>("activity");
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(
+    initialSubTab && SUB_TAB_KEYS.includes(initialSubTab as SubTab)
+      ? (initialSubTab as SubTab)
+      : "activity"
+  );
   const t = useTranslations('workspace');
   const { authFetch } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>(
@@ -161,6 +168,14 @@ export default function WorkspaceInfoTab({
 
   const handleTabChange = (tab: SubTab) => {
     setActiveSubTab(tab);
+    // 同步到 URL
+    const url = new URL(window.location.href);
+    if (tab === "activity") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", tab);
+    }
+    window.history.replaceState(null, "", url.toString());
     if (tab === "integration") {
       setHasUnsynced(false);
     }

@@ -7,7 +7,14 @@ import type { SessionUpdate } from "@agentclientprotocol/sdk";
 import type { StreamEvent } from "./types";
 
 // client tools 名称前缀（用于从 ACP tool_call.title 中识别前端信号工具）
-const CLIENT_TOOL_NAMES = new Set(["refresh_file_tree", "preview_html"]);
+const CLIENT_TOOL_NAMES = new Set(["refresh_file_tree", "preview_html", "refresh_file_content"]);
+
+/**
+ * 缓存 tool_call 事件的 rawInput，按 toolCallId 索引。
+ * 用于 tool_call_update 完成时获取被修改文件的路径。
+ * 条目在对应 tool_call_update completed 后清除。
+ */
+const toolCallInputCache = new Map<string, Record<string, unknown>>();
 
 /**
  * 将 ACP SessionUpdate 映射为零或多个 ChatWiki StreamEvent。
@@ -43,6 +50,15 @@ export function mapAcpUpdateToStreamEvents(update: SessionUpdate): StreamEvent[]
       // 从 title 中提取工具名（claude-agent-acp 将工具名映射为 title）
       // 格式可能是 "refresh_file_tree" 或 "mcp__rabbitdocs_client__refresh_file_tree"
       const toolName = extractToolName(title);
+
+      // 缓存 Write/Edit 工具的 rawInput，供 tool_call_update 使用
+      if ((toolName === "Write" || toolName === "Edit") && update.toolCallId) {
+        const raw = (update as Record<string, unknown>).rawInput as Record<string, unknown> | undefined;
+        if (raw) {
+          toolCallInputCache.set(update.toolCallId, raw);
+        }
+      }
+
       if (CLIENT_TOOL_NAMES.has(toolName)) {
         events.push({
           type: "tool_call",
@@ -56,7 +72,7 @@ export function mapAcpUpdateToStreamEvents(update: SessionUpdate): StreamEvent[]
     }
 
     case "tool_call_update": {
-      // 检测文件写入/编辑完成，自动触发文件树刷新
+      // 检测文件写入/编辑完成，自动触发文件树刷新和内容刷新
       const tcu = update as Record<string, unknown>;
       const status = tcu.status as string | undefined;
       const title = tcu.title as string | undefined;
@@ -65,6 +81,30 @@ export function mapAcpUpdateToStreamEvents(update: SessionUpdate): StreamEvent[]
         if (toolName === "Write" || toolName === "Edit") {
           console.log(`[ACP Mapper] auto refresh_file_tree: tool=${toolName} completed`);
           events.push({ type: "tool_call", toolName: "refresh_file_tree", args: {} });
+
+          // 提取被修改文件的路径，触发 refresh_file_content
+          const toolCallId = tcu.toolCallId as string | undefined;
+          let filePath: string | undefined;
+          const rawInput = tcu.rawInput as Record<string, unknown> | undefined;
+          if (rawInput?.file_path && typeof rawInput.file_path === "string") {
+            filePath = rawInput.file_path;
+          } else if (toolCallId) {
+            const cached = toolCallInputCache.get(toolCallId);
+            if (cached?.file_path && typeof cached.file_path === "string") {
+              filePath = cached.file_path;
+            }
+          }
+          if (filePath) {
+            const normalizedPath = normalizeDocsPath(filePath);
+            console.log(`[ACP Mapper] auto refresh_file_content: tool=${toolName} path=${normalizedPath}`);
+            events.push({ type: "tool_call", toolName: "refresh_file_content", args: { path: normalizedPath } });
+          } else {
+            console.log(`[ACP Mapper] auto refresh_file_content: no file_path found for tool=${toolName} toolCallId=${toolCallId}`);
+          }
+          // 清理缓存
+          if (toolCallId) {
+            toolCallInputCache.delete(toolCallId);
+          }
         }
       }
       console.log("[ACP Mapper] session update:", updateType, "status=", status, "title=", title);
@@ -113,4 +153,21 @@ function extractToolName(title: string): string {
     return title.slice(mcpToolPrefix.length);
   }
   return title;
+}
+
+/**
+ * 将 Write/Edit 工具的 file_path 标准化为 tab 系统使用的相对路径。
+ *
+ * Write/Edit 的 file_path 是相对于项目根的路径，例如：
+ *   "docs/foo.md" → "foo.md"
+ *   "docs/sub/bar.html" → "sub/bar.html"
+ *   "./docs/foo.md" → "foo.md"
+ */
+function normalizeDocsPath(filePath: string): string {
+  let normalized = filePath.replace(/^\.\//, "");
+  const docsPrefix = "docs/";
+  if (normalized.startsWith(docsPrefix)) {
+    normalized = normalized.slice(docsPrefix.length);
+  }
+  return normalized;
 }

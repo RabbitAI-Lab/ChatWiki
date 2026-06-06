@@ -401,8 +401,12 @@ export async function* streamModelResponse(
           console.log(
             "[AgentSDK] token usage: input=", tokenUsage.input_tokens,
             "output=", tokenUsage.output_tokens,
+            "cache_creation=", tokenUsage.cache_creation_input_tokens,
+            "cache_read=", tokenUsage.cache_read_input_tokens,
             "total=", totalTokens,
-            "cost=", totalCostUsd
+            "cost=", totalCostUsd,
+            "raw_usage=", JSON.stringify(usage),
+            "raw_apiUsage=", JSON.stringify(apiUsage)
           );
           // 持久化到 token_usage_logs
           try {

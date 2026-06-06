@@ -14,10 +14,10 @@ export default async function WorkspacePage({
   searchParams,
 }: {
   params: Promise<{ path: string[] }>;
-  searchParams: Promise<{ chatId?: string; file?: string }>;
+  searchParams: Promise<{ chatId?: string; file?: string; tab?: string }>;
 }) {
   const { path: rawPath } = await params;
-  const { chatId: chatIdParam, file: rawFile } = await searchParams;
+  const { chatId: chatIdParam, file: rawFile, tab: rawTab } = await searchParams;
   const urlPath = rawPath.map(decodeURIComponent);
 
   // 验证用户身份（从 cookie 获取 access token）
@@ -56,6 +56,11 @@ export default async function WorkspacePage({
   const docsPrefix = docsDirSegments.join("/");
   const rawTree = listTree(docsDirSegments, [".md", ".html"]);
   const tree = stripTreePrefix(rawTree, docsPrefix);
+
+  // Build root tree for workspace view (all file types)
+  const workspacePrefix = workspaceDirSegments.join("/");
+  const rawRootTree = listTree(workspaceDirSegments, []);
+  const rootTree = stripTreePrefix(rawRootTree, workspacePrefix);
 
   // Get selected file content (only when explicitly requested via ?file=)
   let selectedFile: string | null = null;
@@ -143,6 +148,11 @@ export default async function WorkspacePage({
             createdAt: row.createdAt,
           }));
 
+  const WORKSPACE_SUB_TABS = ["activity", "projects", "integration", "skills", "mcp", "members", "log"] as const;
+  const initialSubTab = WORKSPACE_SUB_TABS.includes(rawTab as typeof WORKSPACE_SUB_TABS[number])
+    ? rawTab as typeof WORKSPACE_SUB_TABS[number]
+    : "activity";
+
   return (
     <WorkspaceDetail
       workspaceMeta={workspaceMeta}
@@ -152,8 +162,11 @@ export default async function WorkspacePage({
       accountType="personal"
       accountId={workspaceMeta?.accountId || workspaceId}
       initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
+      initialSubTab={initialSubTab}
       tree={tree}
+      rootTree={rootTree}
       docsPath={docsPrefix}
+      rootPath={workspacePrefix}
       selectedFile={selectedFile}
       initialContent={fileContent || ""}
     />

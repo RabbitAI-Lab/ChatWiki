@@ -5,13 +5,33 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-const RABBITDOCS_HOME =
-  process.env.RABBITDOCS_HOME ||
-  path.join(os.homedir(), ".rabbitdocs");
-const DB_PATH = path.join(RABBITDOCS_HOME, "data.db");
-const WAL_PATH = DB_PATH + "-wal";
-const SHM_PATH = DB_PATH + "-shm";
-const MIGRATIONS_DIR = path.join(process.cwd(), "drizzle");
+// ── Lazy path computation (avoids Turbopack NFT tracing at build time) ──
+let _rabbitdocsHome: string | undefined;
+function getRabbitdocsHome(): string {
+  if (!_rabbitdocsHome) {
+    _rabbitdocsHome = process.env.RABBITDOCS_HOME || path.join(/*turbopackIgnore: true*/ os.homedir(), ".rabbitdocs");
+  }
+  return _rabbitdocsHome;
+}
+
+let _dbPath: string | undefined;
+function getDbFilePath(): string {
+  if (!_dbPath) {
+    _dbPath = path.join(getRabbitdocsHome(), "data.db");
+  }
+  return _dbPath;
+}
+
+function getWalPath(): string { return getDbFilePath() + "-wal"; }
+function getShmPath(): string { return getDbFilePath() + "-shm"; }
+
+let _migrationsDir: string | undefined;
+function getMigrationsDir(): string {
+  if (!_migrationsDir) {
+    _migrationsDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "drizzle");
+  }
+  return _migrationsDir;
+}
 
 // ── Migration tracking ──
 const MIGRATIONS_TABLE = "_migrations";
@@ -30,7 +50,7 @@ function bootstrapMigrationTracking(db: Database.Database): boolean {
   ensureMigrationsTable(db);
   if (tableExists) return false; // already bootstrapped
   // First time: mark all existing migration files as applied
-  const files = fs.readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith(".sql")).sort();
+  const files = fs.readdirSync(getMigrationsDir()).filter(f => f.endsWith(".sql")).sort();
   const now = new Date().toISOString();
   const insert = db.prepare(`INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (name, applied_at) VALUES (?, ?)`);
   for (const file of files) {
@@ -52,14 +72,15 @@ function recordMigration(db: Database.Database, name: string) {
 
 // ── Run all migrations (fresh DB only) ──
 function runMigrations(db: Database.Database) {
-  const files = fs.readdirSync(MIGRATIONS_DIR)
+  const dir = getMigrationsDir();
+  const files = fs.readdirSync(dir)
     .filter(f => f.endsWith(".sql"))
     .sort();
   
   console.log(`[db] Running ${files.length} migrations on fresh database...`);
   ensureMigrationsTable(db);
   for (const file of files) {
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
+    const sql = fs.readFileSync(path.join(dir, file), "utf-8");
     db.exec(sql);
     recordMigration(db, file);
     console.log(`[db]   ✓ ${file}`);
@@ -96,28 +117,31 @@ function tryApplyPragmas(db: Database.Database): boolean {
 
 // ── Initialize database ──
 function initDatabase(): Database.Database {
+  const home = getRabbitdocsHome();
+  const dbPath = getDbFilePath();
   // Ensure ~/.rabbitdocs directory exists
-  if (!fs.existsSync(RABBITDOCS_HOME)) {
-    fs.mkdirSync(RABBITDOCS_HOME, { recursive: true });
+  if (!fs.existsSync(home)) {
+    fs.mkdirSync(home, { recursive: true });
   }
 
-  const db = new Database(DB_PATH);
+  const db = new Database(dbPath);
 
   if (tryApplyPragmas(db) && checkIntegrity(db) && hasSchema(db)) {
     // Existing healthy database with schema — apply only NEW migrations
     try {
       bootstrapMigrationTracking(db);
       const applied = getAppliedMigrations(db);
-      const migrationFiles = fs.readdirSync(MIGRATIONS_DIR)
+      const migrationFiles = fs.readdirSync(getMigrationsDir())
         .filter(f => f.endsWith(".sql"))
         .sort()
         .filter(f => !applied.has(f));
 
       if (migrationFiles.length > 0) {
+        const dir = getMigrationsDir();
         console.log(`[db] Applying ${migrationFiles.length} new migrations...`);
         for (const file of migrationFiles) {
           try {
-            const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
+            const sql = fs.readFileSync(path.join(dir, file), "utf-8");
             const statements = sql.split(";").map(s => s.trim()).filter(s => s.length > 0);
             for (const stmt of statements) {
               try {
@@ -147,11 +171,11 @@ function initDatabase(): Database.Database {
   );
   db.close();
 
-  for (const p of [DB_PATH, WAL_PATH, SHM_PATH]) {
+  for (const p of [dbPath, getWalPath(), getShmPath()]) {
     try { fs.unlinkSync(p); } catch { /* ok */ }
   }
 
-  const newDb = new Database(DB_PATH);
+  const newDb = new Database(dbPath);
   newDb.pragma("journal_mode = WAL");
   newDb.pragma("foreign_keys = ON");
 
@@ -181,6 +205,7 @@ function isBuildPhase(): boolean {
  * This ensures migrations and seeding happen at runtime, not during build.
  */
 export function initDb() {
+  if (isBuildPhase()) return;
   if (_sqlite) return; // already initialized
   _sqlite = initDatabase();
   _drizzleInstance = drizzle(_sqlite, { schema });
@@ -232,4 +257,4 @@ export function getSqlite(): Database.Database {
 }
 
 /** Database file path (for info/dump purposes). */
-export const dbPath = DB_PATH;
+export { getDbFilePath as dbPath };

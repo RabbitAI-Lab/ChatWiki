@@ -49,6 +49,8 @@ export interface ProjectWorkspaceProps {
   projectPath: string; // e.g. "personal/default/projects/{projectId}"
   docsPath: string; // e.g. "personal/default/projects/{projectId}/docs"
   tree: TreeNode[];
+  rootTree: TreeNode[];
+  rootPath: string; // e.g. "personal/default/projects/{projectId}"
   selectedFile: string | null; // relative path within project, from ?file= URL param
   initialContent: string; // file content preloaded by server
   projectMeta: ProjectMeta | null;
@@ -60,4 +62,6 @@ export interface ProjectWorkspaceProps {
   ownerUser?: { name: string | null; email: string } | null;
   /** URL 参数传入的 chatId，用于自动加载指定 chat 并切换到 chat tab */
   initialChatId?: number;
+  /** URL 参数传入的子Tab，用于恢复上次的子Tab选择 */
+  initialSubTab?: string;
 }

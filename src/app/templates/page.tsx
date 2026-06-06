@@ -5,9 +5,13 @@ import TemplatesPageClient from "@/components/templates/TemplatesPageClient";
 export default function TemplatesPage() {
   let templatesList: Array<typeof templates.$inferSelect> = [];
   try {
-    templatesList = db.select().from(templates).all();
+    const result = db.select().from(templates);
+    if (result) templatesList = result.all();
   } catch (err) {
-    console.error("[templates] Failed to load templates:", err);
+    // During build phase, db is not available — skip silently
+    if (process.env.NEXT_PHASE !== "phase-production-build") {
+      console.error("[templates] Failed to load templates:", err);
+    }
   }
 
   return <TemplatesPageClient initialTemplates={templatesList} />;

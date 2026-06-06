@@ -4,7 +4,7 @@
  * 替代 model-service.ts 中的 SDK 直调逻辑，通过 ACP 连接池与 Agent 通信。
  */
 import type { StreamEvent } from "./types";
-import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type { ContentBlock, PromptResponse } from "@agentclientprotocol/sdk";
 import { getOrCreateEntry, getOrCreateSession, forceRecreateEntry, buildPoolKey, type AcpPoolConfig } from "./acp-pool";
 import { resolveModelConfig } from "./model-service";
 import { db } from "@/db";
@@ -86,6 +86,7 @@ export async function* streamAcpModelResponse(
 
     // 5. 发起 prompt
     console.log("[ACP] 发起 prompt, sessionId=", sessionId);
+    let promptResponse: PromptResponse | null = null;
     const promptPromise = entry.connection
       .prompt({
         sessionId,
@@ -94,6 +95,9 @@ export async function* streamAcpModelResponse(
       .then((response) => {
         // prompt 完成 → 标记 done
         entry.clientRef.markPromptDone();
+        promptResponse = response;
+        console.log("[ACP] PromptResponse: stopReason=", response.stopReason,
+          "usage=", JSON.stringify(response.usage));
         return response;
       })
       .catch((err) => {
@@ -155,32 +159,47 @@ export async function* streamAcpModelResponse(
     );
 
     // ── Token usage 采集（ACP 模式） ──
+    // 优先使用 PromptResponse.usage（含 inputTokens/outputTokens/cachedReadTokens 等细分）
+    // 回退到 UsageUpdate（仅含 context used/size/cost）
+    const promptUsage = (promptResponse as PromptResponse | null)?.usage;
     const finalUsage = entry.clientRef.getLastUsageUpdate();
-    if (finalUsage) {
+    if (promptUsage || finalUsage) {
       const prevUsed = entry.clientRef.getPrevUsageUsed();
-      const incrementalUsed = Math.max(0, finalUsage.used - prevUsed);
+      const incrementalUsed = finalUsage ? Math.max(0, finalUsage.used - prevUsed) : 0;
+
+      const inputTokens = promptUsage?.inputTokens ?? 0;
+      const outputTokens = promptUsage?.outputTokens ?? 0;
+      const cacheCreationInputTokens = promptUsage?.cachedWriteTokens ?? 0;
+      const cacheReadInputTokens = promptUsage?.cachedReadTokens ?? 0;
+      const totalTokens = promptUsage?.totalTokens ?? incrementalUsed;
+      const costUsd = finalUsage?.cost
+        ? Math.round(finalUsage.cost.amount * 10000)
+        : 0;
+
       console.log(
-        "[ACP] usage: used=", finalUsage.used,
-        "prevUsed=", prevUsed,
-        "incremental=", incrementalUsed,
-        "contextSize=", finalUsage.size
+        "[ACP] token usage: input=", inputTokens,
+        "output=", outputTokens,
+        "cache_creation=", cacheCreationInputTokens,
+        "cache_read=", cacheReadInputTokens,
+        "total=", totalTokens,
+        "costUsd=", costUsd,
+        "source=", promptUsage ? "PromptResponse" : "UsageUpdate"
       );
+
       try {
         db.insert(tokenUsageLogs).values({
           userId: options.userId,
           modelId,
           chatId: options.chatId,
           backend: "acp",
-          inputTokens: 0,
-          outputTokens: incrementalUsed,
-          cacheCreationInputTokens: 0,
-          cacheReadInputTokens: 0,
-          totalTokens: incrementalUsed,
-          costUsd: finalUsage.cost
-            ? Math.round(finalUsage.cost.amount * 10000)
-            : 0,
-          contextSize: finalUsage.size,
-          contextUsed: finalUsage.used,
+          inputTokens,
+          outputTokens,
+          cacheCreationInputTokens,
+          cacheReadInputTokens,
+          totalTokens,
+          costUsd,
+          contextSize: finalUsage?.size,
+          contextUsed: finalUsage?.used,
           projectId: options.projectId,
           workspaceId: options.workspaceId,
           createdAt: new Date().toISOString(),
@@ -192,14 +211,14 @@ export async function* streamAcpModelResponse(
       // 向前端发送 usage 事件
       yield {
         type: "usage" as const,
-        inputTokens: 0,
-        outputTokens: incrementalUsed,
-        cacheCreationInputTokens: 0,
-        cacheReadInputTokens: 0,
-        totalTokens: incrementalUsed,
-        costUsd: finalUsage.cost?.amount,
-        contextSize: finalUsage.size,
-        contextUsed: finalUsage.used,
+        inputTokens,
+        outputTokens,
+        cacheCreationInputTokens,
+        cacheReadInputTokens,
+        totalTokens,
+        costUsd: finalUsage?.cost?.amount,
+        contextSize: finalUsage?.size,
+        contextUsed: finalUsage?.used,
       };
     }
 

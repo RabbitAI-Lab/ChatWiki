@@ -144,4 +144,25 @@ function registerClientTools(server: McpServer) {
       };
     }
   );
+
+  server.registerTool(
+    "refresh_file_content",
+    {
+      description:
+        "Notify the frontend to reload a file's content in the editor after it has been modified externally.",
+      inputSchema: z.object({
+        path: z.string().describe("File path relative to the project root, e.g. 'docs/foo.md'"),
+      }),
+    },
+    async ({ path }: { path: string }) => {
+      if (!path || typeof path !== "string") {
+        throw new Error("refresh_file_content requires a valid path");
+      }
+      return {
+        content: [
+          { type: "text" as const, text: `File content refresh requested for ${path}` },
+        ],
+      };
+    }
+  );
 }

@@ -42,10 +42,37 @@ const previewHtml = tool(
   }
 );
 
+/**
+ * 让 agent 通知前端刷新已打开文件的内容。
+ * path 相对于项目根，例如 'docs/index.html'。
+ * 前端仅刷新已在 tabs 中打开的文件，不打开新 tab。
+ */
+const refreshFileContent = tool(
+  "refresh_file_content",
+  "Notify the frontend to reload a file's content in the editor after it has been modified externally. The path is relative to the project root, e.g. 'docs/foo.md'. Call this after writing or editing a file that is currently open in the user's editor.",
+  {
+    path: z
+      .string()
+      .describe(
+        "File path relative to the project root, e.g. 'docs/foo.md'"
+      ),
+  },
+  async ({ path }) => {
+    if (!path || typeof path !== "string") {
+      throw new Error("refresh_file_content requires a valid path");
+    }
+    return {
+      content: [
+        { type: "text" as const, text: `File content refresh requested for ${path}` },
+      ],
+    };
+  }
+);
+
 export function createClientToolsMcpServer() {
   return createSdkMcpServer({
     name: "rabbitdocs_client",
     version: "1.0.0",
-    tools: [refreshFileTree, previewHtml],
+    tools: [refreshFileTree, previewHtml, refreshFileContent],
   });
 }

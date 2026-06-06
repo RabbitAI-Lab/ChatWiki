@@ -35,7 +35,12 @@
     "confirmDelete": "确认删除?",
     "confirmDeleteDoc": "确认删除文档 \"{title}\"?",
     "mention": "@引用",
-    "noDocuments": "暂无文档"
+    "noDocuments": "暂无文档",
+    "docsView": "文档",
+    "workspaceView": "工作区",
+    "document": "文档",
+    "folder": "文件夹",
+    "upload": "上传"
   },
   "metadata": {
     "title": "文档管理与发布",
@@ -635,6 +640,7 @@
     "loading": "加载中...",
     "document": "文档",
     "folder": "文件夹",
+    "upload": "上传",
     "thinkingBlock": {
       "thinkingProcess": "思考过程",
       "charCount": "字"
@@ -743,6 +749,7 @@
     "documents": "{name} 文档",
     "document": "文档",
     "folder": "文件夹",
+    "upload": "上传",
     "noDescription": "暂无描述",
     "newChat": "新对话",
     "nameConflict": "此名称的文件或文件夹已存在",
@@ -924,7 +931,7 @@
     "skills": {
       "description": "工作空间级别的 AI 能力扩展。启用后，此工作空间所有项目中的 AI 对话将获得相应的增强能力。",
       "ecc": "ECC",
-      "huashuDesign": "华数设计",
+      "huashuDesign": "花叔设计",
       "enabled": "已启用",
       "disabled": "已禁用",
       "enabledMsg": "{name} 已启用",
@@ -964,6 +971,7 @@
     "documents": "{name} 文档",
     "document": "文档",
     "folder": "文件夹",
+    "upload": "上传",
     "loading": "加载中...",
     "startChat": "开始对话",
     "created": "创建于 {date}",
@@ -1138,7 +1146,7 @@
     "skills": {
       "description": "项目级别的 AI 能力扩展。启用后，AI 对话将获得相应的增强能力。",
       "ecc": "ECC",
-      "huashuDesign": "华数设计",
+      "huashuDesign": "花叔设计",
       "enabled": "已启用",
       "disabled": "已禁用",
       "enabledMsg": "{name} 已启用",

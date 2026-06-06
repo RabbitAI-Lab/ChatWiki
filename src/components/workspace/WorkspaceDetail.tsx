@@ -15,6 +15,7 @@ import { WORKSPACE_INFO_TAB, CHAT_TAB } from "./types";
 import WorkspaceSidebar from "./WorkspaceSidebar";
 import WorkspaceTabBar from "./WorkspaceTabBar";
 import WorkspaceEditorArea from "./WorkspaceEditorArea";
+import type { TreeViewMode } from "@/components/ui/FileTreeFooter";
 
 interface WorkspaceDetailProps {
   workspaceMeta: WorkspaceMeta;
@@ -24,8 +25,12 @@ interface WorkspaceDetailProps {
   accountType: string;
   accountId: string;
   initialChatId?: number;
+  /** URL 参数传入的子Tab初始值 */
+  initialSubTab?: string;
   tree: TreeNode[];
+  rootTree: TreeNode[];
   docsPath: string;
+  rootPath: string;
   selectedFile: string | null;
   initialContent: string;
 }
@@ -38,8 +43,11 @@ export default function WorkspaceDetail({
   accountType,
   accountId,
   initialChatId,
+  initialSubTab,
   tree: initialTree,
+  rootTree: initialRootTree,
   docsPath,
+  rootPath,
   selectedFile,
   initialContent,
 }: WorkspaceDetailProps) {
@@ -77,9 +85,13 @@ export default function WorkspaceDetail({
 
   // File tree controls
   const [tree, setTree] = useState<TreeNode[]>(initialTree);
+  const [rootTree, setRootTree] = useState<TreeNode[]>(initialRootTree);
+  const [treeView, setTreeView] = useState<TreeViewMode>("docs");
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetPath = useRef<string>("");
   const [mentionFile, setMentionFile] = useState<string | null>(null);
 
   // workspacePath: "workspace/{workspaceId}"
@@ -91,6 +103,12 @@ export default function WorkspaceDetail({
       Promise.resolve().then(() => setTree(initialTree));
     }
   }, [initialTree, renamingPath]);
+
+  useEffect(() => {
+    if (renamingPath === null) {
+      Promise.resolve().then(() => setRootTree(initialRootTree));
+    }
+  }, [initialRootTree, renamingPath]);
 
   // --- File tree functions ---
 
@@ -144,6 +162,41 @@ export default function WorkspaceDetail({
     setTimeout(() => renameInputRef.current?.select(), 0);
     router.refresh();
   }, [tree, docsPath, router, authFetch]);
+
+  // --- Upload functions ---
+  const triggerUpload = useCallback((parentPath: string) => {
+    uploadTargetPath.current = parentPath;
+    uploadInputRef.current?.click();
+  }, []);
+
+  const handleUploadChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const parentPath = uploadTargetPath.current;
+    for (const file of Array.from(files)) {
+      let filename = file.name;
+      if (filename.endsWith(".txt")) {
+        filename = filename.replace(/\.txt$/, ".md");
+      }
+      if (!filename.endsWith(".md") && !filename.endsWith(".html")) continue;
+      const content = await file.text();
+      const fullPath = parentPath
+        ? `${docsPath}/${parentPath}/${filename}`
+        : `${docsPath}/${filename}`;
+      await authFetch("/api/fs/document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: fullPath, content }),
+      });
+      const relativePath = parentPath ? `${parentPath}/${filename}` : filename;
+      const fileType = filename.toLowerCase().endsWith(".html") ? "html" as const : "markdown" as const;
+      contentCache.current[relativePath] = content;
+      setTabs((prev) => [...prev, { filePath: relativePath, content, loaded: true, type: fileType }]);
+      setActiveTabId(relativePath);
+    }
+    router.refresh();
+    e.target.value = "";
+  }, [docsPath, router, authFetch]);
 
   // Helper to update tab paths when a file is renamed
   const updateTabPaths = (oldPath: string, newPath: string) => {
@@ -342,6 +395,26 @@ export default function WorkspaceDetail({
     });
   }, [docsPath, message, authFetch, tc]);
 
+  const handleRefreshFileContent = useCallback((filePath: string) => {
+    setTabs((prev) => {
+      if (!prev.some((t) => t.filePath === filePath)) return prev;
+      authFetch(`/api/fs/document?path=${docsPath}/${filePath}`)
+        .then((r) => {
+          if (!r.ok) throw new Error("fetch failed");
+          return r.json();
+        })
+        .then((data) => {
+          const content = data.content ?? "";
+          contentCache.current[filePath] = content;
+          setTabs((prev2) => prev2.map((t) =>
+            t.filePath === filePath ? { ...t, content, loaded: true } : t
+          ));
+        })
+        .catch(() => {});
+      return prev;
+    });
+  }, [docsPath, authFetch]);
+
   const handleTabClose = useCallback((tabId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setTabs((prev) => {
@@ -445,10 +518,22 @@ export default function WorkspaceDetail({
 
   return (
     <div className="flex h-full">
+      {/* Hidden upload input */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept=".md,.html,.txt"
+        multiple
+        className="hidden"
+        onChange={handleUploadChange}
+      />
       {/* Left: File tree sidebar */}
       <WorkspaceSidebar
         workspaceName={workspaceMeta.name}
         tree={tree}
+        rootTree={rootTree}
+        activeView={treeView}
+        onViewChange={setTreeView}
         selectedPath={selectedPath}
         isRenaming={renamingPath !== null}
         renamingPath={renamingPath}
@@ -471,6 +556,7 @@ export default function WorkspaceDetail({
         onRenameConfirm={handleRenameConfirm}
         onRenameCancel={handleRenameCancel}
         onRenamingNameChange={setRenamingName}
+        onUpload={triggerUpload}
         onRefresh={() => router.refresh()}
       />
 
@@ -518,9 +604,12 @@ export default function WorkspaceDetail({
               router.refresh();
             } else if (toolName === "preview_html" && input && typeof input.path === "string") {
               handlePreviewHtml(input.path);
+            } else if (toolName === "refresh_file_content" && input && typeof input.path === "string") {
+              handleRefreshFileContent(input.path);
             }
           }}
           getCachedContent={(filePath) => contentCache.current[filePath]}
+          initialSubTab={initialSubTab}
         />
       </div>
     </div>

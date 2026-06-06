@@ -351,7 +351,7 @@ export default function WorkspaceMcpPanel({
         </span>
         <button
           onClick={openAdd}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-400 dark:hover:bg-blue-950 rounded-md transition-colors"
         >
           <PlusOutlined />
           {t('mcp.addMcp')}

@@ -69,6 +69,8 @@ interface WorkspaceEditorAreaProps {
   onToolCall: (event: { toolName: string; input?: Record<string, unknown> }) => void;
   /** 获取缓存的文件内容 */
   getCachedContent: (filePath: string) => string | undefined;
+  /** URL 参数传入的子Tab初始值 */
+  initialSubTab?: string;
 }
 
 export default function WorkspaceEditorArea({
@@ -101,6 +103,7 @@ export default function WorkspaceEditorArea({
   onFileChange,
   onToolCall,
   getCachedContent,
+  initialSubTab,
 }: WorkspaceEditorAreaProps) {
   const t = useTranslations('workspace');
   return (
@@ -151,6 +154,7 @@ export default function WorkspaceEditorArea({
             onWorkspaceDeleted={onWorkspaceDeleted}
             accountType={accountType}
             accountId={accountId}
+            initialSubTab={initialSubTab}
           />
         </div>
       </div>

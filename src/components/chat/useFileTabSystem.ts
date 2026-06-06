@@ -129,6 +129,27 @@ export function useFileTabSystem({ projectId: _projectId, projectPath, closeFall
     contentCache.current[filePath] = markdown;
   }, []);
 
+  /**
+   * 刷新已打开 tab 的文件内容。
+   * 如果指定文件未在 tabs 中打开，则不做任何操作。
+   */
+  const refreshFileContent = useCallback((filePath: string) => {
+    setTabs((prev) => {
+      if (!prev.some((t) => t.filePath === filePath)) return prev;
+      authFetch(`/api/fs/document?path=${projectPath}/${filePath}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const content = data.content ?? "";
+          contentCache.current[filePath] = content;
+          setTabs((prev2) => prev2.map((t) =>
+            t.filePath === filePath ? { ...t, content, loaded: true } : t
+          ));
+        })
+        .catch(() => {});
+      return prev;
+    });
+  }, [authFetch, projectPath]);
+
   const reset = useCallback(() => {
     setTabs([]);
     setActiveTabId(CHAT_TAB);
@@ -147,6 +168,7 @@ export function useFileTabSystem({ projectId: _projectId, projectPath, closeFall
     handleFileSave,
     handleFileChange,
     updateTabPaths,
+    refreshFileContent,
     reset,
   };
 }

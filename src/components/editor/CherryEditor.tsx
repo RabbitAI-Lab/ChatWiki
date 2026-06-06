@@ -30,6 +30,14 @@ export default function CherryEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const cherryRef = useRef<CherryInstance | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValueRef = useRef<string>(initialValue);
+
+  // 当外部内容变化时（如 AI 修改文件后前端刷新），更新编辑器内容
+  useEffect(() => {
+    if (lastValueRef.current === initialValue) return;
+    lastValueRef.current = initialValue;
+    cherryRef.current?.setMarkdown?.(initialValue);
+  }, [initialValue]);
 
   useEffect(() => {
     let cancelled = false;

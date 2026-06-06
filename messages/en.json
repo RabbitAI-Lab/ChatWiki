@@ -35,7 +35,12 @@
     "confirmDelete": "Confirm Delete?",
     "confirmDeleteDoc": "Confirm delete document \"{title}\"?",
     "mention": "@Mention",
-    "noDocuments": "No documents"
+    "noDocuments": "No documents",
+    "docsView": "Documents",
+    "workspaceView": "Workspace",
+    "document": "Document",
+    "folder": "Folder",
+    "upload": "Upload"
   },
   "metadata": {
     "title": "Document Management & Publishing",
@@ -635,6 +640,7 @@
     "loading": "Loading...",
     "document": "Document",
     "folder": "Folder",
+    "upload": "Upload",
     "thinkingBlock": {
       "thinkingProcess": "Thinking Process",
       "charCount": "chars"
@@ -743,6 +749,7 @@
     "documents": "{name} Documents",
     "document": "Document",
     "folder": "Folder",
+    "upload": "Upload",
     "noDescription": "No description",
     "newChat": "New Chat",
     "nameConflict": "A file or folder with this name already exists",
@@ -964,6 +971,7 @@
     "documents": "{name} Documents",
     "document": "Document",
     "folder": "Folder",
+    "upload": "Upload",
     "loading": "Loading...",
     "startChat": "Start Chat",
     "created": "Created {date}",

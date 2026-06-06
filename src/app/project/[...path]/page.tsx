@@ -14,11 +14,11 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ path: string[] }>;
-  searchParams: Promise<{ file?: string; chatId?: string }>;
+  searchParams: Promise<{ file?: string; chatId?: string; tab?: string }>;
 }) {
   const { path: rawPath } = await params;
   const path = rawPath.map(decodeURIComponent);
-  const { file: rawFile, chatId: chatIdParam } = await searchParams;
+  const { file: rawFile, chatId: chatIdParam, tab: rawTab } = await searchParams;
 
   // 验证用户身份（从 cookie 获取 access token）
   const cookieStore = await cookies();
@@ -45,6 +45,11 @@ export default async function ProjectPage({
 
   // Strip docs prefix and .md extension from tree paths
   const tree = stripTreePrefix(rawTree, docsPrefix);
+
+  // Build root tree for workspace view (all file types)
+  const projectPrefix = projectDirSegments.join("/");
+  const rawRootTree = listTree(projectDirSegments, []);
+  const rootTree = stripTreePrefix(rawRootTree, projectPrefix);
 
   // Get selected file content (only when explicitly requested via ?file=)
   let selectedFile: string | null = null;
@@ -147,12 +152,19 @@ export default async function ProjectPage({
       createdAt: row.createdAt,
     }));
 
+  const PROJECT_SUB_TABS = ["activity", "integration", "skills", "mcp", "members", "log"] as const;
+  const initialSubTab = PROJECT_SUB_TABS.includes(rawTab as typeof PROJECT_SUB_TABS[number])
+    ? rawTab as typeof PROJECT_SUB_TABS[number]
+    : "activity";
+
   return (
     <ProjectWorkspace
       projectName={projectName}
       projectPath={projectDirSegments.join("/")}
       docsPath={docsPrefix}
       tree={tree}
+      rootTree={rootTree}
+      rootPath={projectPrefix}
       selectedFile={selectedFile}
       initialContent={fileContent || ""}
       projectMeta={projectMeta}
@@ -161,6 +173,7 @@ export default async function ProjectPage({
       recentDocuments={recentDocuments}
       ownerUser={ownerUser}
       initialChatId={chatIdParam ? parseInt(chatIdParam) : undefined}
+      initialSubTab={initialSubTab}
     />
   );
 }

@@ -13,6 +13,7 @@ import { useFileTabSystem, PROJECT_INFO_TAB, CHAT_TAB } from "./useFileTabSystem
 import { useChatSwitching } from "./useChatSwitching";
 import type { RecentChat } from "./useChatSwitching";
 import FileTree from "@/components/ui/FileTree";
+import FileTreeFooter, { type TreeViewMode } from "@/components/ui/FileTreeFooter";
 import ProjectInfoTab from "@/components/project/ProjectInfoTab";
 import type { ProjectMeta } from "@/lib/fs";
 import type { DocumentActivity } from "@/lib/types";
@@ -49,6 +50,7 @@ export default function NewChatWorkspace() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedProjectName, setSelectedProjectName] = useState("");
   const [mentionFile, setMentionFile] = useState<string | null>(null);
+  const [treeView, setTreeView] = useState<TreeViewMode>("docs");
 
   // Project info state
   const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(null);
@@ -74,6 +76,16 @@ export default function NewChatWorkspace() {
   });
 
   const chatSwitching = useChatSwitching({ setActiveTabId: tabSystem.setActiveTabId });
+
+  // Lazy-load root tree when switching to workspace view
+  const handleViewChange = useCallback((view: TreeViewMode) => {
+    setTreeView(view);
+    if (view === "workspace" && fileTree.rootTree.length === 0) {
+      fileTree.refreshRootTree();
+    }
+  }, [fileTree]);
+
+  const displayTree = treeView === "docs" ? fileTree.tree : fileTree.rootTree;
 
   // --- Refresh recent chats & documents ---
 
@@ -193,6 +205,15 @@ export default function NewChatWorkspace() {
 
   return (
     <div className="flex h-full">
+      {/* Hidden upload input */}
+      <input
+        ref={fileTree.uploadInputRef}
+        type="file"
+        accept=".md,.html,.txt"
+        multiple
+        className="hidden"
+        onChange={fileTree.handleUploadChange}
+      />
       {/* Left Panel */}
       <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
         {selectedProjectId ? (
@@ -225,11 +246,11 @@ export default function NewChatWorkspace() {
             </div>
 
             {/* File tree toolbar */}
-            <div className="px-2 py-1.5 border-b border-gray-100 dark:border-zinc-700 flex gap-1">
+            <div className="px-2 py-1.5 border-b border-gray-100 dark:border-zinc-700 flex gap-0.5 justify-center">
               <button
                 onClick={() => fileTree.handleCreateFile("")}
                 disabled={fileTree.renamingPath !== null}
-                className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-1.5 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -241,7 +262,7 @@ export default function NewChatWorkspace() {
               <button
                 onClick={() => fileTree.handleCreateDir("")}
                 disabled={fileTree.renamingPath !== null}
-                className="flex items-center gap-1.5 flex-1 px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-1.5 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -249,6 +270,18 @@ export default function NewChatWorkspace() {
                   <line x1="9" y1="14" x2="15" y2="14" />
                 </svg>
                 {t('folder')}
+              </button>
+              <button
+                onClick={() => fileTree.triggerUpload("")}
+                disabled={fileTree.renamingPath !== null}
+                className="flex items-center gap-1 px-1.5 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                {t('upload')}
               </button>
             </div>
 
@@ -260,7 +293,7 @@ export default function NewChatWorkspace() {
               </div>
             ) : (
               <FileTree
-                tree={fileTree.tree}
+                tree={displayTree}
                 mode="editable"
                 selectedPath={tabSystem.activeTabId !== CHAT_TAB && tabSystem.activeTabId !== PROJECT_INFO_TAB ? tabSystem.activeTabId : null}
                 onFileClick={(node) => tabSystem.handleFileClick(node)}
@@ -283,8 +316,11 @@ export default function NewChatWorkspace() {
                 onRenameCancel={fileTree.handleRenameCancel}
                 renameInputRef={fileTree.renameInputRef}
                 onStartRename={fileTree.handleStartRename}
+                onUpload={(parentPath) => fileTree.triggerUpload(parentPath)}
               />
             )}
+
+            <FileTreeFooter activeView={treeView} onViewChange={handleViewChange} />
           </>
         ) : (
           <div className="flex-1 flex flex-col m-2 animate-blue-breathing overflow-hidden bg-white dark:bg-zinc-800">
@@ -437,7 +473,10 @@ export default function NewChatWorkspace() {
                   onDocumentSaved={fileTree.refreshTree}
                   mentionFile={mentionFile}
                   onMentionConsumed={() => setMentionFile(null)}
-                  onToolCall={({ toolName }) => { if (toolName === "refresh_file_tree") fileTree.refreshTree(); }}
+                  onToolCall={({ toolName, args }) => {
+                    if (toolName === "refresh_file_tree") fileTree.refreshTree();
+                    else if (toolName === "refresh_file_content" && args && typeof args.path === "string") tabSystem.refreshFileContent(args.path);
+                  }}
                   onChatCreated={handleChatCreated}
                 />
               </div>
@@ -469,20 +508,24 @@ export default function NewChatWorkspace() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-100 dark:bg-zinc-900">
-            <div className="text-center bg-blue-50 dark:bg-blue-900/20 rounded-xl p-8 border-l-4 border-blue-400 dark:border-blue-600 max-w-sm mx-4 shadow-sm">
-              {/* 指向左侧的弹跳箭头 */}
-              <div className="flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-blue-500 dark:text-blue-400 animate-slide-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-zinc-900">
+            <div className="text-center max-w-[280px] mx-4 animate-glow-soft rounded-2xl px-8 py-10 bg-gradient-to-b from-blue-50/70 to-white/60 dark:from-blue-950/25 dark:to-zinc-800/30">
+              {/* 浮动聊天气泡图标 */}
+              <div className="animate-float-gentle mb-5">
+                <svg className="w-12 h-12 mx-auto text-blue-300 dark:text-blue-400/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              {/* 提示文字 */}
+              <p className="text-[15px] leading-relaxed text-blue-500/80 dark:text-blue-300/70 font-medium">
+                {t("newChatWorkspace.pleaseSelectProject")}
+              </p>
+              {/* 方向引导箭头 */}
+              <div className="mt-4 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-blue-400/50 dark:text-blue-500/40 animate-arrow-glide" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 19l-7-7 7-7" />
                 </svg>
               </div>
-              {/* 主图标 */}
-              <svg className="w-16 h-16 mx-auto mb-4 text-blue-400 dark:text-blue-500 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              {/* 提示文字 */}
-              <p className="text-lg text-blue-700 dark:text-blue-300 font-medium">{t("newChatWorkspace.pleaseSelectProject")}</p>
             </div>
           </div>
         )}

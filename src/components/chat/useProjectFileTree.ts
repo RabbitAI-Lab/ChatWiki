@@ -26,11 +26,14 @@ export function useProjectFileTree({
   onFileCreated,
 }: UseProjectFileTreeOptions) {
   const [tree, setTree] = useState<TreeNode[]>(initialTreeProp ?? []);
+  const [rootTree, setRootTree] = useState<TreeNode[]>([]);
   const { authFetch } = useAuth();
   const [treeLoading, setTreeLoading] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetPath = useRef<string>("");
 
   const refreshTree = useCallback(async (targetProjectId?: string) => {
     const pid = targetProjectId ?? projectId;
@@ -188,8 +191,65 @@ export function useProjectFileTree({
     refreshTree();
   }, [projectPath, onCloseTab, refreshTree, authFetch]);
 
+  const refreshRootTree = useCallback(async (targetProjectId?: string) => {
+    const pid = targetProjectId ?? projectId;
+    if (!pid) return;
+    const prefix = `projects/${pid}`;
+    try {
+      const res = await authFetch(`/api/fs/tree?path=${prefix}&all=true`);
+      const data = await res.json();
+      setRootTree(Array.isArray(data) ? stripTreePrefix(data, prefix) : []);
+    } catch {
+      setRootTree([]);
+    }
+  }, [authFetch, projectId]);
+
+  const triggerUpload = useCallback((parentPath: string) => {
+    uploadTargetPath.current = parentPath;
+    uploadInputRef.current?.click();
+  }, []);
+
+  const handleUploadChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !projectId) return;
+
+    const parentPath = uploadTargetPath.current;
+    for (const file of Array.from(files)) {
+      let filename = file.name;
+      // .txt files are treated as .md
+      if (filename.endsWith(".txt")) {
+        filename = filename.replace(/\.txt$/, ".md");
+      }
+      // Skip unsupported extensions
+      if (!filename.endsWith(".md") && !filename.endsWith(".html")) {
+        message.warning(`Skipped unsupported file: ${file.name}`);
+        continue;
+      }
+
+      const content = await file.text();
+      const fullPath = parentPath
+        ? `${projectPath}/${parentPath}/${filename}`
+        : `${projectPath}/${filename}`;
+
+      await authFetch("/api/fs/document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: fullPath, content }),
+      });
+
+      const relativePath = parentPath ? `${parentPath}/${filename}` : filename;
+      if (onFileCreated) {
+        onFileCreated(relativePath, content);
+      }
+    }
+    refreshTree();
+    // Reset input so the same file can be selected again
+    e.target.value = "";
+  }, [projectId, projectPath, refreshTree, onFileCreated, authFetch, message]);
+
   const reset = useCallback(() => {
     setTree([]);
+    setRootTree([]);
     setRenamingPath(null);
     setRenamingName("");
   }, []);
@@ -197,6 +257,7 @@ export function useProjectFileTree({
   return {
     tree,
     setTree,
+    rootTree,
     treeLoading,
     setTreeLoading,
     renamingPath,
@@ -204,6 +265,7 @@ export function useProjectFileTree({
     setRenamingName,
     renameInputRef,
     refreshTree,
+    refreshRootTree,
     handleCreateFile,
     handleCreateDir,
     handleRenameConfirm,
@@ -211,6 +273,9 @@ export function useProjectFileTree({
     handleStartRename,
     handleDeleteDir,
     handleDeleteFile,
+    triggerUpload,
+    uploadInputRef,
+    handleUploadChange,
     reset,
   };
 }
