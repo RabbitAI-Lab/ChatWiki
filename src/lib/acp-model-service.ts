@@ -172,7 +172,7 @@ export async function* streamAcpModelResponse(
     });
 
     // 注册后台保存任务：prompt 完成后将 AI 回复保存到 DB（不依赖 generator/SSE 生命周期）
-    void promptPromise.then(async (response) => {
+    void promptPromise.then(async (_) => {
       // 检查 generation 是否匹配（防止新一轮 prompt 覆盖）
       const info = inProgressMap.get(options.chatId);
       if (!info || info.generation !== currentGeneration) {

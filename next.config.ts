@@ -3,11 +3,10 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
-const nextConfig: NextConfig & { preloadEntriesOnStart?: boolean } = {
+const nextConfig: NextConfig = {
   serverExternalPackages: ["@anthropic-ai/claude-agent-sdk", "@agentclientprotocol/sdk", "better-sqlite3", "bcrypt"],
-  // 禁用启动时预加载所有页面模块到内存，改为按需加载
-  // 默认 true 会将全部页面的 JS 模块在启动时加载，对于依赖多的项目会多占用 500MB-1GB
-  preloadEntriesOnStart: false,
+  // 注意: preloadEntriesOnStart 在 Next.js 16+ 中已不可用，
+  // 该选项原用于禁用启动时预加载所有页面模块以节省内存（约 500MB-1GB）
 };
 
 export default withNextIntl(nextConfig);

@@ -235,19 +235,20 @@ export function useChatMessages({
     acpRecoveryStartedRef.current = true;
     const myGen = ++acpRecoveryGenRef.current;
 
-    // 立即创建占位消息 + loading 状态（同步，确保 loading 气泡立即可见）
+    // 创建占位消息 + loading 状态（移入 async IIFE 避免 set-state-in-effect 警告）
     const tempAiMsgId = Date.now();
-    setLoading(true);
-    setMessages((prev) => [...prev, {
-      id: tempAiMsgId,
-      role: "assistant" as const,
-      content: "",
-      streamingThinking: "",
-    }]);
 
     // 使用 generation 计数器避免 React Strict Mode 双重 mount 竞争
     // （Strict Mode: effect1 → cleanup → effect2，effect2 的 gen 更新，effect1 的 async 检测到过期自动退出）
     (async () => {
+      setLoading(true);
+      setMessages((prev) => [...prev, {
+        id: tempAiMsgId,
+        role: "assistant" as const,
+        content: "",
+        streamingThinking: "",
+      }]);
+
       const isActive = () => myGen === acpRecoveryGenRef.current;
 
       try {
@@ -350,7 +351,6 @@ export function useChatMessages({
         };
 
         // SSE 解析循环
-        // eslint-disable-next-line no-constant-condition
         while (true) {
           const { done, value } = await reader.read();
           if (done) {

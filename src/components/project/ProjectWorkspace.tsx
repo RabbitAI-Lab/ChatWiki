@@ -40,6 +40,8 @@ export default function ProjectWorkspace({
   const [chatKey, setChatKey] = useState(0);
   const { authFetch, isLoading: authLoading, user } = useAuth();
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
+  const activeChatIdRef = useRef(activeChatId);
+  useEffect(() => { activeChatIdRef.current = activeChatId; });
   const [activeChatTitle, setActiveChatTitle] = useState("New Chat");
   const [activeChatMessages, setActiveChatMessages] = useState<Array<{ id: number; role: "user" | "assistant"; content: string }>>([]);
   const [activeChatModelId, setActiveChatModelId] = useState<number | undefined>();
@@ -495,7 +497,7 @@ export default function ProjectWorkspace({
   useEffect(() => {
     if (authLoading || !user || !initialChatId) return;
     // 跳过客户端已加载的 chat（避免 setChatKey 导致 ChatWorkspace 卸载重建）
-    if (activeChatId === initialChatId) return;
+    if (activeChatIdRef.current === initialChatId) return;
     void (async () => {
       try {
         const [chatRes, msgRes] = await Promise.all([
