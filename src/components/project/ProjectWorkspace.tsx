@@ -449,6 +449,10 @@ export default function ProjectWorkspace({
       setActiveChatTemplateId(chatData.templateId);
       setChatKey((k) => k + 1);
       setActiveTabId(CHAT_TAB);
+      // Update URL with new chatId
+      const url = new URL(window.location.href);
+      url.searchParams.set("chatId", String(chatId));
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
     } catch {
       setActiveTabId(CHAT_TAB);
     }
@@ -462,6 +466,10 @@ export default function ProjectWorkspace({
     setActiveChatTemplateId(undefined);
     setChatKey((k) => k + 1);
     setActiveTabId(CHAT_TAB);
+    // Clear chatId from URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete("chatId");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   }, []);
 
   const handleNavigateToDocument = useCallback(async (documentPath: string) => {
@@ -486,6 +494,8 @@ export default function ProjectWorkspace({
   // 如果从 URL 参数传入 chatId，自动加载该 chat
   useEffect(() => {
     if (authLoading || !user || !initialChatId) return;
+    // 跳过客户端已加载的 chat（避免 setChatKey 导致 ChatWorkspace 卸载重建）
+    if (activeChatId === initialChatId) return;
     void (async () => {
       try {
         const [chatRes, msgRes] = await Promise.all([
@@ -601,6 +611,7 @@ export default function ProjectWorkspace({
           mentionFile={mentionFile}
           onSwitchToChat={handleSwitchToChat}
           onNewChat={handleNewChat}
+          onChatCreated={setActiveChatId}
           onNavigateToDocument={handleNavigateToDocument}
           onMentionConsumed={() => setMentionFile(null)}
           onFileSave={handleFileSave}

@@ -56,6 +56,7 @@ interface ProjectEditorAreaProps {
   // --- 回调 ---
   onSwitchToChat: (chatId: number) => void;
   onNewChat: () => void;
+  onChatCreated?: (chatId: number) => void;
   onNavigateToDocument: (documentPath: string) => void;
   onMentionConsumed: () => void;
   onFileSave: (filePath: string, content: string) => void;
@@ -89,6 +90,7 @@ export default function ProjectEditorArea({
   mentionFile,
   onSwitchToChat,
   onNewChat,
+  onChatCreated,
   onNavigateToDocument,
   onMentionConsumed,
   onFileSave,
@@ -148,6 +150,7 @@ export default function ProjectEditorArea({
           onToolCall={onToolCall}
           onNewChat={onNewChat}
           onSwitchToChat={onSwitchToChat}
+          onChatCreated={onChatCreated}
         />
       </div>
 

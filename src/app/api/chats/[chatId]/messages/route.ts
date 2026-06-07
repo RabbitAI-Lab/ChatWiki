@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { chatMessages, chats } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { canAccessChat } from "@/lib/auth/chat-access";
 import { getApiT } from "@/lib/i18n-api";
 
@@ -48,6 +48,27 @@ export async function POST(
 
   if (!role || !content) {
     return NextResponse.json({ error: t('api.chat.roleAndContentRequired') }, { status: 400 });
+  }
+
+  // 幂等插入：assistant 消息去重
+  if (role === "assistant") {
+    const lastMsg = db.select().from(chatMessages)
+      .where(eq(chatMessages.chatId, parseInt(chatId)))
+      .orderBy(desc(chatMessages.id))
+      .limit(1)
+      .get();
+
+    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === content) {
+      // 已存在相同的 assistant 消息，直接返回已有记录
+      return NextResponse.json({
+        id: lastMsg.id,
+        role: lastMsg.role,
+        content: lastMsg.content,
+        thinking: lastMsg.thinking,
+        thinkingSignature: lastMsg.thinkingSignature,
+        isError: lastMsg.isError,
+      });
+    }
   }
 
   const result = db.insert(chatMessages).values({

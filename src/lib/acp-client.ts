@@ -50,6 +50,18 @@ export class ChatWikiAcpClient implements Client {
   private thinkingStarted = false;
 
   /**
+   * 事件历史：保留所有原始 StreamEvent，整个 prompt turn 期间只增不减。
+   * 用于刷新页面后全量回放，确保消息完整不丢失。
+   */
+  private _eventHistory: StreamEvent[] = [];
+
+  /**
+   * generation 计数器：每次 resetForNewPrompt 递增。
+   * 用于防止过期 prompt 的后台保存覆盖新一轮 prompt 的结果。
+   */
+  private _generation = 0;
+
+  /**
    * 最后一次 usage_update 数据（prompt 完成后采集）。
    */
   private _lastUsageUpdate: UsageUpdateData | null = null;
@@ -120,12 +132,15 @@ export class ChatWikiAcpClient implements Client {
     if (update.sessionUpdate === "agent_thought_chunk" && !this.thinkingStarted) {
       this.thinkingStarted = true;
       console.log("[ACP Client] 补充 thinking_start 事件");
-      this.eventQueue.push({ type: "thinking_start" });
+      const thinkingStartEvent: StreamEvent = { type: "thinking_start" };
+      this.eventQueue.push(thinkingStartEvent);
+      this._eventHistory.push(thinkingStartEvent);
     }
 
     if (mapped.length > 0) {
       console.log("[ACP Client] 映射事件数:", mapped.length, "types:", mapped.map(e => e.type).join(","));
       this.eventQueue.push(...mapped);
+      this._eventHistory.push(...mapped);
       // 唤醒等待中的消费者
       this.resolveWait?.();
     }
@@ -150,9 +165,11 @@ export class ChatWikiAcpClient implements Client {
       this._prevUsageUsed = this._lastUsageUpdate.used;
     }
     this.eventQueue = [];
+    this._eventHistory = [];
     this.resolveWait = null;
     this.promptDone = false;
     this.thinkingStarted = false;
+    this._generation++;
   }
 
   /**
@@ -173,6 +190,49 @@ export class ChatWikiAcpClient implements Client {
    * AsyncGenerator：从事件队列消费 StreamEvent。
    * 在 promptDone=true 且队列清空后结束。
    */
+  // --- 事件历史访问 ---
+
+  /**
+   * 获取事件历史（只增不减的权威数据源）。
+   * 用于 acp-stream 端点全量回放。
+   */
+  getEventHistory(): StreamEvent[] {
+    return this._eventHistory;
+  }
+
+  /**
+   * 获取当前 generation 计数器。
+   * 用于后台保存时检查是否过期。
+   */
+  getGeneration(): number {
+    return this._generation;
+  }
+
+  /**
+   * 从事件历史中提取完整文本（text_delta + thinking_delta 拼接）。
+   * 供后台 DB 保存使用。
+   */
+  getTextFromHistory(): { text: string; thinking: string } {
+    let text = "";
+    let thinking = "";
+    for (const event of this._eventHistory) {
+      if (event.type === "text_delta") {
+        text += event.text;
+      } else if (event.type === "thinking_delta") {
+        thinking += event.text;
+      }
+    }
+    return { text, thinking };
+  }
+
+  /**
+   * 清空事件队列（不触及 _eventHistory）。
+   * 用于 acp-stream 端点回放历史后清除重叠的队列事件，避免重复发送。
+   */
+  clearEventQueue(): void {
+    this.eventQueue = [];
+  }
+
   async *drainEvents(): AsyncGenerator<StreamEvent> {
     while (true) {
       // 1. 先消费队列中的所有事件

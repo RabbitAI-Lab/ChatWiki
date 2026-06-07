@@ -8,7 +8,8 @@ import type { ContentBlock, PromptResponse } from "@agentclientprotocol/sdk";
 import { getOrCreateEntry, getOrCreateSession, forceRecreateEntry, buildPoolKey, type AcpPoolConfig } from "./acp-pool";
 import { resolveModelConfig, resolveMcpServersForUser, convertToAcpMcpServers } from "./model-service";
 import { db } from "@/db";
-import { tokenUsageLogs } from "@/db/schema";
+import { tokenUsageLogs, chatMessages, chats } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
 
 type AcpModelConfig = {
   id: number;
@@ -25,6 +26,35 @@ type AcpModelConfig = {
 function isConnectionClosedError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return msg.includes("ACP connection closed") || msg.includes("ENOENT");
+}
+
+// ========== ACP 进行中状态管理 ==========
+
+/**
+ * 记录当前正在进行中的 ACP prompt，用于刷新恢复检测。
+ * key = chatId, value = poolKey + generation（防止过期 prompt 干扰）。
+ */
+const inProgressMap = new Map<number, { poolKey: string; generation: number }>();
+
+/** 检查指定 chat 是否有 ACP prompt 正在进行 */
+export function isAcpPromptInProgress(chatId: number): boolean {
+  return inProgressMap.has(chatId);
+}
+
+/** 获取指定 chat 的 ACP clientRef（用于 acp-stream 端点回放事件） */
+export function getAcpClientRef(chatId: number): import("./acp-client").ChatWikiAcpClient | null {
+  const info = inProgressMap.get(chatId);
+  if (!info) return null;
+  const entry = getEntry(info.poolKey);
+  if (!entry) return null;
+  return entry.clientRef;
+}
+
+/** 从连接池中获取指定 key 的 entry（只读查询） */
+function getEntry(poolKey: string): import("./acp-pool").AcpPoolEntry | null {
+  const pool = globalThis.__chatwiki_acp_pool__;
+  if (!pool) return null;
+  return pool.get(poolKey) ?? null;
 }
 
 export async function* streamAcpModelResponse(
@@ -101,6 +131,11 @@ export async function* streamAcpModelResponse(
 
     // 4. 重置 client 事件队列
     entry.clientRef.resetForNewPrompt();
+    const currentGeneration = entry.clientRef.getGeneration();
+
+    // 注册到 inProgressMap，标记 ACP prompt 正在进行
+    inProgressMap.set(options.chatId, { poolKey: key, generation: currentGeneration });
+    console.log("[ACP] registered inProgressMap, chatId=", options.chatId, "generation=", currentGeneration);
 
     // 5. 发起 prompt
     console.log("[ACP] 发起 prompt, sessionId=", sessionId);
@@ -129,11 +164,71 @@ export async function* streamAcpModelResponse(
     let _promptDone = false;
     let promptError: Error | null = null;
 
-    // 后台等待 prompt 完成
+    // 后台等待 prompt 完成（不依赖 generator 生命周期）
     void promptPromise.catch((err: unknown) => {
       promptError = err instanceof Error ? err : new Error(String(err));
     }).finally(() => {
       _promptDone = true;
+    });
+
+    // 注册后台保存任务：prompt 完成后将 AI 回复保存到 DB（不依赖 generator/SSE 生命周期）
+    void promptPromise.then(async (response) => {
+      // 检查 generation 是否匹配（防止新一轮 prompt 覆盖）
+      const info = inProgressMap.get(options.chatId);
+      if (!info || info.generation !== currentGeneration) {
+        console.log("[ACP] 后台保存跳过: generation 不匹配, current=", currentGeneration, "info=", info?.generation);
+        return;
+      }
+      try {
+        const { text, thinking } = entry.clientRef.getTextFromHistory();
+        if (!text) {
+          console.log("[ACP] 后台保存跳过: 无文本内容");
+          return;
+        }
+        console.log("[ACP] 后台保存 AI 回复到 DB, chatId=", options.chatId, "textLength=", text.length);
+
+        // 查询该 chat 最后一条消息，检查是否已有 assistant 消息（幂等）
+        const lastMsg = db.select().from(chatMessages)
+          .where(eq(chatMessages.chatId, options.chatId))
+          .orderBy(desc(chatMessages.id))
+          .limit(1)
+          .get();
+
+        if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === text) {
+          console.log("[ACP] 后台保存跳过: assistant 消息已存在");
+        } else {
+          db.insert(chatMessages).values({
+            chatId: options.chatId,
+            role: "assistant",
+            content: text,
+            thinking: thinking || null,
+            createdAt: new Date().toISOString(),
+          }).run();
+
+          // 更新 chat 的 updatedAt
+          db.update(chats)
+            .set({ updatedAt: new Date().toISOString() })
+            .where(eq(chats.id, options.chatId))
+            .run();
+
+          console.log("[ACP] 后台保存成功, chatId=", options.chatId);
+        }
+      } catch (err) {
+        console.error("[ACP] 后台保存失败:", err);
+      } finally {
+        // 无论成功失败，都从 inProgressMap 中移除
+        const currentInfo = inProgressMap.get(options.chatId);
+        if (currentInfo && currentInfo.generation === currentGeneration) {
+          inProgressMap.delete(options.chatId);
+          console.log("[ACP] unregistered inProgressMap, chatId=", options.chatId);
+        }
+      }
+    }).catch(() => {
+      // promptPromise 本身失败了，也要清理 inProgressMap
+      const currentInfo = inProgressMap.get(options.chatId);
+      if (currentInfo && currentInfo.generation === currentGeneration) {
+        inProgressMap.delete(options.chatId);
+      }
     });
 
     // 消费事件流
@@ -250,6 +345,9 @@ export async function* streamAcpModelResponse(
       thinking: accumulatedThinking || undefined,
     };
   } catch (err) {
+    // 清理 inProgressMap
+    inProgressMap.delete(options.chatId);
+
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error("[ACP] stream error:", errMsg);
 

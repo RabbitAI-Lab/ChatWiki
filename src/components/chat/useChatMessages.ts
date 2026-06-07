@@ -191,7 +191,7 @@ export function useChatMessages({
   const creatingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [messages, setMessages] = useState<Message[]>(initialMessages || []);
-  const { authFetch } = useAuth();
+  const { authFetch, accessToken } = useAuth();
   const t = useTranslations("chat");
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -216,6 +216,210 @@ export function useChatMessages({
   useEffect(() => {
     effectiveChatIdRef.current = effectiveChatId;
   }, [effectiveChatId]);
+
+  // --- ACP 刷新恢复检测 ---
+  // 当页面加载完成且最后一条消息是 user（无 assistant 回复）时，
+  // 尝试连接 acp-stream SSE 端点恢复 ACP 进行中的响应
+  const acpRecoveryStartedRef = useRef(false);
+  const acpRecoveryGenRef = useRef(0);
+  useEffect(() => {
+    // 防止重复触发
+    if (acpRecoveryStartedRef.current) return;
+    // 仅在 effectiveChatId 存在、loading 为 false、有消息时检测
+    if (!effectiveChatId || loading || messages.length === 0) return;
+
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== "user") return;
+
+    // 标记已触发，分配唯一 generation
+    acpRecoveryStartedRef.current = true;
+    const myGen = ++acpRecoveryGenRef.current;
+
+    // 立即创建占位消息 + loading 状态（同步，确保 loading 气泡立即可见）
+    const tempAiMsgId = Date.now();
+    setLoading(true);
+    setMessages((prev) => [...prev, {
+      id: tempAiMsgId,
+      role: "assistant" as const,
+      content: "",
+      streamingThinking: "",
+    }]);
+
+    // 使用 generation 计数器避免 React Strict Mode 双重 mount 竞争
+    // （Strict Mode: effect1 → cleanup → effect2，effect2 的 gen 更新，effect1 的 async 检测到过期自动退出）
+    (async () => {
+      const isActive = () => myGen === acpRecoveryGenRef.current;
+
+      try {
+        // 使用原生 fetch 而非 authFetch，因为 authFetch 内部的 dedupFetch 会 r.clone()
+        // clone() 会缓冲整个流式 body 直到流关闭，SSE 流无法正常读取
+        const sseHeaders: Record<string, string> = {};
+        if (accessToken) {
+          sseHeaders["Authorization"] = `Bearer ${accessToken}`;
+        }
+        console.log("[ACP-Recovery] 检测 ACP 恢复, chatId=", effectiveChatId, "gen=", myGen);
+        const res = await fetch(`/api/chats/${effectiveChatId}/acp-stream`, { headers: sseHeaders });
+        if (!isActive()) return; // 过期，静默退出（cleanup 已处理占位和 loading）
+
+        console.log("[ACP-Recovery] acp-stream 响应:", res.status, res.ok);
+        if (!res.ok) {
+          console.warn("[ACP-Recovery] acp-stream 非 200 响应");
+          setLoading(false);
+          return;
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) {
+          console.warn("[ACP-Recovery] 无 ReadableStream reader");
+          setLoading(false);
+          return;
+        }
+
+        // SSE 解析
+        const decoder = new TextDecoder();
+        let aiContent = "";
+        let aiThinking = "";
+        let gotNotInProgress = false;
+        let eventCount = 0;
+        let sseBuffer = "";
+
+        const handleEvent = (eventType: string, data: Record<string, unknown>) => {
+          eventCount++;
+          if (eventCount <= 3) {
+            console.log("[ACP-Recovery] event #", eventCount, eventType, data.type);
+          }
+
+          if (!isActive()) return;
+
+          if (eventType === "not_in_progress") {
+            gotNotInProgress = true;
+            console.log("[ACP-Recovery] 收到 not_in_progress，延迟从 DB 重新加载");
+            setMessages((prev) => prev.filter((m) => m.id !== tempAiMsgId));
+            setTimeout(async () => {
+              try {
+                const msgsRes = await authFetch(`/api/chats/${effectiveChatId}/messages`);
+                if (msgsRes.ok) {
+                  const dbMessages = await msgsRes.json();
+                  setMessages(
+                    dbMessages.map((m: Record<string, unknown>) => ({
+                      id: m.id as number,
+                      role: m.role as "user" | "assistant",
+                      content: m.content as string,
+                      thinking: m.thinking as string | undefined,
+                      thinkingSignature: m.thinkingSignature as string | undefined,
+                      isError: m.isError === 1,
+                    }))
+                  );
+                }
+              } catch {
+                // DB 加载失败
+              }
+              setLoading(false);
+            }, 500);
+            return;
+          }
+
+          if (eventType === "delta" && data.type === "text_delta" && typeof data.text === "string") {
+            aiContent += data.text;
+            setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent }));
+          } else if (eventType === "thinking_start" && data.type === "thinking_start") {
+            aiThinking = "";
+            setMessages((prev) => updateMessageById(prev, tempAiMsgId, { streamingThinking: "" }));
+          } else if (eventType === "thinking_delta" && data.type === "thinking_delta" && typeof data.text === "string") {
+            aiThinking += data.text;
+            setMessages((prev) => updateMessageById(prev, tempAiMsgId, { streamingThinking: aiThinking }));
+          } else if (eventType === "error") {
+            const errorContent = (data.error as string) || "ACP 恢复流错误";
+            setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: errorContent, isError: true }));
+          } else if (eventType === "tool_call" && data.type === "tool_call") {
+            onToolCall?.({
+              toolName: data.toolName as string,
+              args: (data.args as Record<string, unknown>) ?? {},
+            });
+          } else if (eventType === "done" && data.type === "done") {
+            const finalText = typeof data.fullText === "string" ? data.fullText : aiContent;
+            const finalThinking = (data.thinking as string | undefined) || aiThinking || undefined;
+            setMessages((prev) =>
+              updateMessageById(prev, tempAiMsgId, {
+                content: finalText,
+                thinking: finalThinking,
+                streamingThinking: undefined,
+              })
+            );
+          }
+        };
+
+        // SSE 解析循环
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log("[ACP-Recovery] 流结束, 共处理", eventCount, "个事件");
+            break;
+          }
+          if (!isActive()) break;
+
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split("\n");
+          sseBuffer = lines.pop() || "";
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.startsWith("event: ")) {
+              const eventType = line.slice(7).trim();
+              const dataLine = lines[i + 1];
+              if (dataLine?.startsWith("data: ")) {
+                i++;
+                try {
+                  handleEvent(eventType, JSON.parse(dataLine.slice(6)));
+                } catch {
+                  // 解析错误忽略
+                }
+              }
+            }
+          }
+        }
+
+        console.log("[ACP-Recovery] SSE 循环退出, eventCount=", eventCount);
+
+        // DB reload 获取正式记录
+        if (!gotNotInProgress && isActive()) {
+          try {
+            const msgsRes = await authFetch(`/api/chats/${effectiveChatId}/messages`);
+            if (msgsRes.ok) {
+              const dbMessages = await msgsRes.json();
+              setMessages(
+                dbMessages.map((m: Record<string, unknown>) => ({
+                  id: m.id as number,
+                  role: m.role as "user" | "assistant",
+                  content: m.content as string,
+                  thinking: m.thinking as string | undefined,
+                  thinkingSignature: m.thinkingSignature as string | undefined,
+                  isError: m.isError === 1,
+                }))
+              );
+            }
+          } catch {
+            // DB 加载失败，保留内存中的消息
+          }
+          setLoading(false);
+        }
+
+        console.log("[ACP-Recovery] 恢复完成, chatId=", effectiveChatId);
+      } catch (err) {
+        console.error("[ACP-Recovery] 错误:", err);
+        if (isActive()) setLoading(false);
+      }
+    })();
+
+    // cleanup：重置 startedRef + 移除本 effect 创建的占位消息（避免 Strict Mode 双气泡）
+    return () => {
+      acpRecoveryStartedRef.current = false;
+      setMessages((prev) => prev.filter((m) => m.id !== tempAiMsgId));
+      setLoading(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveChatId]); // 只依赖 effectiveChatId，避免 state 变化导致 cleanup 竞争
 
   useEffect(() => {
     if (mentionFile) {
@@ -315,10 +519,21 @@ export function useChatMessages({
         effectiveChatIdRef.current = chat.id;
         setEffectiveChatId(chat.id);
         onChatCreated?.(chat.id);
-        router.refresh();
-        if (!embedded && !floating) {
-          const chatUrl = getChatUrl({ chatId: chat.id, projectId: selectedProject, workspaceId: selectedWorkspace ?? workspaceId, userId: userId ?? '' });
-          window.history.replaceState(null, "", chatUrl || `/chat/${chat.id}`);
+        // 嵌入模式跳过 router.refresh()，避免 Next.js 服务端重渲染导致 ChatWorkspace 卸载重建
+        if (!embedded) {
+          router.refresh();
+        }
+        if (!floating) {
+          if (embedded) {
+            // 嵌入模式：只更新查询参数，避免触发 Next.js 路由检测导致的二次渲染
+            const url = new URL(window.location.href);
+            url.searchParams.set("chatId", String(chat.id));
+            window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+          } else {
+            // 独立页面：使用完整路径
+            const chatUrl = getChatUrl({ chatId: chat.id, projectId: selectedProject, workspaceId: selectedWorkspace ?? workspaceId, userId: userId ?? '' });
+            window.history.replaceState(null, "", chatUrl || `/chat/${chat.id}`);
+          }
         }
       } catch {
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));

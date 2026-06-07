@@ -486,6 +486,10 @@ export default function WorkspaceDetail({
         setActiveChatTemplateId(chatData.templateId);
         setChatKey((k) => k + 1);
         setActiveTabId(CHAT_TAB);
+        // Update URL with new chatId
+        const url = new URL(window.location.href);
+        url.searchParams.set("chatId", String(chatId));
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
       } catch {
         setActiveTabId(CHAT_TAB);
       }
@@ -501,6 +505,10 @@ export default function WorkspaceDetail({
     setActiveChatTemplateId(undefined);
     setChatKey((k) => k + 1);
     setActiveTabId(CHAT_TAB);
+    // Clear chatId from URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete("chatId");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   }, [t]);
 
   // 点击 Activity 标签中的 document：跳转到 document 所属 project 的 ProjectWorkspace
@@ -522,6 +530,8 @@ export default function WorkspaceDetail({
   // 如果从 URL 参数传入 chatId，自动加载该 chat
   useEffect(() => {
     if (authLoading || !user || !initialChatId) return;
+    // 跳过客户端已加载的 chat（避免 setChatKey 导致 ChatWorkspace 卸载重建）
+    if (activeChatId === initialChatId) return;
     void (async () => {
       try {
         const [chatRes, msgRes] = await Promise.all([
@@ -633,6 +643,7 @@ export default function WorkspaceDetail({
           workspaceIdForChat={workspaceMeta.id}
           onSwitchToChat={handleSwitchToChat}
           onNewChat={handleNewChat}
+          onChatCreated={setActiveChatId}
           onNavigateToDocument={handleNavigateToDocument}
           onWorkspaceDeleted={handleWorkspaceDeleted}
           onMentionConsumed={() => setMentionFile(null)}

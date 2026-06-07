@@ -61,6 +61,7 @@ interface WorkspaceEditorAreaProps {
   // --- 回调 ---
   onSwitchToChat: (chatId: number, projectId: string | null) => void;
   onNewChat: () => void;
+  onChatCreated?: (chatId: number) => void;
   onNavigateToDocument: (documentPath: string, projectId: string) => void;
   onWorkspaceDeleted: () => void;
   onMentionConsumed: () => void;
@@ -96,6 +97,7 @@ export default function WorkspaceEditorArea({
   workspaceIdForChat,
   onSwitchToChat,
   onNewChat,
+  onChatCreated,
   onNavigateToDocument,
   onWorkspaceDeleted,
   onMentionConsumed,
@@ -180,6 +182,7 @@ export default function WorkspaceEditorArea({
           onToolCall={onToolCall}
           onNewChat={onNewChat}
           onSwitchToChat={(chatId) => onSwitchToChat(chatId, null)}
+          onChatCreated={onChatCreated}
         />
       </div>
 
