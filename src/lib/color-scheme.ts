@@ -55,7 +55,7 @@ export const DEFAULT_COLORS: ColorScheme = {
     mainBg: "#09090b",
     foreground: "#ededed",
     background: "#0a0a0a",
-    senderBg: "#18181b",
+    senderBg: "transparent",
   },
 };
 

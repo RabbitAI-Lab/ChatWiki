@@ -127,7 +127,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
 
         {/* New Template表单 */}
         {showCreate && (
-          <div className="mb-6 p-4 bg-white dark:bg-zinc-800 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
+          <div className="bg-white dark:bg-[var(--popup-bg)] rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('newTemplate')}</h3>
             <div className="space-y-3">
               <div className="flex gap-3">
@@ -185,7 +185,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
                   <div
                     key={tpl.id}
                     onClick={() => router.push(`/templates/${tpl.id}`)}
-                    className="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
+                    className="bg-white dark:bg-[var(--popup-bg)] rounded-xl border border-gray-200 dark:border-[var(--popup-border)] shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
                   >
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -225,13 +225,13 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
                             🤖 {t('agentPromptConfigured')}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-zinc-700 px-1.5 py-0.5 rounded">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-[var(--main-bg)] px-1.5 py-0.5 rounded">
                             {t('promptNotConfigured')}
                           </span>
                         )}
                       </div>
                       {tpl.content && (
-                        <pre className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-zinc-700 rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
+                        <pre className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-[var(--main-bg)] rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
                           {tpl.content.slice(0, 150)}{tpl.content.length > 150 ? "..." : ""}
                         </pre>
                       )}
@@ -255,7 +255,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
                   <div
                     key={tpl.id}
                     onClick={() => router.push(`/templates/${tpl.id}`)}
-                    className="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
+                    className="bg-white dark:bg-[var(--popup-bg)] rounded-xl border border-gray-200 dark:border-[var(--popup-border)] shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
                   >
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -284,13 +284,13 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
                             🤖 {t('agentPromptConfigured')}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-zinc-700 px-1.5 py-0.5 rounded">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-[var(--main-bg)] px-1.5 py-0.5 rounded">
                             {t('promptNotConfigured')}
                           </span>
                         )}
                       </div>
                       {tpl.content && (
-                        <pre className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-zinc-700 rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
+                        <pre className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-[var(--main-bg)] rounded-lg p-2 max-h-24 overflow-hidden whitespace-pre-wrap line-clamp-3 mt-3">
                           {tpl.content.slice(0, 150)}{tpl.content.length > 150 ? "..." : ""}
                         </pre>
                       )}
@@ -317,7 +317,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
       {copyingTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCopyingTemplate(null)}>
           <div
-            className="bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-gray-200 dark:border-zinc-700 w-full max-w-md mx-4 p-6"
+            className="bg-white dark:bg-[var(--popup-bg)] rounded-xl shadow-xl border border-gray-200 dark:border-[var(--popup-border)] w-full max-w-md mx-4 p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">{t('copyTemplate')}</h3>

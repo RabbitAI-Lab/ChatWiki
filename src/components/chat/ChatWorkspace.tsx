@@ -241,33 +241,24 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
             {/* Queue indicator */}
             {messagesApi.queueSize > 0 && (
               <div
-                className="rounded-md px-3 py-2 mb-2"
+                className="rounded-md border mb-2"
                 style={{
+                  borderColor: 'var(--ant-color-primary)',
+                  borderWidth: 1,
+                  borderStyle: 'dashed',
                   color: 'var(--ant-color-primary)',
-                  backgroundColor: 'var(--ant-color-primary-bg)',
                 }}
               >
-                <div className="flex items-center gap-2 text-xs mb-1.5">
+                <div className="flex items-center gap-2 text-xs px-3 pt-2 pb-1">
                   <ClockCircleOutlined spin />
                   <span>{t('queue.pending', { count: messagesApi.queueSize })}</span>
-                  <button
-                    onClick={() => messagesApi.handleClearQueue()}
-                    className="ml-auto transition-colors"
-                    style={{ color: 'var(--ant-color-text-quaternary)' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ant-color-error)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ant-color-text-quaternary)')}
-                    title={t('queue.clearAll')}
-                  >
-                    <CloseOutlined />
-                  </button>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 px-3 pb-2">
                   {messagesApi.queueItems.map((item, index) => (
                     <div
                       key={index}
                       className="flex items-start gap-2 text-xs rounded px-2 py-1"
                       style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
                         color: 'var(--ant-color-text)',
                       }}
                     >
@@ -312,6 +303,7 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
                   !e.nativeEvent.isComposing &&
                   messagesApi.inputValue.trim()
                 ) {
+                  e.preventDefault();
                   messagesApi.handleSend(messagesApi.inputValue);
                   return false;
                 }
