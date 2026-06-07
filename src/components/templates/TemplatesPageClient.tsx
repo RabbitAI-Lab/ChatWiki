@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/ui/Spinner";
+import { Button } from "antd";
 
 interface Template {
   id: number;
@@ -107,16 +108,17 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('title')}</h2>
-        <button
+        <Button
+          type="primary"
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg transition-colors"
+          className="flex items-center gap-1.5"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           {t('newTemplate')}
-        </button>
+        </Button>
       </div>
 
       {/* Content */}

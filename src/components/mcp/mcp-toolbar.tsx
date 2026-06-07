@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { PlusOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 
 export interface McpToolbarProps {
   enabledCount: number;
@@ -24,13 +25,14 @@ export default function McpToolbar({
       <span className="text-xs text-gray-500 dark:text-gray-400">
         {t('mcp.toolbarCount', { enabled: enabledCount, total: totalCount })}
       </span>
-      <button
+      <Button
+        type="primary"
         onClick={onAdd}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-md transition-colors"
+        size="small"
+        icon={<PlusOutlined />}
       >
-        <PlusOutlined />
         {t('mcp.addMcp')}
-      </button>
+      </Button>
     </div>
   );
 }

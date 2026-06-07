@@ -65,6 +65,8 @@ interface Plan {
   description: string | null;
   defaultCurrency: string;
   prices: string;
+  providerPrices: string | null;
+  billingMode: string | null;
   discountType: "none" | "percentage" | "fixed";
   discountValue: number;
   features: string;
@@ -90,7 +92,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
   const refreshList = useCallback(async () => {
     const res = await authFetch("/api/plans");
     const data = await res.json();
-    setPlans(data);
+    setPlans(data.plans || data);
   }, [authFetch]);
 
   const handleCreate = useCallback(() => {
@@ -127,6 +129,9 @@ export default function PlansPageClient({ initialPlans }: Props) {
         tokenLimitMonthly: (record as unknown as Record<string, unknown>).tokenLimitMonthly as number || 0,
         tokenLimitYearly: (record as unknown as Record<string, unknown>).tokenLimitYearly as number || 0,
         featureList: parsedFeatures,
+        billingMode: record.billingMode || "subscription",
+        stripeMonthlyPriceId: JSON.parse(record.providerPrices || "{}").stripe?.monthlyPriceId || "",
+        stripeYearlyPriceId: JSON.parse(record.providerPrices || "{}").stripe?.yearlyPriceId || "",
       });
       setModalOpen(true);
     },
@@ -136,13 +141,24 @@ export default function PlansPageClient({ initialPlans }: Props) {
   const handleSubmit = useCallback(async () => {
     try {
       const values = await form.validateFields();
+      const providerPrices: Record<string, { monthlyPriceId?: string; yearlyPriceId?: string }> = {};
+      if (values.stripeMonthlyPriceId || values.stripeYearlyPriceId) {
+        providerPrices.stripe = {
+          monthlyPriceId: values.stripeMonthlyPriceId || undefined,
+          yearlyPriceId: values.stripeYearlyPriceId || undefined,
+        };
+      }
       const submitData = {
         ...values,
         prices: JSON.stringify(values.priceList || []),
         features: JSON.stringify(values.featureList || []),
+        providerPrices: JSON.stringify(providerPrices),
+        billingMode: values.billingMode || "subscription",
       };
       delete submitData.priceList;
       delete submitData.featureList;
+      delete submitData.stripeMonthlyPriceId;
+      delete submitData.stripeYearlyPriceId;
 
       if (editingPlan) {
         await authFetch(`/api/plans/${editingPlan.id}`, {
@@ -322,7 +338,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700">
+      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-[var(--main-bg)] border-b border-gray-200 dark:border-[var(--sidebar-border)]">
         <div>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{t('plansPage.title')}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -358,6 +374,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
         okText={editingPlan ? t('plansPage.btnSave') : t('plansPage.btnCreate')}
         cancelText={t('modelConfigModal.btnCancel')}
         mask={{ closable: false }}
+        styles={{ mask: { background: 'rgba(0, 0, 0, 0.6)' } }}
         width={720}
       >
         <Form
@@ -371,6 +388,9 @@ export default function PlansPageClient({ initialPlans }: Props) {
             discountValue: 0,
             tokenLimitMonthly: 0,
             tokenLimitYearly: 0,
+            billingMode: "subscription",
+            stripeMonthlyPriceId: "",
+            stripeYearlyPriceId: "",
             priceList: [],
             featureList: [],
           }}
@@ -415,7 +435,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
                   return (
                   <div
                     key={field.key}
-                    className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-zinc-800 rounded-lg"
+                    className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-[var(--background)] rounded-lg"
                   >
                     <Form.Item
                       {...fieldProps}
@@ -493,6 +513,28 @@ export default function PlansPageClient({ initialPlans }: Props) {
             </Form.Item>
             <Form.Item label={t('plansPage.formDiscountValue')} name="discountValue">
               <InputNumber min={0} className="w-full" />
+            </Form.Item>
+          </div>
+
+          <div className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-4 mb-2">
+            Payment Provider (Stripe)
+          </div>
+
+          <Form.Item label="Billing Mode" name="billingMode" tooltip="Subscription: auto-renew; One-time: single payment">
+            <Select
+              options={[
+                { value: "subscription", label: "Subscription (Auto-renew)" },
+                { value: "one_time", label: "One-time Payment" },
+              ]}
+            />
+          </Form.Item>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item label="Stripe Monthly Price ID" name="stripeMonthlyPriceId" tooltip="Create prices in Stripe Dashboard and paste the price_id here">
+              <Input placeholder="price_1R..." />
+            </Form.Item>
+            <Form.Item label="Stripe Yearly Price ID" name="stripeYearlyPriceId" tooltip="Create prices in Stripe Dashboard and paste the price_id here">
+              <Input placeholder="price_1R..." />
             </Form.Item>
           </div>
 

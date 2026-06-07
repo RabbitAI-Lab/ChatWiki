@@ -270,7 +270,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700">
+      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-[var(--main-bg)] border-b border-gray-200 dark:border-[var(--sidebar-border)]">
         <div>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{t('modelsPage.title')}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">

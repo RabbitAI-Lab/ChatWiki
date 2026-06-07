@@ -190,7 +190,12 @@
       "menuInviteCodes": "邀请码",
       "menuAuth": "认证",
       "menuPlans": "套餐",
+      "menuOrders": "订单管理",
+      "menuPaymentConfig": "支付配置",
       "menuAppearance": "外观设置"
+    },
+    "ordersPage": {
+      "title": "订单管理"
     },
     "usersPage": {
       "title": "用户管理",

@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/useAuth";
+import { Button } from "antd";
 
 interface EditorToolbarProps {
   docPath: string;
@@ -52,26 +53,22 @@ export default function EditorToolbar({
   return (
     <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700">
       <div className="flex items-center gap-2">
-        <button
+        <Button
+          type="primary"
           onClick={onSave}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg transition-colors"
+          loading={saving}
+          size="small"
+          className="flex items-center gap-1"
         >
-          {saving ? (
-            <>
-              <div className="animate-spin rounded-full h-3 w-3 border border-white border-t-transparent" />
-              {t('saving')}
-            </>
-          ) : (
-            <>
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
-              </svg>
-              {t('save')}
-            </>
+          {!saving && (
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
           )}
-        </button>
+          {saving ? t('saving') : t('save')}
+        </Button>
 
         <button
           onClick={handlePublish}

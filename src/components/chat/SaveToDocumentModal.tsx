@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
-import { Modal, Input, Spin, message } from "antd";
+import { Modal, Input, Spin, message, Button } from "antd";
 
 interface TreeNode {
   name: string;
@@ -257,17 +257,15 @@ export default function SaveToDocumentModal({
           >
             {t("saveModal.cancel")}
           </button>
-          <button
+          <Button
+            type="primary"
             onClick={handleSave}
             disabled={!canSave}
-            className={`px-3 py-1.5 text-xs rounded transition-colors ${
-              canSave
-                ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]"
-                : "bg-gray-200 dark:bg-zinc-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-            }`}
+            loading={saving}
+            size="small"
           >
             {saving ? t("saveModal.saving") : t("saveModal.save")}
-          </button>
+          </Button>
         </div>
       }
     >

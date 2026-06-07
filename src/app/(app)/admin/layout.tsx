@@ -10,7 +10,7 @@ export default function AdminLayout({
     <AdminGuard>
       <div className="flex h-full">
         <AdminSidebar />
-        <div className="flex-1 h-full overflow-hidden">{children}</div>
+        <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-[var(--main-bg)]">{children}</div>
       </div>
     </AdminGuard>
   );

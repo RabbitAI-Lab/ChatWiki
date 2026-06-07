@@ -12,9 +12,27 @@ const CLIENT_TOOL_NAMES = new Set(["refresh_file_tree", "preview_html", "refresh
 /**
  * 缓存 tool_call 事件的 rawInput，按 toolCallId 索引。
  * 用于 tool_call_update 完成时获取被修改文件的路径。
- * 条目在对应 tool_call_update completed 后清除。
+ * 条目在对应 tool_call_update completed 后清除，或超过最大数量时淘汰最旧的。
  */
+const TOOL_CALL_CACHE_MAX = 200;
 const toolCallInputCache = new Map<string, Record<string, unknown>>();
+
+/** 清理缓存中最早的条目，保持 Map 不超过 TOOL_CALL_CACHE_MAX */
+function evictOverflow() {
+  if (toolCallInputCache.size <= TOOL_CALL_CACHE_MAX) return;
+  // Map 保持插入顺序，删除最早的条目
+  const keysIter = toolCallInputCache.keys();
+  const excess = toolCallInputCache.size - TOOL_CALL_CACHE_MAX;
+  for (let i = 0; i < excess; i++) {
+    const oldest = keysIter.next().value;
+    if (oldest !== undefined) toolCallInputCache.delete(oldest);
+  }
+}
+
+/** 清空所有缓存（连接关闭时调用） */
+export function clearToolCallInputCache() {
+  toolCallInputCache.clear();
+}
 
 /**
  * 将 ACP SessionUpdate 映射为零或多个 ChatWiki StreamEvent。
@@ -56,6 +74,7 @@ export function mapAcpUpdateToStreamEvents(update: SessionUpdate): StreamEvent[]
         const raw = (update as Record<string, unknown>).rawInput as Record<string, unknown> | undefined;
         if (raw) {
           toolCallInputCache.set(update.toolCallId, raw);
+          evictOverflow();
         }
       }
 

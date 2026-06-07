@@ -23,10 +23,16 @@ function AntdThemeSync({ children, locale, colorScheme }: { children: ReactNode;
 
   const colorPrimary = useMemo(() => {
     if (!colorScheme) return undefined;
-    return resolvedTheme === "dark"
-      ? colorScheme.dark.primaryBtn
-      : colorScheme.light.primaryBtn;
-  }, [colorScheme, resolvedTheme]);
+    // SSR 首帧用 light 模式颜色，mounted 后根据 resolvedTheme 切换
+    const isDark = mounted && resolvedTheme === "dark";
+    return isDark ? colorScheme.dark.primaryBtn : colorScheme.light.primaryBtn;
+  }, [colorScheme, resolvedTheme, mounted]);
+
+  const colorBgContainer = useMemo(() => {
+    if (!colorScheme) return undefined;
+    const isDark = mounted && resolvedTheme === "dark";
+    return isDark ? colorScheme.dark.background : colorScheme.light.background;
+  }, [colorScheme, resolvedTheme, mounted]);
 
   return (
     <ConfigProvider
@@ -36,7 +42,10 @@ function AntdThemeSync({ children, locale, colorScheme }: { children: ReactNode;
           mounted && resolvedTheme === "dark"
             ? antdTheme.darkAlgorithm
             : antdTheme.defaultAlgorithm,
-        ...(colorPrimary ? { token: { colorPrimary } } : {}),
+        token: {
+          ...(colorPrimary ? { colorPrimary } : {}),
+          ...(colorBgContainer ? { colorBgContainer, colorBgElevated: colorBgContainer } : {}),
+        },
       }}
     >
       <AntApp className="h-full w-full">{children}</AntApp>

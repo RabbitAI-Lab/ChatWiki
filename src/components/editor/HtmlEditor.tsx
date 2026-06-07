@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import Editor from "@monaco-editor/react";
 import ShareHtmlButton from "@/components/project/ShareHtmlButton";
+import { Button } from "antd";
 
 interface HtmlEditorProps {
   /** Relative path within project, e.g. "docs/foo.html" */
@@ -162,18 +163,20 @@ export default function HtmlEditor({
             </svg>
             分享
           </button> */}
-          <button
-            type="button"
+          <Button
+            htmlType="button"
             onClick={handleSave}
             disabled={!isDirty || saving}
             className={`px-3 h-7 text-xs rounded-md transition-colors ${
               isDirty && !saving
-                ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]"
-                : "bg-gray-100 dark:bg-zinc-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                ? ""
+                : ""
             }`}
+            type={isDirty && !saving ? "primary" : "default"}
+            loading={saving}
           >
             {saving ? "保存中..." : "保存"}
-          </button>
+          </Button>
         </div>
       </div>
 

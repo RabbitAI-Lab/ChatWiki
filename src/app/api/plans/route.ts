@@ -3,13 +3,15 @@ import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
 import { plans } from "@/db/schema";
 import { getApiT } from "@/lib/i18n-api";
+import { isProviderAvailable } from "@/lib/payment";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/plans
 export async function GET() {
   const all = db.select().from(plans).orderBy(plans.sortOrder).all();
-  return NextResponse.json(all);
+  const paymentAvailable = isProviderAvailable("stripe");
+  return NextResponse.json({ plans: all, paymentAvailable });
 }
 
 // POST /api/plans

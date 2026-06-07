@@ -154,21 +154,15 @@ export default function ChatWelcome({
 
   const isDarkTheme = mounted && (resolvedTheme === "dark" || documentDark);
 
-  const welcomeColors = useMemo(() => ({
-    cardBg: isDarkTheme ? "rgba(24, 24, 27, 0.6)" : "#ffffff",
-    cardBorder: isDarkTheme ? "#27272a" : "rgba(228, 228, 231, 0.8)",
-    cardRing: isDarkTheme ? "rgba(39, 39, 42, 0.8)" : "rgba(228, 228, 231, 0.6)",
-    emphFrom: isDarkTheme ? "#fafafa" : "#18181b",
-    emphTo: isDarkTheme ? "#a1a1aa" : "#71717a",
+  const emphColors = useMemo(() => ({
+    from: isDarkTheme ? "#fafafa" : "#18181b",
+    to: isDarkTheme ? "#a1a1aa" : "#71717a",
   }), [isDarkTheme]);
 
   const welcomeStyle = useMemo(() => ({
-    "--chat-welcome-card-bg": welcomeColors.cardBg,
-    "--chat-welcome-card-border": welcomeColors.cardBorder,
-    "--chat-welcome-card-ring": welcomeColors.cardRing,
-    "--chat-welcome-emph-from": welcomeColors.emphFrom,
-    "--chat-welcome-emph-to": welcomeColors.emphTo,
-  }) as CSSProperties, [welcomeColors]);
+    "--chat-welcome-emph-from": emphColors.from,
+    "--chat-welcome-emph-to": emphColors.to,
+  }) as CSSProperties, [emphColors]);
 
   const timeOfDay = useMemo(() => {
     const h = new Date().getHours();
@@ -225,7 +219,7 @@ export default function ChatWelcome({
                 <span
                   className="chat-welcome__emph bg-gradient-to-br from-zinc-900 to-zinc-500 bg-clip-text text-transparent dark:from-zinc-50 dark:to-zinc-400"
                   style={{
-                    backgroundImage: `linear-gradient(to bottom right, ${welcomeColors.emphFrom}, ${welcomeColors.emphTo})`,
+                    backgroundImage: `linear-gradient(to bottom right, ${emphColors.from}, ${emphColors.to})`,
                     backgroundClip: "text",
                     WebkitBackgroundClip: "text",
                     color: "transparent",
@@ -258,8 +252,6 @@ export default function ChatWelcome({
               previewLabel={t("welcome.cardPreviewLabel")}
               arrowLabel={t("welcome.cardArrowLabel")}
               onSelect={() => onPromptSelect(suggestion.prompt)}
-              cardBackground={welcomeColors.cardBg}
-              cardBorder={welcomeColors.cardBorder}
             />
           ))}
         </div>
@@ -308,8 +300,6 @@ interface SuggestionCardProps {
   previewLabel: string;
   arrowLabel: string;
   onSelect: () => void;
-  cardBackground: string;
-  cardBorder: string;
 }
 
 function SuggestionCard({
@@ -320,8 +310,6 @@ function SuggestionCard({
   previewLabel,
   arrowLabel,
   onSelect,
-  cardBackground,
-  cardBorder,
 }: SuggestionCardProps) {
   const Icon = suggestion.icon;
   const spanClass =
@@ -374,8 +362,6 @@ function SuggestionCard({
         }}
         style={{
           animationDelay: `${index * 45}ms`,
-          backgroundColor: cardBackground,
-          borderColor: cardBorder,
         }}
         className={[
           "chat-welcome__card group relative flex h-full w-full flex-col items-start overflow-hidden rounded-2xl appearance-none",

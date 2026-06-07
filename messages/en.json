@@ -190,7 +190,12 @@
       "menuInviteCodes": "Invite Codes",
       "menuAuth": "Authentication",
       "menuPlans": "Plans",
+      "menuOrders": "Orders",
+      "menuPaymentConfig": "Payment",
       "menuAppearance": "Appearance"
+    },
+    "ordersPage": {
+      "title": "Order Management"
     },
     "usersPage": {
       "title": "User Management",

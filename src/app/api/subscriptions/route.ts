@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
       startedAt: userSubscriptions.startedAt,
       expiresAt: userSubscriptions.expiresAt,
       createdAt: userSubscriptions.createdAt,
+      provider: userSubscriptions.provider,
+      providerCustomerId: userSubscriptions.providerCustomerId,
       planTitle: plans.title,
       planDescription: plans.description,
       planPrices: plans.prices,

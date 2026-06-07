@@ -57,7 +57,7 @@ function configHash(cfg: SmtpConfig): string {
   return `${cfg.host}:${cfg.port}:${cfg.user}:${cfg.pass}`;
 }
 
-function getTransporter(): nodemailer.Transporter | null {
+export function getTransporter(): nodemailer.Transporter | null {
   // 优先从系统设置读取，fallback 到环境变量
   const envConfig = getSmtpConfig();
   const settingsConfig: SmtpConfig | null = (() => {
@@ -94,7 +94,7 @@ function getTransporter(): nodemailer.Transporter | null {
   return cachedTransporter;
 }
 
-function getFromAddress(): string {
+export function getFromAddress(): string {
   // 优先使用系统设置的 fromEmail
   const sysFrom = getSetting("smtp_from_email");
   if (sysFrom) return sysFrom;

@@ -35,6 +35,12 @@ export async function PATCH(
   if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
   if (body.tokenLimitMonthly !== undefined) updateData.tokenLimitMonthly = body.tokenLimitMonthly;
   if (body.tokenLimitYearly !== undefined) updateData.tokenLimitYearly = body.tokenLimitYearly;
+  if (body.providerPrices !== undefined) {
+    updateData.providerPrices = typeof body.providerPrices === "string"
+      ? body.providerPrices
+      : JSON.stringify(body.providerPrices);
+  }
+  if (body.billingMode !== undefined) updateData.billingMode = body.billingMode;
 
   db.update(plans)
     .set(updateData)

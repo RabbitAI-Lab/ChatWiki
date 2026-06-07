@@ -271,12 +271,31 @@ body {
 }
 
 /* Safari: appearance: button 导致原生渲染覆盖自定义背景色
-   必须放在 @layer base 内以覆盖 Tailwind preflight 的 appearance: button */
+   同时恢复 antd Button 被 Tailwind preflight 重置的背景色 */
 @layer base {
   button {
     -webkit-appearance: none;
     appearance: none;
   }
+}
+
+/* Primary button background via CSS variables
+   Unlayered 以覆盖 @layer utilities 中的任意 Tailwind 规则 */
+.btn-primary-bg {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--color-primary) !important;
+}
+.btn-primary-bg:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+/* antd primary button fallback: 确保 CSS-in-JS 注入延迟时仍有背景色 */
+.ant-btn-primary:not(:disabled) {
+  background-color: var(--color-primary, #1677ff) !important;
+}
+.ant-btn-primary:not(:disabled):hover {
+  background-color: var(--color-primary-hover, #4096ff) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -136,16 +136,19 @@ export function runGitNexus(opts: RunGitNexusOptions): RunGitNexusResult {
   });
   console.log(`[gitnexus]   pid = ${child.pid}`);
 
-  // 收集 stdout / stderr，exit 时打 tail 2000 字符
+  // 收集 stdout / stderr，exit 时打 tail 2000 字符（限制最大 100KB，避免长期运行内存泄漏）
+  const BUF_MAX = 100 * 1024;
   let stdoutBuf = "";
   let stderrBuf = "";
   const tail = (s: string, n = 2000) =>
     s.length <= n ? s : `...<truncated ${s.length - n} chars>...\n${s.slice(-n)}`;
   child.stdout?.on("data", (chunk: Buffer | string) => {
     stdoutBuf += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    if (stdoutBuf.length > BUF_MAX) stdoutBuf = stdoutBuf.slice(-BUF_MAX);
   });
   child.stderr?.on("data", (chunk: Buffer | string) => {
     stderrBuf += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    if (stderrBuf.length > BUF_MAX) stderrBuf = stderrBuf.slice(-BUF_MAX);
   });
 
   const task: GitNexusTask = {

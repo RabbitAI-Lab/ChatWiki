@@ -82,7 +82,7 @@ export default function AppearanceSettingsPageClient({
     return (
       <div
         key={key}
-        className="flex items-center justify-between py-2.5 border-b border-gray-100 dark:border-zinc-700 last:border-b-0"
+        className="flex items-center justify-between py-2.5 border-b border-gray-100 dark:border-[var(--sidebar-border)] last:border-b-0"
       >
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -109,8 +109,8 @@ export default function AppearanceSettingsPageClient({
   };
 
   const renderSection = (mode: "light" | "dark", title: string) => (
-    <div className="bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700">
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 rounded-t-lg">
+    <div className="bg-white dark:bg-[var(--background)] rounded-lg border border-gray-200 dark:border-[var(--sidebar-border)]">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-[var(--sidebar-border)] bg-gray-50 dark:bg-[var(--popup-header-bg)] rounded-t-lg">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           {title}
         </h3>
@@ -124,7 +124,7 @@ export default function AppearanceSettingsPageClient({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700">
+      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-[var(--main-bg)] border-b border-gray-200 dark:border-[var(--sidebar-border)]">
         <div>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {t("title")}
@@ -158,7 +158,7 @@ export default function AppearanceSettingsPageClient({
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto flex flex-col gap-6">
           {/* CSS Variable Reference */}
-          <div className="p-3 bg-gray-50 dark:bg-zinc-800 rounded-md text-xs text-gray-500 dark:text-gray-400">
+          <div className="p-3 bg-gray-50 dark:bg-[var(--background)] rounded-md text-xs text-gray-500 dark:text-gray-400">
             {t("cssVarNote")}
           </div>
 

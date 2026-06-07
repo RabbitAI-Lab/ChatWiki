@@ -84,6 +84,11 @@ export async function POST(req: NextRequest) {
     console.log("[SystemPrompts] NO active prompts found in DB");
   }
 
+  // ── AbortSignal: 客户端断开时及时终止 generator，避免内存泄漏 ──
+  let aborted = false;
+  const onAbort = () => { aborted = true; };
+  req.signal.addEventListener("abort", onAbort, { once: true });
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -119,6 +124,18 @@ export async function POST(req: NextRequest) {
         }
 
         for await (const event of generator) {
+          // 客户端已断开 → 终止流，释放 generator 资源
+          if (aborted) {
+            console.log("[Route] client aborted, closing stream");
+            // 尝试关闭 SDK query（如果 generator 实现了 return/catch）
+            try {
+              if (typeof (generator as AsyncGenerator).return === "function") {
+                (generator as AsyncGenerator).return(undefined);
+              }
+            } catch { /* generator may already be closed */ }
+            controller.close();
+            return;
+          }
           const eventType = event.type === "text_delta" ? "delta" : event.type;
           const data = JSON.stringify(event);
           controller.enqueue(
@@ -128,6 +145,11 @@ export async function POST(req: NextRequest) {
 
         controller.close();
       } catch (err) {
+        if (aborted) {
+          // 客户端已断开，静默关闭
+          try { controller.close(); } catch { /* ok */ }
+          return;
+        }
         if (err instanceof ModelError) {
           controller.enqueue(
             encoder.encode(
@@ -149,6 +171,8 @@ export async function POST(req: NextRequest) {
           );
         }
         controller.close();
+      } finally {
+        req.signal.removeEventListener("abort", onAbort);
       }
     },
   });

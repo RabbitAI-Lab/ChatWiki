@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "antd";
 
 interface ShareHtmlButtonProps {
   projectId: string;
@@ -156,13 +157,13 @@ export default function ShareHtmlButton({
                     onFocus={(e) => e.currentTarget.select()}
                     className="flex-1 min-w-0 px-2 h-8 text-xs border border-gray-200 rounded bg-gray-50 focus:outline-none focus:border-blue-400"
                   />
-                  <button
-                    type="button"
+                  <Button
+                    type="primary"
                     onClick={handleCopy}
-                    className="px-2.5 h-8 text-xs bg-[var(--color-primary)] text-white rounded hover:bg-[var(--color-primary-hover)] transition-colors"
+                    size="small"
                   >
                     {copied ? t('shareHtml.copied') : t('shareHtml.copy')}
-                  </button>
+                  </Button>
                 </div>
                 {status.createdAt && (
                   <p className="mt-1.5 text-xs text-gray-400">
@@ -203,14 +204,15 @@ export default function ShareHtmlButton({
               >
                 {t('shareHtml.cancelShare')}
               </button>
-              <button
-                type="button"
+              <Button
+                type="primary"
                 onClick={handleCreateOrRotate}
                 disabled={busy}
-                className="px-3 h-8 text-xs text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded transition-colors disabled:opacity-50"
+                loading={busy}
+                size="small"
               >
                 {busy ? t('shareHtml.processing') : t('shareHtml.regenerate')}
-              </button>
+              </Button>
             </>
           ) : (
             <>
@@ -221,14 +223,15 @@ export default function ShareHtmlButton({
               >
                 {t('shareHtml.cancel')}
               </button>
-              <button
-                type="button"
+              <Button
+                type="primary"
                 onClick={handleCreateOrRotate}
                 disabled={busy || loading}
-                className="px-3 h-8 text-xs text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded transition-colors disabled:opacity-50"
+                loading={busy}
+                size="small"
               >
                 {busy ? t('shareHtml.generating') : t('shareHtml.generate')}
-              </button>
+              </Button>
             </>
           )}
         </div>

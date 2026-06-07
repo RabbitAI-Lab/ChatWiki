@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { ProjectMeta } from "@/lib/fs";
+import { Button } from "antd";
 
 export default function NewChatWorkspace() {
   const t = useTranslations("chat");
@@ -91,16 +92,17 @@ export default function NewChatWorkspace() {
           <p className="text-[15px] leading-relaxed text-blue-500/80 dark:text-blue-300/70 font-medium">
             {t("newChatWorkspace.noProjectHint")}
           </p>
-          <button
+          <Button
+            type="primary"
             onClick={handleCreateProject}
-            className="mt-5 inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg shadow-sm transition-colors"
+            className="mt-5 inline-flex items-center gap-1.5"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             {t("newChatWorkspace.createFirstProject")}
-          </button>
+          </Button>
         </div>
       </div>
     );

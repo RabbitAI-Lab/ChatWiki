@@ -193,6 +193,7 @@ export const users = sqliteTable("users", {
   satokenLoginId: text("satoken_login_id").unique(),
   disabled: integer("disabled").notNull().default(0),  // 0=启用, 1=禁用（软删除）
   role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
+  providerCustomerIds: text("provider_customer_ids").default("{}"), // JSON: { "stripe": "cus_xxx" }
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -286,6 +287,8 @@ export const plans = sqliteTable("plans", {
   enabled: integer("enabled").notNull().default(1),
   sortOrder: integer("sort_order").notNull().default(0),
   // Token 配额：月/年配额，0=无限
+  providerPrices: text("provider_prices").notNull().default("{}"), // JSON: { "stripe": { productId, monthlyPriceId, yearlyPriceId } }
+  billingMode: text("billing_mode", { enum: ["subscription", "one_time"] }).notNull().default("subscription"),
   tokenLimitMonthly: integer("token_limit_monthly").notNull().default(0),
   tokenLimitYearly: integer("token_limit_yearly").notNull().default(0),
   createdAt: text("created_at").notNull(),
@@ -302,6 +305,11 @@ export const userSubscriptions = sqliteTable("user_subscriptions", {
   startedAt: text("started_at").notNull(),
   expiresAt: text("expires_at").notNull(),
   cancelledAt: text("cancelled_at"),
+  provider: text("provider"),
+  providerSubscriptionId: text("provider_subscription_id"),
+  providerCustomerId: text("provider_customer_id"),
+  providerSessionId: text("provider_session_id"),
+  paymentMode: text("payment_mode", { enum: ["subscription", "one_time"] }).notNull().default("subscription"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -390,4 +398,93 @@ export const entityRepositories = sqliteTable("entity_repositories", {
   errorMessage: text("error_message"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+// ── 支付相关表 ──
+
+// orders: 订单
+export const orders = sqliteTable("orders", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  planId: integer("plan_id").notNull().references(() => plans.id),
+  subscriptionId: text("subscription_id"),
+  nextRenewalReminderSent: integer("next_renewal_reminder_sent").notNull().default(0),
+
+  amount: integer("amount").notNull(),                          // 实付金额(分)
+  currency: text("currency").notNull().default("CNY"),
+  originalAmount: integer("original_amount").notNull(),         // 原始金额(分)
+  discountAmount: integer("discount_amount").notNull().default(0),
+
+  billingCycle: text("billing_cycle", { enum: ["monthly", "yearly"] }).notNull(),
+  paymentMode: text("payment_mode", { enum: ["subscription", "one_time"] }).notNull(),
+
+  provider: text("provider").notNull(),                         // "stripe" | "paypal" | ...
+  providerPaymentId: text("provider_payment_id"),
+  providerChargeId: text("provider_charge_id"),
+  providerInvoiceId: text("provider_invoice_id"),
+
+  status: text("status", {
+    enum: ["pending", "paid", "cancelled", "refunded", "partially_refunded", "failed"]
+  }).notNull().default("pending"),
+
+  paidAt: text("paid_at"),
+  cancelledAt: text("cancelled_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// refunds: 退款
+export const refunds = sqliteTable("refunds", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  userId: text("user_id").notNull().references(() => users.id),
+
+  amount: integer("amount").notNull(),                          // 退款金额(分)
+  reason: text("reason"),
+
+  status: text("status", {
+    enum: ["pending", "approved", "rejected", "processing", "completed", "failed"]
+  }).notNull().default("pending"),
+
+  reviewedBy: text("reviewed_by").references(() => users.id),
+  reviewedAt: text("reviewed_at"),
+  reviewNote: text("review_note"),
+
+  provider: text("provider").notNull(),
+  providerRefundId: text("provider_refund_id"),
+
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// notification_jobs: 通知任务队列
+export const notificationJobs = sqliteTable("notification_jobs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type", {
+    enum: [
+      "order_pending",
+      "order_pending_reminder",
+      "order_paid",
+      "order_failed",
+      "subscription_renewal_upcoming",
+      "subscription_renewed",
+      "refund_requested_admin",
+      "refund_approved",
+      "refund_completed",
+      "refund_rejected",
+    ]
+  }).notNull(),
+  orderId: text("order_id"),
+  subscriptionId: text("subscription_id"),
+  userId: text("user_id").notNull(),
+  email: text("email").notNull(),
+  data: text("data").notNull().default("{}"),
+  status: text("status", {
+    enum: ["pending", "sent", "failed", "skipped"]
+  }).notNull().default("pending"),
+  scheduledAt: text("scheduled_at").notNull(),
+  sentAt: text("sent_at"),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  createdAt: text("created_at").notNull(),
 });

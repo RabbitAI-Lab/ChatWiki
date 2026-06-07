@@ -15,6 +15,10 @@ import {
   Progress,
   Statistic,
   Tooltip,
+  Tabs,
+  Table,
+  Input,
+  Space,
 } from "antd";
 import {
   CheckOutlined,
@@ -50,6 +54,8 @@ interface Plan {
   features: string; // JSON
   enabled: number;
   sortOrder: number;
+  providerPrices?: string | null;
+  billingMode?: string | null;
 }
 
 interface Subscription {
@@ -59,6 +65,8 @@ interface Subscription {
   status: string;
   startedAt: string;
   expiresAt: string;
+  provider: string | null;
+  providerCustomerId: string | null;
   planTitle: string;
   planDescription: string | null;
   planPrices: string;
@@ -90,6 +98,21 @@ interface UsageSummary {
     cacheReadTokens: number;
   };
   requestCount: number;
+}
+
+interface OrderRecord {
+  id: string;
+  planId: number;
+  planTitle: string | null;
+  amount: number;
+  currency: string;
+  billingCycle: string;
+  paymentMode: string;
+  provider: string;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+  refunds: { id: string; amount: number; status: string; reason: string | null }[];
 }
 
 // ── Constants ──
@@ -169,9 +192,13 @@ export default function BillingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [paymentAvailable, setPaymentAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<number | null>(null);
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
+  const [activeTab, setActiveTab] = useState("plans");
+  const [orderHistory, setOrderHistory] = useState<{ orders: OrderRecord[]; total: number; page: number; pageSize: number }>({ orders: [], total: 0, page: 1, pageSize: 10 });
+  const [orderLoading, setOrderLoading] = useState(false);
 
   // loadData is for button handlers (onOk refresh after subscribe).
   // Initial data fetch is done inline in useEffect below.
@@ -185,7 +212,9 @@ export default function BillingPage() {
         authFetch("/api/usage/summary"),
       ]);
       if (plansRes.ok) {
-        const plansData: Plan[] = await plansRes.json();
+        const plansResult = await plansRes.json();
+        const plansData: Plan[] = plansResult.plans || plansResult;
+        setPaymentAvailable(!!plansResult.paymentAvailable);
         setPlans(plansData.filter((p) => p.enabled === 1));
       }
       if (subRes.ok) {
@@ -213,8 +242,12 @@ export default function BillingPage() {
     ]).then(([plansRes, subRes, usageRes]) => {
       if (cancelled) return;
       if (plansRes.ok) {
-        plansRes.json().then((plansData: Plan[]) => {
-          if (!cancelled) setPlans(plansData.filter((p) => p.enabled === 1));
+        plansRes.json().then((plansResult: { plans?: Plan[]; paymentAvailable?: boolean } | Plan[]) => {
+          const plansData: Plan[] = (plansResult as { plans: Plan[] }).plans || plansResult as Plan[];
+          if (!cancelled) {
+            setPaymentAvailable(!!(plansResult as { paymentAvailable?: boolean }).paymentAvailable);
+            setPlans(plansData.filter((p) => p.enabled === 1));
+          }
         });
       }
       if (subRes.ok) {
@@ -234,41 +267,126 @@ export default function BillingPage() {
     return () => { cancelled = true; };
   }, [user, authFetch]);
 
-  const handleSubscribe = (plan: Plan) => {
-    const isUpgrade = subscription && subscription.planId !== plan.id;
-    const cycleLabel = billingCycle === "monthly" ? t('monthly') : t('yearly');
+  const loadOrders = useCallback(async (p = 1) => {
+    if (!user) return;
+    setOrderLoading(true);
+    try {
+      const res = await authFetch(`/api/orders?page=${p}&pageSize=${orderHistory.pageSize}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrderHistory(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setOrderLoading(false);
+    }
+  }, [user, authFetch, orderHistory.pageSize]);
 
+  useEffect(() => { if (user && activeTab === "history") Promise.resolve().then(() => loadOrders(1)); }, [user, activeTab, loadOrders]);
+
+  const handleSubscribe = async (plan: Plan) => {
+    setSubscribing(plan.id);
+    try {
+      // 判断是否走 Stripe 支付
+      let hasStripeConfig = false;
+      try {
+        const pp = JSON.parse(plan.providerPrices || "{}");
+        hasStripeConfig = !!(pp.stripe?.monthlyPriceId || pp.stripe?.yearlyPriceId);
+      } catch {}
+
+      if (hasStripeConfig && paymentAvailable) {
+        // 走 Stripe Checkout
+        const res = await authFetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planId: plan.id, billingCycle }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            window.location.assign(data.url);
+            return;
+          }
+        } else {
+          const data = await res.json();
+          message.error(data.error || t('failedToSubscribe'));
+        }
+      } else {
+        // 回退：直接订阅
+        const res = await authFetch("/api/subscriptions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planId: plan.id, billingCycle }),
+        });
+        if (res.ok) {
+          message.success("Subscription successful");
+          loadData();
+        } else {
+          const data = await res.json();
+          message.error(data.error || t('failedToSubscribe'));
+        }
+      }
+    } catch {
+      message.error(t('failedToSubscribe'));
+    } finally {
+      setSubscribing(null);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      const res = await authFetch("/api/checkout/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.assign(data.url);
+      } else {
+        message.error(data.error || "Failed to open subscription management");
+      }
+    } catch {
+      message.error("Failed to open subscription management");
+    }
+  };
+
+  const handleRefundRequest = (orderId: string) => {
     modal.confirm({
-      title: isUpgrade
-        ? t('upgradeTo', { title: plan.title })
-        : t('subscribeTo', { title: plan.title }),
-      content: isUpgrade
-        ? t('upgradeContent', { current: subscription!.planTitle, title: plan.title, cycle: cycleLabel })
-        : t('subscribeContent', { title: plan.title, cycle: cycleLabel }),
-      okText: isUpgrade ? t('upgrade') : t('subscribe'),
-      cancelText: t('cancel'),
+      title: "Request Refund",
+      content: (
+        <div>
+          <p className="mb-2">Please describe the reason for your refund request:</p>
+          <Input.TextArea id="refund-reason-input" rows={3} placeholder="Reason..." />
+        </div>
+      ),
+      okText: "Submit",
       onOk: async () => {
-        setSubscribing(plan.id);
+        const reasonEl = document.getElementById("refund-reason-input") as HTMLTextAreaElement;
+        const reason = reasonEl?.value || "";
         try {
-          const res = await authFetch("/api/subscriptions", {
+          const res = await authFetch(`/api/orders/${orderId}/refund`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ planId: plan.id, billingCycle }),
+            body: JSON.stringify({ reason }),
           });
           if (res.ok) {
-            message.success(isUpgrade ? t('upgradeSuccess') : t('subscribeSuccess'));
-            await loadData();
+            message.success("Refund request submitted");
+            loadOrders(orderHistory.page);
           } else {
             const data = await res.json();
-            message.error(data.error || t('failedToSubscribe'));
+            message.error(data.error || "Failed to submit");
           }
         } catch {
-          message.error(t('failedToSubscribe'));
-        } finally {
-          setSubscribing(null);
+          message.error("Failed to submit");
         }
       },
     });
+  };
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending: "orange", paid: "green", cancelled: "default", refunded: "red", partially_refunded: "volcano", failed: "red",
   };
 
   if (!user) return null;
@@ -337,6 +455,7 @@ export default function BillingPage() {
                   </Text>
                 </div>
               </div>
+              <Button size="small" onClick={handleManageSubscription} disabled={!subscription?.providerCustomerId}>Manage Subscription</Button>
             </div>
           </Card>
         </div>
@@ -430,145 +549,189 @@ export default function BillingPage() {
         );
       })()}
 
-      {/* Billing Cycle Toggle */}
-      {plans.length > 0 && (
-        <div className="flex items-center gap-4 mb-6">
-          <Segmented
-            value={billingCycle}
-            onChange={(v) => setBillingCycle(v as "monthly" | "yearly")}
-            options={[
-              { label: t('monthly'), value: "monthly" },
-              { label: t('yearly'), value: "yearly" },
-            ]}
-          />
-          {billingCycle === "yearly" && plans.some((p) => getYearlySaving(p)) && (
-            <Tag color="blue" className="text-xs">
-              {t('saveYearly')}
-            </Tag>
-          )}
-        </div>
-      )}
-
-      {/* Plans Grid */}
-      {plans.length === 0 ? (
-        <Empty description={t('noPlans')} />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {plans.map((plan) => {
-            const { symbol, price, originalPrice } = getDisplayPrice(plan, billingCycle);
-            const features = parseJSON<PlanFeature[]>(plan.features, []);
-            const btnConfig = getButtonConfig(plan);
-            const isCurrent = isCurrentPlan(plan);
-            const saving = billingCycle === "yearly" ? getYearlySaving(plan) : null;
-
-            return (
-              <Card
-                key={plan.id}
-                className={`shadow-sm transition-all ${
-                  isCurrent
-                    ? "border-2 border-blue-500 dark:border-blue-400 relative"
-                    : "hover:shadow-md"
-                }`}
-                styles={{ body: { padding: 0 } }}
-              >
-                {/* Current Plan Badge */}
-                {isCurrent && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                    <Tag color="blue" className="text-xs font-medium">
-                      {t('currentPlan')}
-                    </Tag>
+      {/* Billing Cycle Toggle + Plans Grid + Payment History */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: "plans",
+            label: "Plans & Usage",
+            children: (
+              <>
+                {/* Billing Cycle Toggle */}
+                {plans.length > 0 && (
+                  <div className="flex items-center gap-4 mb-6">
+                    <Segmented
+                      value={billingCycle}
+                      onChange={(v) => setBillingCycle(v as "monthly" | "yearly")}
+                      options={[
+                        { label: t('monthly'), value: "monthly" },
+                        { label: t('yearly'), value: "yearly" },
+                      ]}
+                    />
+                    {billingCycle === "yearly" && plans.some((p) => getYearlySaving(p)) && (
+                      <Tag color="blue" className="text-xs">
+                        {t('saveYearly')}
+                      </Tag>
+                    )}
                   </div>
                 )}
 
-                <div className="p-5">
-                  {/* Plan Title & Description */}
-                  <div className="mb-4">
-                    <Title level={4} className="!mb-1 !text-gray-900 dark:!text-gray-100">
-                      {plan.title}
-                    </Title>
-                    {plan.description && (
-                      <Paragraph
-                        type="secondary"
-                        className="!mb-0 text-xs"
-                        ellipsis={{ rows: 2 }}
-                      >
-                        {plan.description}
-                      </Paragraph>
-                    )}
-                  </div>
+                {/* Plans Grid */}
+                {plans.length === 0 ? (
+                  <Empty description={t('noPlans')} />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {plans.map((plan) => {
+                      const { symbol, price, originalPrice } = getDisplayPrice(plan, billingCycle);
+                      const features = parseJSON<PlanFeature[]>(plan.features, []);
+                      const btnConfig = getButtonConfig(plan);
+                      const isCurrent = isCurrentPlan(plan);
+                      const saving = billingCycle === "yearly" ? getYearlySaving(plan) : null;
 
-                  {/* Price */}
-                  <div className="mb-4">
-                    <div className="flex items-baseline gap-1">
-                      {originalPrice && (
-                        <Text
-                          delete
-                          type="secondary"
-                          className="text-base"
+                      return (
+                        <Card
+                          key={plan.id}
+                          className={`shadow-sm transition-all ${
+                            isCurrent
+                              ? "border-2 border-blue-500 dark:border-blue-400 relative"
+                              : "hover:shadow-md"
+                          }`}
+                          styles={{ body: { padding: 0 } }}
                         >
-                          {symbol}{originalPrice}
-                        </Text>
-                      )}
-                      <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                        {symbol}{price}
-                      </span>
-                      <span className="text-sm text-gray-400">
-                        {CYCLE_LABELS[billingCycle]}
-                      </span>
-                    </div>
-                    {saving && (
-                      <Text type="success" className="text-xs">
-                        {t('savePerYear', { amount: saving })}
-                      </Text>
-                    )}
-                  </div>
+                          {/* Current Plan Badge */}
+                          {isCurrent && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                              <Tag color="blue" className="text-xs font-medium">
+                                {t('currentPlan')}
+                              </Tag>
+                            </div>
+                          )}
 
-                  {/* Features */}
-                  <div className="space-y-2 mb-5 min-h-[60px]">
-                    {features.map((feat, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm">
-                        {feat.included ? (
-                          <CheckOutlined className="text-green-500 text-xs flex-shrink-0" />
-                        ) : (
-                          <CloseOutlined className="text-gray-300 dark:text-gray-600 text-xs flex-shrink-0" />
+                          <div className="p-5">
+                            {/* Plan Title & Description */}
+                            <div className="mb-4">
+                              <Title level={4} className="!mb-1 !text-gray-900 dark:!text-gray-100">
+                                {plan.title}
+                              </Title>
+                              {plan.description && (
+                                <Paragraph
+                                  type="secondary"
+                                  className="!mb-0 text-xs"
+                                  ellipsis={{ rows: 2 }}
+                                >
+                                  {plan.description}
+                                </Paragraph>
+                              )}
+                            </div>
+
+                            {/* Price */}
+                            <div className="mb-4">
+                              <div className="flex items-baseline gap-1">
+                                {originalPrice && (
+                                  <Text delete type="secondary" className="text-base">
+                                    {symbol}{originalPrice}
+                                  </Text>
+                                )}
+                                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                                  {symbol}{price}
+                                </span>
+                                <span className="text-sm text-gray-400">
+                                  {CYCLE_LABELS[billingCycle]}
+                                </span>
+                              </div>
+                              {saving && (
+                                <Text type="success" className="text-xs">
+                                  {t('savePerYear', { amount: saving })}
+                                </Text>
+                              )}
+                            </div>
+
+                            {/* Features */}
+                            <div className="space-y-2 mb-5 min-h-[60px]">
+                              {features.map((feat, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-sm">
+                                  {feat.included ? (
+                                    <CheckOutlined className="text-green-500 text-xs flex-shrink-0" />
+                                  ) : (
+                                    <CloseOutlined className="text-gray-300 dark:text-gray-600 text-xs flex-shrink-0" />
+                                  )}
+                                  <span className={feat.included ? "text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500"}>
+                                    {feat.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Action Button */}
+                            {isCurrent ? (
+                              <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-medium cursor-default">
+                                <CrownOutlined className="text-xs" />
+                                {t('currentPlan')}
+                              </div>
+                            ) : (
+                              <Button
+                                type={btnConfig.type}
+                                block
+                                disabled={btnConfig.disabled}
+                                loading={subscribing === plan.id}
+                                icon={!btnConfig.disabled && <RocketOutlined />}
+                                onClick={() => handleSubscribe(plan)}
+                              >
+                                {btnConfig.text}
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ),
+          },
+          {
+            key: "history",
+            label: "Payment History",
+            children: (
+              <Table
+                dataSource={orderHistory.orders}
+                rowKey="id"
+                loading={orderLoading}
+                pagination={{
+                  current: orderHistory.page,
+                  pageSize: orderHistory.pageSize,
+                  total: orderHistory.total,
+                  onChange: (p) => loadOrders(p),
+                }}
+                columns={[
+                  { title: "Order ID", dataIndex: "id", key: "id", width: 120, render: (id: string) => <span className="font-mono text-xs">{id.slice(0, 8)}...</span> },
+                  { title: "Plan", dataIndex: "planTitle", key: "planTitle", width: 120 },
+                  { title: "Amount", key: "amount", width: 100, render: (_: unknown, r: OrderRecord) => `${(r.amount / 100).toFixed(2)} ${r.currency}` },
+                  { title: "Provider", dataIndex: "provider", key: "provider", width: 80, render: (p: string) => <Tag>{p}</Tag> },
+                  { title: "Status", dataIndex: "status", key: "status", width: 120, render: (s: string) => <Tag color={STATUS_COLORS[s]}>{s}</Tag> },
+                  { title: "Date", dataIndex: "createdAt", key: "createdAt", width: 120, render: (d: string) => new Date(d).toLocaleDateString() },
+                  {
+                    title: "Actions",
+                    key: "actions",
+                    width: 100,
+                    render: (_: unknown, r: OrderRecord) => (
+                      <Space size="small">
+                        {r.status === "paid" && (
+                          <Button size="small" onClick={() => handleRefundRequest(r.id)}>Refund</Button>
                         )}
-                        <span
-                          className={
-                            feat.included
-                              ? "text-gray-700 dark:text-gray-300"
-                              : "text-gray-400 dark:text-gray-500"
-                          }
-                        >
-                          {feat.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Action Button */}
-                  {isCurrent ? (
-                    <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-medium cursor-default">
-                      <CrownOutlined className="text-xs" />
-                      {t('currentPlan')}
-                    </div>
-                  ) : (
-                    <Button
-                      type={btnConfig.type}
-                      block
-                      disabled={btnConfig.disabled}
-                      loading={subscribing === plan.id}
-                      icon={!btnConfig.disabled && <RocketOutlined />}
-                      onClick={() => handleSubscribe(plan)}
-                    >
-                      {btnConfig.text}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                      </Space>
+                    ),
+                  },
+                ]}
+                scroll={{ x: 700 }}
+                size="small"
+              />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

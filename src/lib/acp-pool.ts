@@ -20,6 +20,7 @@ import {
 } from "@agentclientprotocol/sdk";
 import { ChatWikiAcpClient } from "./acp-client";
 import { parseExtraEnv } from "./model-env";
+import { clearToolCallInputCache } from "./acp-event-mapper";
 
 // ========== 进程注册表（globalThis 避免 dev HMR 时丢失） ==========
 
@@ -162,6 +163,9 @@ export async function destroyEntry(key: string): Promise<void> {
   clearTimeout(entry.idleTimer);
   pool.delete(key);
 
+  // 清理 tool call input 缓存（连接关闭后不再需要）
+  clearToolCallInputCache();
+
   escalateKill(entry.child);
 }
 
@@ -230,12 +234,18 @@ async function createEntry(key: string, config: AcpPoolConfig): Promise<AcpPoolE
 
   console.log(`[ACP Pool] spawned agent: key=${key} pid=${child.pid} model=${config.modelName}`);
 
-  // stderr 日志收集
+  // stderr 日志收集（限制最大 100KB，避免长期运行内存泄漏）
+  const STDERR_MAX = 100 * 1024;
   let stderrBuf = "";
   child.stderr?.on("data", (chunk: Buffer | string) => {
-    stderrBuf += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    stderrBuf += text;
+    // 超出限制时只保留尾部
+    if (stderrBuf.length > STDERR_MAX) {
+      stderrBuf = stderrBuf.slice(-STDERR_MAX);
+    }
     // 实时打印 stderr（有助于调试 Agent 启动问题）
-    const lines = (typeof chunk === "string" ? chunk : chunk.toString("utf8")).trim();
+    const lines = text.trim();
     if (lines) {
       console.log(`[ACP Agent stderr] ${lines.slice(0, 500)}`);
     }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
+import { Button } from "antd";
 
 type LogCategory = "repository" | "sandbox" | "skills" | "mcp" | "member";
 
@@ -160,17 +161,14 @@ export default function LogPanel({ projectPath }: LogPanelProps) {
       {/* Category filter */}
       <div className="flex items-center gap-1 flex-wrap">
         {CATEGORY_FILTER_KEYS.map((filterKey) => (
-          <button
+          <Button
             key={filterKey}
             onClick={() => handleCategoryChange(filterKey)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-              selectedCategory === filterKey
-                ? "bg-[var(--color-primary)] text-white"
-                : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200"
-            }`}
+            className="px-3 py-1 text-xs font-medium rounded-full transition-colors"
+            type={selectedCategory === filterKey ? "primary" : "default"}
           >
             {t(`log.${filterKey === 'member' ? 'members' : filterKey}`)}
-          </button>
+          </Button>
         ))}
       </div>
 

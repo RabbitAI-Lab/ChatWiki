@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Modal } from "antd";
+import { Modal, Button } from "antd";
 
 interface ProjectMeta {
   id: string;
@@ -126,9 +126,10 @@ export default function WorkspaceProjectsPanel({
     <div className="space-y-6">
       {/* Action bar */}
       <div className="flex items-center gap-3">
-        <button
+        <Button
+          type="primary"
           onClick={handleOpenAddProject}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg transition-colors"
+          className="inline-flex items-center gap-2"
         >
           <svg
             className="w-4 h-4"
@@ -141,7 +142,7 @@ export default function WorkspaceProjectsPanel({
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           {t('projects.addExistingProject')}
-        </button>
+        </Button>
       </div>
 
       {/* Add project modal */}
@@ -184,7 +185,7 @@ export default function WorkspaceProjectsPanel({
                   <div
                     className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                       checked
-                        ? "bg-[var(--color-primary)] border-[var(--color-primary)]"
+                        ? "btn-primary-bg border-[var(--color-primary)]"
                         : "border-gray-300"
                     }`}
                   >
