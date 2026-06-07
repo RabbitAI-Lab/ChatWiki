@@ -6,7 +6,7 @@ import "./globals.css";
 import ThemeRoot from "@/components/layout/ThemeRoot";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { getBrandName, getSetting } from "@/lib/auth/settings";
-import { parseColorScheme } from "@/lib/color-scheme";
+import { parseColorScheme, generateColorScript } from "@/lib/color-scheme";
 
 const geistSans = localFont({
   src: [
@@ -97,7 +97,12 @@ export default async function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
+      <head>
+        {colorScheme && (
+          <script dangerouslySetInnerHTML={{ __html: generateColorScript(colorScheme) }} />
+        )}
+      </head>
+      <body className="h-full text-zinc-900 dark:text-zinc-50">
         <NextIntlClientProvider locale={locale} messages={msgs}>
           <ThemeRoot colorScheme={colorScheme}>
             <AuthProvider>{children}</AuthProvider>

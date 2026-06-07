@@ -100,7 +100,7 @@ export default function AppearanceSettingsPageClient({
           </code>
           <ColorPicker
             value={value}
-            onChange={(_, hex) => updateColor(mode, key, hex)}
+            onChange={(color) => updateColor(mode, key, color.toHexString())}
             size="small"
           />
         </div>

@@ -105,32 +105,58 @@ export function mergeColorScheme(
 
 /**
  * Generate an inline script that synchronously applies CSS variables
- * to document.documentElement.style, preventing FOUC.
+ * to document.documentElement.style, preventing FOUC on initial load.
  *
- * The script checks for the 'dark' class on <html> to determine
- * which mode's colors to apply.
+ * Timing issue: this script renders BEFORE next-themes adds the 'dark'
+ * class to <html>, so the initial read of classList may return false.
+ * The script therefore:
+ *   1. Applies colors immediately (best-guess based on current class)
+ *   2. Installs a MutationObserver to re-apply when the class changes,
+ *      guaranteeing correct values once next-themes finishes initializing.
  */
 export function generateColorScript(scheme: ColorScheme): string {
   const keys = COLOR_KEYS;
   const varMap = CSS_VAR_MAP;
 
-  // Build light mode setProperty calls
-  const lightStatements = keys
+  const statements = keys
     .map((key) => {
       const varName = varMap[key];
-      const _value = scheme.light[key];
       return `if(c.${key})r.setProperty('${varName}',c.${key});`;
     })
     .join("");
 
-  // Build dark mode setProperty calls
-  const darkStatements = keys
-    .map((key) => {
-      const varName = varMap[key];
-      const _value = scheme.dark[key];
-      return `if(c.${key})r.setProperty('${varName}',c.${key});`;
-    })
-    .join("");
+  return [
+    "(function(){",
+    "try{",
+    "var s=", JSON.stringify(scheme), ";",
+    "var r=document.documentElement.style;",
+    "function a(){",
+    "var d=document.documentElement.classList.contains('dark');",
+    "var c=d?s.dark:s.light;",
+    statements,
+    "}",
+    "a();",
+    "new MutationObserver(a).observe(",
+    "document.documentElement,",
+    "{attributes:true,attributeFilter:['class']}",
+    ");",
+    "}catch(e){}",
+    "})();",
+  ].join("");
+}
 
-  return `(function(){try{var s=${JSON.stringify(scheme)};var d=document.documentElement.classList.contains('dark');var c=d?s.dark:s.light;var r=document.documentElement.style;${lightStatements}${darkStatements}}catch(e){}})();`;
+/**
+ * Apply color scheme CSS variables dynamically based on the given mode.
+ * Used by ThemeRoot's useEffect to update colors when theme switches.
+ */
+export function applyColorScheme(scheme: ColorScheme, isDark: boolean): void {
+  const colors = isDark ? scheme.dark : scheme.light;
+  const root = document.documentElement.style;
+  for (const key of COLOR_KEYS) {
+    const varName = CSS_VAR_MAP[key];
+    const value = colors[key];
+    if (value) {
+      root.setProperty(varName, value);
+    }
+  }
 }
