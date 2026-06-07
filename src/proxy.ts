@@ -27,6 +27,20 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // 静态资源
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/fonts") ||
+    pathname === "/favicon.ico"
+  ) {
+    return NextResponse.next();
+  }
+
+  // SEO 元文件(sitemap/robots) - 必须公开,供搜索引擎抓取
+  if (pathname === "/sitemap.xml" || pathname === "/robots.txt") {
+    return NextResponse.next();
+  }
+
   // 公开页面不需要认证
   const publicPaths = [
     "/login",
@@ -39,12 +53,16 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 静态资源
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/fonts") ||
-    pathname === "/favicon.ico"
-  ) {
+  // 营销站(根路径智能分流:已登录会被 page.tsx 重定向到 /chat/new)
+  const marketingPaths = [
+    "/",
+    "/home",
+    "/features",
+    "/pricing",
+    "/use-cases",
+    "/about",
+  ];
+  if (marketingPaths.includes(pathname)) {
     return NextResponse.next();
   }
 
@@ -76,6 +94,6 @@ export async function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     // 匹配除公开路径外的所有页面路由
-    "/((?!api/auth|api/share|api/share-html|_next/static|_next/image|favicon.ico|login|register|setup|verify-email|cli-consent).*)",
+    "/((?!api/auth|api/share|api/share-html|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login|register|setup|verify-email|cli-consent).*)",
   ],
 };

@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "vendor/**",
     // Runtime data directory (user-generated skills, projects, etc.):
     "data/**",
+    // Agent skills (playwright scripts, build tools - not subject to project lint rules):
+    ".agents/**",
   ]),
   // Downgrade strict React hooks rules from next/core-web-vitals to warnings.
   // These are new aggressive rules that flag common patterns like setState in

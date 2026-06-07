@@ -727,6 +727,8 @@
       "noProjects": "No projects yet. Please create one in the sidebar first.",
       "backToProjectList": "Back to project list",
       "pleaseSelectProject": "Please select a project on the left first",
+      "noProjectHint": "No projects yet, create one to get started",
+      "createFirstProject": "Create Project",
       "documentDeleted": "This document has been deleted",
       "loading": "Loading..."
     },
@@ -1613,6 +1615,472 @@
     },
     "plans": {
       "titleRequired": "Title is required"
+    }
+  },
+  "marketing": {
+    "nav": {
+      "brand": "Rabbit Docs",
+      "features": "Features",
+      "pricing": "Pricing",
+      "useCases": "Use cases",
+      "about": "About",
+      "signIn": "Sign in",
+      "openApp": "Open app",
+      "loginNow": "Log in",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "ariaLabel": "Main navigation"
+    },
+    "footer": {
+      "ariaLabel": "Footer",
+      "brand": "Rabbit Docs",
+      "tagline": "AI-native document workspace. The whole project becomes Claude context, with the files you already have as the source of truth.",
+      "product": "Product",
+      "productFeatures": "Features",
+      "productPricing": "Pricing",
+      "productUseCases": "Use cases",
+      "resources": "Resources",
+      "resourcesApp": "Open app",
+      "resourcesGithub": "GitHub",
+      "resourcesContact": "Contact",
+      "rights": "All rights reserved.",
+      "poweredBy": "Powered by"
+    },
+    "home": {
+      "hero": {
+        "eyebrow": "v0.1 · Filesystem as Source of Truth",
+        "title": "Your filesystem is",
+        "highlight": "the prompt.",
+        "subtitle": "RabbitDocs turns the whole project into Claude context — the Markdown and Git you already have become the only source of truth your AI needs.",
+        "ctaPrimary": "Start free",
+        "ctaSecondary": "Open app"
+      },
+      "valueProps": {
+        "title": "Three equations that define our approach.",
+        "context": {
+          "label": "01 / Context",
+          "title": "Project = Context",
+          "description": "Open a project and Claude Agent immediately sees all your Markdown and Git repo — no manual knowledge feeding."
+        },
+        "truth": {
+          "label": "02 / Truth",
+          "title": "Files = Truth",
+          "description": "Docs live as real files on the filesystem. Git-trackable, editable with any tool. No more black-box databases."
+        },
+        "action": {
+          "label": "03 / Action",
+          "title": "Sandbox = Action",
+          "description": "Selected code runs safely in an isolated cloud sandbox. Results flow back to the chat, closing the loop."
+        }
+      },
+      "features": {
+        "title": "The complete capability matrix.",
+        "subtitle": "Every piece of the AI collaboration puzzle lives in your filesystem.",
+        "thinking": {
+          "title": "Extended Thinking, visible",
+          "description": "See Claude's reasoning unfold in real time. You don't just get answers — you audit the chain of thought."
+        },
+        "mcp": {
+          "title": "MCP tool extensions",
+          "description": "Plug in GitHub, Jira, Notion, or any MCP server. Expand AI capabilities on demand, no vendor lock-in."
+        },
+        "sandbox": {
+          "title": "One-click cloud sandbox",
+          "description": "Code runs in an isolated environment, output flows back. AI is no longer a talking engineer."
+        },
+        "chatToDoc": {
+          "title": "Chat-to-doc",
+          "description": "Save any chat as Markdown. Reverse direction: any doc can be Chat context."
+        },
+        "passkey": {
+          "title": "Passkey login",
+          "description": "WebAuthn modern auth. Skip password managers — log in with fingerprint or face."
+        },
+        "usage": {
+          "title": "Transparent token usage",
+          "description": "TPM/RPM trends from 1h to 30d. See the real cost. Pick plans with confidence."
+        }
+      },
+      "split": {
+        "truth": {
+          "eyebrow": "01 · Filesystem as Source of Truth",
+          "title": "Your Markdown is the only fact your AI sees.",
+          "description": "Traditional knowledge bases lock docs in databases — not Git-trackable, not VS Code-editable. RabbitDocs takes the other path: docs are .md files, and Claude Agent reads them directly as context.",
+          "bullet1": "Markdown docs are real files inside the project",
+          "bullet2": "Editable with any external tool, Git, or CI pipeline",
+          "bullet3": "Delete, move, rename are preserved in Git history"
+        },
+        "thinking": {
+          "eyebrow": "02 · Extended Thinking",
+          "title": "AI's reasoning, fully visible.",
+          "description": "Extended Thinking is on by default. Before answering, Claude unfolds the files it read, the steps it took, and the options it weighed. You don't just see results — you audit reasoning.",
+          "bullet1": "Thinking unfolds by default, can be collapsed",
+          "bullet2": "Token usage broken down by phase",
+          "bullet3": "Regenerate, follow-up, edit — chat is not one-way"
+        }
+      },
+      "trust": {
+        "title": "Early user feedback",
+        "stat1": {
+          "value": "< 2s",
+          "label": "Avg first-token latency"
+        },
+        "stat2": {
+          "value": "12k+",
+          "label": "Files indexed"
+        },
+        "stat3": {
+          "value": "99.9%",
+          "label": "ACP session uptime"
+        }
+      },
+      "testimonial1": {
+        "quote": "I used to copy-paste code to feed AI. Now Claude just sees it when I open the project. Filesystem as Source of Truth changed my workflow completely.",
+        "author": "Chen M.",
+        "role": "Indie dev / SaaS founder",
+        "initials": "CM"
+      },
+      "testimonial2": {
+        "quote": "Our 5-person team shares repos and MCP config via Workspace. New hires are productive on day one, and MCP tools are configured once for the whole team.",
+        "author": "Lina K.",
+        "role": "Engineering Lead @ early-stage startup",
+        "initials": "LK"
+      },
+      "testimonial3": {
+        "quote": "The worst part of tech writing is docs that drift from code. Here, code that runs in chat can be saved as a doc. Source of truth stays aligned forever.",
+        "author": "Yuki S.",
+        "role": "Developer Advocate",
+        "initials": "YS"
+      },
+      "cta": {
+        "title": "Stop fighting with the clipboard. Ship with context.",
+        "subtitle": "Start free, no credit card. 30 seconds to turn a project into Claude's workspace.",
+        "primary": "Start free",
+        "secondary": "See demo first"
+      }
+    },
+    "features": {
+      "meta": {
+        "title": "Features",
+        "description": "Everything RabbitDocs does: Filesystem as Source of Truth, Claude Agent SDK, MCP tool extensions, cloud sandbox, Extended Thinking, and more."
+      },
+      "eyebrow": "Complete capability matrix",
+      "title": "A toolkit built for AI collaborators.",
+      "subtitle": "From a single Markdown to an entire Git repo, from a local script to a cloud sandbox — {brand} puts everything AI collaboration needs in your filesystem.",
+      "chapters": {
+        "context": {
+          "title": "Context",
+          "subtitle": "Open a project and Claude Agent immediately sees all your Markdown and Git repo — no manual knowledge feeding.",
+          "items": {
+            "context": {
+              "title": "Project-as-context",
+              "description": "The whole project directory is Claude Agent's working context. Zero file-retrieval latency."
+            },
+            "thinking": {
+              "title": "Extended Thinking, visible",
+              "description": "Reasoning unfolds by default. Token usage broken down by phase."
+            },
+            "usage": {
+              "title": "Transparent token usage",
+              "description": "TPM/RPM trends from 1h to 30d. Pick plans with real data."
+            }
+          }
+        },
+        "truth": {
+          "title": "Truth",
+          "subtitle": "Docs are real files on the filesystem — Git-trackable, editable with any external tool.",
+          "items": {
+            "fs": {
+              "title": "Filesystem as Source of Truth",
+              "description": "Markdown docs are real files inside the project. Editable with VS Code, Git, or any CI pipeline."
+            },
+            "git": {
+              "title": "Git integration",
+              "description": "Bind a Git repo. GitNexus auto-indexes the code graph for precise cross-branch lookup."
+            },
+            "chatToDoc": {
+              "title": "Chat-to-doc",
+              "description": "Save any chat as Markdown. Reverse direction: any doc can be Chat context."
+            }
+          }
+        },
+        "tools": {
+          "title": "Tools",
+          "subtitle": "AI capabilities expanded on demand. Code runs safely. Tool calls are fully audited.",
+          "items": {
+            "mcp": {
+              "title": "MCP tool extensions",
+              "description": "Plug in GitHub, Jira, Notion, or any MCP server. No ecosystem lock-in."
+            },
+            "sandbox": {
+              "title": "One-click cloud sandbox",
+              "description": "Code runs in an isolated environment. Output flows back. Loop complete."
+            },
+            "audit": {
+              "title": "Tool-call audit",
+              "description": "Every MCP call recorded, replayable, and traceable. Compliance-friendly."
+            }
+          }
+        },
+        "collab": {
+          "title": "Collaboration",
+          "subtitle": "Teams share repos, MCP, and skills. New hires are productive on day one. Public links are content.",
+          "items": {
+            "workspace": {
+              "title": "Workspace-level sharing",
+              "description": "One repo, one MCP config, one set of skills — for the whole team."
+            },
+            "share": {
+              "title": "Public HTML share",
+              "description": "Any chat or doc generates a public link. Sandboxed iframe. No account required."
+            },
+            "passkey": {
+              "title": "Passkey login",
+              "description": "WebAuthn modern auth. Skip password managers. Login with fingerprint or face."
+            }
+          }
+        }
+      },
+      "cta": {
+        "title": "Bring all of this home.",
+        "subtitle": "Start free, no credit card. 30 seconds to turn a project into Claude's workspace.",
+        "primary": "Start free",
+        "secondary": "Open app"
+      }
+    },
+    "pricing": {
+      "meta": {
+        "title": "Pricing",
+        "description": "Choose a plan that fits your team. Free for individuals, metered by token quota for teams."
+      },
+      "eyebrow": "Simple, transparent pricing",
+      "title": "Pay for what you use. Grow with your team.",
+      "subtitle": "Free forever for individual developers. Teams pay for token quota and collaboration seats.",
+      "plans": {
+        "popular": "Most popular",
+        "ctaStart": "Get Started",
+        "period": "/ mo",
+        "free": {
+          "name": "Personal",
+          "price": "$0",
+          "description": "For indie devs and small projects",
+          "features": [
+            "Unlimited Markdown docs",
+            "1 project + 1 workspace",
+            "100K tokens / month",
+            "Local Git integration",
+            "Passkey login"
+          ],
+          "cta": "Start free"
+        },
+        "pro": {
+          "name": "Pro",
+          "price": "$15",
+          "description": "For power users and small teams",
+          "features": [
+            "Unlimited projects + 5 workspaces",
+            "2M tokens / month",
+            "100 cloud sandbox runs / month",
+            "MCP tool extensions",
+            "Priority email support"
+          ],
+          "cta": "Upgrade to Pro"
+        },
+        "team": {
+          "name": "Team",
+          "price": "$45",
+          "description": "Up to 10 collaborators",
+          "features": [
+            "Everything in Pro",
+            "10 team seats",
+            "10M tokens / month",
+            "Workspace collaboration & member management",
+            "SSO and audit logs"
+          ],
+          "cta": "Contact sales"
+        }
+      },
+      "custom": {
+        "title": "Need bigger scale?",
+        "description": "Custom plans, dedicated support, and self-hosted deployment for teams of 50+.",
+        "cta": "Contact sales"
+      },
+      "faq": {
+        "title": "Frequently asked questions",
+        "items": [
+          {
+            "question": "Can I switch plans anytime?",
+            "answer": "Yes. Upgrades and downgrades take effect immediately with prorated billing. No lock-in."
+          },
+          {
+            "question": "What happens when my token quota runs out?",
+            "answer": "You'll get an email at 10% remaining. After that, chats pause but document editing keeps working. Quota resets on the 1st."
+          },
+          {
+            "question": "Do you offer self-hosted?",
+            "answer": "Yes — Team and above can be self-hosted. Contact sales to scope environment and requirements."
+          },
+          {
+            "question": "Student or open-source discounts?",
+            "answer": "Students with a .edu email can apply for Pro for free. Open-source projects get Team at a discount."
+          },
+          {
+            "question": "Where is my data? Can I export?",
+            "answer": "Docs live as Markdown files in your filesystem. We never lock your data. db-dump exports all settings and history."
+          },
+          {
+            "question": "Refund policy?",
+            "answer": "Full refund within 7 days of first subscription. After that, billed per used month. Contact support."
+          }
+        ]
+      },
+      "cta": {
+        "title": "Ready to start?",
+        "subtitle": "Free to begin, 30 seconds to onboard.",
+        "primary": "Start free",
+        "secondary": "Open app"
+      }
+    },
+    "useCases": {
+      "meta": {
+        "title": "Use cases",
+        "description": "See how different roles use RabbitDocs to ship better docs and collaborate faster."
+      },
+      "eyebrow": "Who's using RabbitDocs",
+      "title": "Built for every kind of workflow.",
+      "subtitle": "From indie devs to AI engineering teams, RabbitDocs can be your second brain.",
+      "cardsTitle": "Four real scenarios.",
+      "personas": {
+        "solo": {
+          "title": "Indie developer",
+          "description": "Same context from side project to production. Stop losing information at handoff.",
+          "highlights": [
+            "Just git clone a new project to start — no migration",
+            "Docs and code share the same source of truth",
+            "Local-first: keep working without a network"
+          ]
+        },
+        "team": {
+          "title": "Small team (3-10)",
+          "description": "Workspace sharing. New hires go from PR review to productive on day one.",
+          "highlights": [
+            "Shared MCP tools — no repeated config per person",
+            "One-click member management, owner-transferable",
+            "Unified token quota, transparent cost"
+          ]
+        },
+        "writer": {
+          "title": "Technical writer",
+          "description": "Code that runs in chat can be saved as a doc. Source of truth stays aligned forever.",
+          "highlights": [
+            "Chat → Markdown in one click",
+            "Code examples and docs share the same source",
+            "Public HTML share for any doc"
+          ]
+        },
+        "ai": {
+          "title": "AI engineer",
+          "description": "MCP extensions + cloud sandbox. Train/eval pipeline completes in one workspace.",
+          "highlights": [
+            "Auditable Extended Thinking reasoning chain",
+            "Cloud sandbox safely runs any code",
+            "Token usage fine-grained to TPM/RPM"
+          ]
+        }
+      },
+      "cta": {
+        "title": "Find the workflow that fits you.",
+        "subtitle": "30 seconds to onboard. Every role benefits immediately.",
+        "primary": "Start free",
+        "secondary": "Open app"
+      }
+    },
+    "about": {
+      "meta": {
+        "title": "About",
+        "description": "Meet the RabbitDocs team. Our mission, roadmap, and how to reach us."
+      },
+      "eyebrow": "Our story",
+      "title": "Making the filesystem the only source of truth for the AI era.",
+      "subtitle": "We believe the future of human-AI collaboration shouldn't be locked inside some SaaS black box. Your files, your Git, your workflow — all local, all yours.",
+      "mission": {
+        "label": "Mission",
+        "title": "Build a tool that respects the filesystem for human and AI collaborators.",
+        "description": "The past decade taught us to move everything into cloud SaaS. But in the AI era, agents don't need rows in a SaaS DB — they need real files in your filesystem. RabbitDocs wants to be that tool where AI and humans share the same truth.",
+        "bullets": [
+          "Filesystem as Source of Truth — never lock your data",
+          "Local-first, cloud as just a collaboration channel",
+          "Open-source friendly, respect the existing toolchain"
+        ]
+      },
+      "roadmap": {
+        "title": "Roadmap",
+        "items": [
+          {
+            "date": "2025 Q4",
+            "title": "Filesystem integration + Claude Agent SDK",
+            "description": "Whole project as AI context, Extended Thinking visible",
+            "status": "shipped"
+          },
+          {
+            "date": "2026 Q1",
+            "title": "ACP long-connection + Workspace collaboration",
+            "description": "Persistent agent sessions, cross-project member management, token quota",
+            "status": "shipped"
+          },
+          {
+            "date": "2026 Q2",
+            "title": "Cloud sandbox GA + MCP tool marketplace",
+            "description": "One-click code execution, official MCP server directory",
+            "status": "in-progress"
+          },
+          {
+            "date": "2026 Q3",
+            "title": "Team edition GA + audit logs",
+            "description": "SSO, audit logs, SCIM user provisioning",
+            "status": "planned"
+          },
+          {
+            "date": "2026 Q4",
+            "title": "Mobile + offline-first",
+            "description": "iOS / Android clients. Edit offline; sync when online.",
+            "status": "planned"
+          }
+        ]
+      },
+      "contact": {
+        "label": "Contact",
+        "title": "We want to hear from you.",
+        "description": "Product feedback, custom needs, or just want to talk about AI and filesystems? Reach out below.",
+        "channels": [
+          {
+            "label": "Email",
+            "value": "hello@rabbitai-lab.com",
+            "href": "mailto:hello@rabbitai-lab.com"
+          },
+          {
+            "label": "GitHub",
+            "value": "github.com/rabbitai-lab",
+            "href": "https://github.com/rabbitai-lab"
+          },
+          {
+            "label": "Twitter / X",
+            "value": "@rabbitai_lab",
+            "href": "https://twitter.com/rabbitai_lab"
+          },
+          {
+            "label": "Discord",
+            "value": "Join our community",
+            "href": "https://discord.gg/rabbitai-lab"
+          }
+        ]
+      },
+      "cta": {
+        "title": "Want to build this with us?",
+        "subtitle": "We're hiring and looking for early users and partners.",
+        "primary": "Start free",
+        "secondary": "Join Discord"
+      }
     }
   }
 }

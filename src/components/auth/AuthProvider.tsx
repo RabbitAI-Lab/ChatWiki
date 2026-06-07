@@ -215,7 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setUser(null);
     accessTokenRef.current = null;
     setAccessToken(null);
@@ -223,10 +223,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("refreshToken");
     pendingRequests.clear();
 
-    // 通知服务端清除 cookie
-    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    // 等待服务端清除 cookie 后再跳转
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // 即使失败也继续跳转
+    }
 
-    // 跳转到登录页
     window.location.href = "/login";
   }, []);
 

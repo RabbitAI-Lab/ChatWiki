@@ -38,6 +38,7 @@ const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
 export default function NewChatWorkspace() {
   const t = useTranslations("chat");
   const tc = useTranslations("common");
+  const tp = useTranslations("projects");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { message } = App.useApp();
@@ -139,6 +140,7 @@ export default function NewChatWorkspace() {
   const handleSelectProjectRef = useRef<(project: ProjectMeta) => Promise<void>>((_) => Promise.resolve());
 
   const handleSelectProject = useCallback(async (project: ProjectMeta) => {
+    try { localStorage.setItem("last-selected-project", project.id); } catch { /* ignore */ }
     setSelectedProjectId(project.id);
     setSelectedProjectName(project.name);
     setProjectMeta(project);
@@ -186,6 +188,7 @@ export default function NewChatWorkspace() {
             handleSelectProjectRef.current(found);
           }
         }
+
       });
   }, [authFetch, user?.id, preselectProjectId]);
 
@@ -200,6 +203,25 @@ export default function NewChatWorkspace() {
     chatSwitching.reset();
     window.history.replaceState(null, "", "/chat/new");
   };
+
+  // --- Create first project ---
+
+  const handleCreateProject = useCallback(async () => {
+    const baseName = tp('defaultProjectName');
+    const existingNames = new Set(projects.map((p) => p.name));
+    const name = existingNames.has(baseName)
+      ? (() => { let i = 1; while (existingNames.has(`${baseName}(${i})`)) i++; return `${baseName}(${i})`; })()
+      : baseName;
+    const res = await authFetch("/api/fs/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "personal", accountId: user?.id, name }),
+    });
+    if (!res.ok) return;
+    const meta: ProjectMeta = await res.json();
+    setProjects((prev) => [...prev, meta]);
+    handleSelectProjectRef.current(meta);
+  }, [authFetch, user?.id, projects, tp]);
 
   // --- Callbacks ---
 
@@ -238,11 +260,11 @@ export default function NewChatWorkspace() {
         onChange={handleUploadChange}
       />
       {/* Left Panel */}
-      <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
+      <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-[var(--sidebar-border)] bg-white dark:bg-[var(--sidebar-bg)] shrink-0">
         {selectedProjectId ? (
           <>
             {/* Selected project header */}
-            <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-between gap-2">
+            <div className="px-3 h-[41px] border-b border-gray-200 dark:border-[var(--sidebar-border)] bg-white dark:bg-[var(--sidebar-bg)] flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <button
                   onClick={handleBack}
@@ -269,7 +291,7 @@ export default function NewChatWorkspace() {
             </div>
 
             {/* File tree toolbar */}
-            <div className="px-2 py-1.5 border-b border-gray-100 dark:border-zinc-700 flex gap-0.5 justify-center">
+            <div className="px-2 py-1.5 border-b border-gray-100 dark:border-[var(--sidebar-border)] flex gap-0.5 justify-center">
               <button
                 onClick={() => handleCreateFile("")}
                 disabled={renamingPath !== null}
@@ -346,9 +368,9 @@ export default function NewChatWorkspace() {
             <FileTreeFooter activeView={treeView} onViewChange={handleViewChange} />
           </>
         ) : (
-          <div className="flex-1 flex flex-col m-2 animate-blue-breathing overflow-hidden bg-white dark:bg-zinc-800">
+          <div className="flex-1 flex flex-col overflow-hidden">
             {/* Project selection header */}
-            <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 flex items-center">
+            <div className="px-3 h-[41px] border-b border-gray-200 dark:border-[var(--sidebar-border)] flex items-center">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t("newChatWorkspace.selectProject")}</h3>
             </div>
 
@@ -380,7 +402,7 @@ export default function NewChatWorkspace() {
         {selectedProjectId ? (
           <>
             {/* Tab Bar */}
-            <div className="flex items-center h-[41px] bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-700 overflow-x-auto shrink-0">
+            <div className="flex items-center h-[41px] bg-gray-50 dark:bg-zinc-800/50 border-b border-gray-200 dark:border-[var(--sidebar-border)] overflow-x-auto shrink-0">
               {/* Project Info tab */}
               <button
                 onClick={() => tabSystem.setActiveTabId(PROJECT_INFO_TAB)}
@@ -530,8 +552,36 @@ export default function NewChatWorkspace() {
               ))}
             </div>
           </>
+        ) : projects.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center bg-white dark:bg-[var(--sidebar-bg)]">
+            <div className="text-center max-w-[280px] mx-4 animate-glow-soft rounded-2xl px-8 py-10 bg-gradient-to-b from-blue-50/70 to-white/60 dark:from-blue-950/25 dark:to-zinc-800/30">
+              {/* 文件夹+加号图标 */}
+              <div className="animate-float-gentle mb-5">
+                <svg className="w-12 h-12 mx-auto text-blue-300 dark:text-blue-400/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+              </div>
+              {/* 提示文字 */}
+              <p className="text-[15px] leading-relaxed text-blue-500/80 dark:text-blue-300/70 font-medium">
+                {t("newChatWorkspace.noProjectHint")}
+              </p>
+              {/* 新建项目按钮 */}
+              <button
+                onClick={handleCreateProject}
+                className="mt-5 inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-lg shadow-sm transition-colors"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                {t("newChatWorkspace.createFirstProject")}
+              </button>
+            </div>
+          </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-zinc-900">
+          <div className="flex-1 flex items-center justify-center bg-white dark:bg-[var(--sidebar-bg)]">
             <div className="text-center max-w-[280px] mx-4 animate-glow-soft rounded-2xl px-8 py-10 bg-gradient-to-b from-blue-50/70 to-white/60 dark:from-blue-950/25 dark:to-zinc-800/30">
               {/* 浮动聊天气泡图标 */}
               <div className="animate-float-gentle mb-5">

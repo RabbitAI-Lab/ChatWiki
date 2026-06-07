@@ -727,6 +727,8 @@
       "noProjects": "暂无项目，请先在侧边栏创建",
       "backToProjectList": "返回项目列表",
       "pleaseSelectProject": "请先在左侧选择一个项目",
+      "noProjectHint": "还没有项目，创建一个开始吧",
+      "createFirstProject": "新建项目",
       "documentDeleted": "该文档已被删除",
       "loading": "加载中..."
     },
@@ -1613,6 +1615,472 @@
     },
     "plans": {
       "titleRequired": "标题不能为空"
+    }
+  },
+  "marketing": {
+    "nav": {
+      "brand": "Rabbit Docs",
+      "features": "功能",
+      "pricing": "套餐",
+      "useCases": "应用场景",
+      "about": "关于",
+      "signIn": "登录",
+      "openApp": "打开应用",
+      "loginNow": "立即登录",
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单",
+      "ariaLabel": "主导航"
+    },
+    "footer": {
+      "ariaLabel": "页脚",
+      "brand": "Rabbit Docs",
+      "tagline": "AI 原生的文档管理工作空间。让项目目录成为 Claude 的上下文,文件即真相之源。",
+      "product": "产品",
+      "productFeatures": "功能",
+      "productPricing": "套餐",
+      "productUseCases": "应用场景",
+      "resources": "资源",
+      "resourcesApp": "打开应用",
+      "resourcesGithub": "GitHub",
+      "resourcesContact": "联系我们",
+      "rights": "保留所有权利。",
+      "poweredBy": "Powered by"
+    },
+    "home": {
+      "hero": {
+        "eyebrow": "v0.1 · Filesystem as Source of Truth",
+        "title": "Your filesystem is",
+        "highlight": "the prompt.",
+        "subtitle": "RabbitDocs 把整个项目目录交给 Claude Agent —— 你已经写好的 Markdown 与 Git 仓库,就是 AI 唯一需要的事实之源。",
+        "ctaPrimary": "免费开始",
+        "ctaSecondary": "打开应用"
+      },
+      "valueProps": {
+        "title": "三个等价式,定义我们的方法论。",
+        "context": {
+          "label": "01 / Context",
+          "title": "项目 = 上下文",
+          "description": "打开项目,Claude Agent 立刻看到你的全部 Markdown 与 Git 仓库代码,无需手动喂知识。"
+        },
+        "truth": {
+          "label": "02 / Truth",
+          "title": "文件 = 真相",
+          "description": "文档以真实文件存储于文件系统,可被 Git 跟踪、可被任意外部工具读写,告别黑盒数据库。"
+        },
+        "action": {
+          "label": "03 / Action",
+          "title": "沙箱 = 执行",
+          "description": "选中的代码片段可在隔离的云沙箱中安全执行,结果回传到对话,完成完整回路。"
+        }
+      },
+      "features": {
+        "title": "完整的能力矩阵。",
+        "subtitle": "把 AI 协作需要的每一块拼图都放在你的文件系统里。",
+        "thinking": {
+          "title": "Extended Thinking 可视化",
+          "description": "Claude 的思考过程完整展示 —— 你看到的不只是答案,还有推理的每一步。"
+        },
+        "mcp": {
+          "title": "MCP 工具扩展",
+          "description": "接入 GitHub、Jira、Notion 或任何 MCP Server,AI 能力按需扩展,不锁死在单一供应商。"
+        },
+        "sandbox": {
+          "title": "云沙箱一键执行",
+          "description": "代码片段在隔离环境运行,产出回传对话,AI 不再是嘴炮工程师。"
+        },
+        "chatToDoc": {
+          "title": "对话转文档",
+          "description": "任何对话可一键保存为 Markdown 入库;反向,任何文档可作为 Chat 上下文。"
+        },
+        "passkey": {
+          "title": "Passkey 无密码登录",
+          "description": "WebAuthn 现代化认证,告别密码管理烦恼,登录只需指纹或面容。"
+        },
+        "usage": {
+          "title": "Token 用量透明",
+          "description": "TPM/RPM 1h 到 30d 趋势图,Token 成本清晰可见,套餐选择心中有数。"
+        }
+      },
+      "split": {
+        "truth": {
+          "eyebrow": "01 · Filesystem as Source of Truth",
+          "title": "你的 Markdown,就是 AI 看到的事实。",
+          "description": "传统知识库把文档锁在数据库里,既不能被 Git 跟踪,也不能被 VS Code 编辑。RabbitDocs 走另一条路 —— 文档以 .md 文件存在,Claude Agent 直接读这些文件作为上下文。",
+          "bullet1": "Markdown 文档是项目目录下的真实文件",
+          "bullet2": "可被任意外部编辑器、Git 工具、CI 流水线处理",
+          "bullet3": "删除、移动、改名都会通过 Git 历史保留,永不丢失"
+        },
+        "thinking": {
+          "eyebrow": "02 · Extended Thinking",
+          "title": "AI 的思考过程,完整可见。",
+          "description": "默认开启 Extended Thinking。Claude 在给出答案前,先把它读到的文件、推理的步骤、考虑的方案全部展开 —— 你不只看到结果,还能审计推理链。",
+          "bullet1": "思考过程默认展开,折叠可手动收起",
+          "bullet2": "Token 用量分阶段展示,理解成本结构",
+          "bullet3": "支持重新生成、追问、修改,对话不是单行道"
+        }
+      },
+      "trust": {
+        "title": "早期使用者的反馈",
+        "stat1": {
+          "value": "< 2s",
+          "label": "平均首 token 延迟"
+        },
+        "stat2": {
+          "value": "12k+",
+          "label": "已索引文件数"
+        },
+        "stat3": {
+          "value": "99.9%",
+          "label": "ACP 会话可用性"
+        }
+      },
+      "testimonial1": {
+        "quote": "以前要把代码喂给 AI 得复制粘贴,现在打开项目它自己就看到了。Filesystem as Source of Truth 这个理念让我的工作流彻底不一样了。",
+        "author": "陈明",
+        "role": "独立开发者 / SaaS 创始人",
+        "initials": "CM"
+      },
+      "testimonial2": {
+        "quote": "我们 5 人的小团队用 Workspace 共享同一套仓库和 MCP 配置,新人第一天就能上手,MCP 工具也只配一次全队复用。",
+        "author": "Lina K.",
+        "role": "Engineering Lead @ 早期初创",
+        "initials": "LK"
+      },
+      "testimonial3": {
+        "quote": "做技术写作时最痛苦的是代码示例与文档脱节,这里对话里跑的代码片段能直接保存为文档,源永远对得上。",
+        "author": "Yuki S.",
+        "role": "Developer Advocate",
+        "initials": "YS"
+      },
+      "cta": {
+        "title": "停止与剪贴板搏斗。开始用上下文交付。",
+        "subtitle": "免费开始,无需信用卡。30 秒注册即可把项目变成 Claude 的工作区。",
+        "primary": "免费开始",
+        "secondary": "先看 demo"
+      }
+    },
+    "features": {
+      "meta": {
+        "title": "功能",
+        "description": "RabbitDocs 的全部能力:Filesystem as Source of Truth、Claude Agent SDK、MCP 工具扩展、云沙箱、Extended Thinking 等。"
+      },
+      "eyebrow": "完整能力矩阵",
+      "title": "为 AI 协作者而生的工具集。",
+      "subtitle": "从单个 Markdown 到整个 Git 仓库,从本地脚本到云端沙箱 —— {brand} 把 AI 协作需要的一切都放在你的文件系统里。",
+      "chapters": {
+        "context": {
+          "title": "Context / 上下文",
+          "subtitle": "打开项目,Claude Agent 立刻看到你的全部 Markdown 与 Git 仓库代码,无需手动喂知识。",
+          "items": {
+            "context": {
+              "title": "项目即上下文",
+              "description": "整个项目目录作为 Claude Agent 的工作上下文,文件检索零延迟。"
+            },
+            "thinking": {
+              "title": "Extended Thinking 可视化",
+              "description": "思考过程默认展开,可折叠可审查,Token 用量分阶段展示。"
+            },
+            "usage": {
+              "title": "Token 用量透明",
+              "description": "TPM/RPM 1h~30d 趋势图,套餐选择有据可依。"
+            }
+          }
+        },
+        "truth": {
+          "title": "Truth / 真相",
+          "subtitle": "文档以真实文件存储于文件系统,可被 Git 跟踪、可被任意外部工具读写。",
+          "items": {
+            "fs": {
+              "title": "Filesystem as Source of Truth",
+              "description": "Markdown 文档是项目目录下的真实文件,可被 VS Code、Git、CI 流水线处理。"
+            },
+            "git": {
+              "title": "Git 集成",
+              "description": "绑定 Git 仓库,GitNexus 自动索引代码图谱,跨分支精准定位。"
+            },
+            "chatToDoc": {
+              "title": "对话转文档",
+              "description": "任何对话可一键保存为 Markdown 入库,反向,任何文档可作为 Chat 上下文。"
+            }
+          }
+        },
+        "tools": {
+          "title": "Tools / 工具",
+          "subtitle": "AI 能力按需扩展,代码片段可安全执行,工具调用全程审计。",
+          "items": {
+            "mcp": {
+              "title": "MCP 工具扩展",
+              "description": "接入 GitHub、Jira、Notion 或任何 MCP Server,生态不锁死。"
+            },
+            "sandbox": {
+              "title": "云沙箱一键执行",
+              "description": "代码片段在隔离环境运行,产出回传对话,完成完整回路。"
+            },
+            "audit": {
+              "title": "工具调用审计",
+              "description": "所有 MCP 工具调用记录在案,可追溯可重放,合规无忧。"
+            }
+          }
+        },
+        "collab": {
+          "title": "Collaboration / 协作",
+          "subtitle": "团队共用一套仓库/MCP/技能,新人秒级上手,公开分享链接即内容。",
+          "items": {
+            "workspace": {
+              "title": "Workspace 级共享",
+              "description": "团队共用同一套仓库、MCP 配置与技能,成员管理一键完成。"
+            },
+            "share": {
+              "title": "公开 HTML 分享",
+              "description": "对话或文档可生成公开链接,sandboxed iframe 隔离,无需账号即可查看。"
+            },
+            "passkey": {
+              "title": "Passkey 无密码登录",
+              "description": "WebAuthn 现代化认证,告别密码管理烦恼,登录只需指纹或面容。"
+            }
+          }
+        }
+      },
+      "cta": {
+        "title": "把这些能力都带回家。",
+        "subtitle": "免费开始,无需信用卡。30 秒即可把项目变成 Claude 的工作区。",
+        "primary": "免费开始",
+        "secondary": "打开应用"
+      }
+    },
+    "pricing": {
+      "meta": {
+        "title": "套餐",
+        "description": "选择适合你团队的套餐。个人免费,团队按 Token 配额计费。"
+      },
+      "eyebrow": "简单透明的定价",
+      "title": "按用量付费,按团队成长。",
+      "subtitle": "个人开发者永久免费,团队按 Token 配额与协作人数选择套餐。",
+      "plans": {
+        "popular": "最受欢迎",
+        "ctaStart": "立即开始",
+        "period": "/ 月",
+        "free": {
+          "name": "个人版",
+          "price": "¥0",
+          "description": "独立开发者与小项目",
+          "features": [
+            "无限 Markdown 文档",
+            "1 个项目 + 1 个工作空间",
+            "每月 100K Token 配额",
+            "本地 Git 集成",
+            "Passkey 登录"
+          ],
+          "cta": "免费开始"
+        },
+        "pro": {
+          "name": "专业版",
+          "price": "¥99",
+          "description": "重度使用者与小团队",
+          "features": [
+            "无限项目 + 5 个工作空间",
+            "每月 2M Token 配额",
+            "云沙箱每月 100 次执行",
+            "MCP 工具扩展",
+            "优先邮件支持"
+          ],
+          "cta": "升级专业版"
+        },
+        "team": {
+          "name": "团队版",
+          "price": "¥299",
+          "description": "10 人以内小团队协作",
+          "features": [
+            "专业版全部能力",
+            "10 个团队成员席位",
+            "每月 10M Token 配额",
+            "Workspace 协作与成员管理",
+            "SSO 与审计日志"
+          ],
+          "cta": "联系销售"
+        }
+      },
+      "custom": {
+        "title": "需要更大规模?",
+        "description": "我们为 50 人以上团队提供定制方案、专属支持与私有化部署选项。",
+        "cta": "联系销售"
+      },
+      "faq": {
+        "title": "常见问题",
+        "items": [
+          {
+            "question": "套餐可以随时切换吗?",
+            "answer": "可以,套餐升降级即时生效,按比例结算差额,无任何锁定条款。"
+          },
+          {
+            "question": "Token 配额用完了怎么办?",
+            "answer": "当月剩余 10% 时邮件预警,超出后对话暂停但文档编辑不受影响。下月 1 日自动重置。"
+          },
+          {
+            "question": "是否支持私有化部署?",
+            "answer": "团队版及以上提供私有化部署支持,需联系销售评估需求与环境。"
+          },
+          {
+            "question": "学生或开源项目有优惠吗?",
+            "answer": "学生凭 .edu 邮箱可申请免费专业版,开源项目可申请团队版折扣。"
+          },
+          {
+            "question": "数据存在哪里?可以导出吗?",
+            "answer": "文档以 Markdown 文件存于你的文件系统,我们不锁数据。提供 db-dump 工具一键导出全部配置与历史。"
+          },
+          {
+            "question": "可以退款吗?",
+            "answer": "首次订阅 7 天内无理由全额退款,后续按已使用月份结算,联系 support 即可。"
+          }
+        ]
+      },
+      "cta": {
+        "title": "准备好开始了吗?",
+        "subtitle": "免费开始,30 秒即可上手。",
+        "primary": "免费开始",
+        "secondary": "打开应用"
+      }
+    },
+    "useCases": {
+      "meta": {
+        "title": "应用场景",
+        "description": "了解不同角色如何用 RabbitDocs 提升文档与协作效率。"
+      },
+      "eyebrow": "谁在用 RabbitDocs",
+      "title": "为每一种工作流而生。",
+      "subtitle": "从独立开发者到 AI 工程师团队,RabbitDocs 都能成为你的第二大脑。",
+      "cardsTitle": "四个真实场景。",
+      "personas": {
+        "solo": {
+          "title": "独立开发者",
+          "description": "从 side project 到 production 一直用同一份上下文,告别项目交接时的信息丢失。",
+          "highlights": [
+            "新项目直接 git clone 就能用,无需手动迁移",
+            "文档与代码同源,README 永远跟得上代码",
+            "本地优先,无网络也能继续工作"
+          ]
+        },
+        "team": {
+          "title": "小团队 (3-10 人)",
+          "description": "Workspace 共享,新人 onboarding 从 PR review 到上手 RabbitDocs 一天搞定。",
+          "highlights": [
+            "团队共用同一套 MCP 工具,新人无需重复配置",
+            "成员管理一键完成,Owner 可转让",
+            "统一的 Token 配额,成本透明"
+          ]
+        },
+        "writer": {
+          "title": "技术写作者",
+          "description": "对话里跑的代码片段能直接保存为文档,源永远对得上,文档永不腐烂。",
+          "highlights": [
+            "对话 → Markdown 一键转换",
+            "代码示例与文档同源",
+            "支持公开 HTML 分享"
+          ]
+        },
+        "ai": {
+          "title": "AI 工程师",
+          "description": "MCP 工具扩展 + 云沙箱,训练/评测全流程在一个工作空间完成。",
+          "highlights": [
+            "Extended Thinking 推理链可审计",
+            "云沙箱安全执行任意代码",
+            "Token 用量精细到 TPM/RPM"
+          ]
+        }
+      },
+      "cta": {
+        "title": "找到属于你的工作流。",
+        "subtitle": "30 秒上手,任何角色都能立即提升。",
+        "primary": "免费开始",
+        "secondary": "打开应用"
+      }
+    },
+    "about": {
+      "meta": {
+        "title": "关于",
+        "description": "了解 RabbitDocs 团队的使命、路线图与联系方式。"
+      },
+      "eyebrow": "我们的故事",
+      "title": "让文件系统成为 AI 时代的唯一真相之源。",
+      "subtitle": "我们相信,人类与 AI 协作的未来,不应该被锁在某个 SaaS 的黑盒数据库里。你的文件、你的 Git、你的工作流 —— 一切都在本地。",
+      "mission": {
+        "label": "Mission / 使命",
+        "title": "为人类与 AI 协作者,设计一个尊重文件系统的工具。",
+        "description": "过去十年,我们被教育要把所有内容搬到云端 SaaS 里。但 AI 时代,Agent 需要的不是 SaaS 数据库里的行 —— 它需要的是你文件系统里的真实文件。RabbitDocs 想成为那个让 AI 与人类共享同一份真相的工具。",
+        "bullets": [
+          "Filesystem as Source of Truth —— 不锁数据",
+          "本地优先,云端只是协作通道",
+          "开源协议友好,尊重开发者的既有工具链"
+        ]
+      },
+      "roadmap": {
+        "title": "Roadmap / 路线图",
+        "items": [
+          {
+            "date": "2025 Q4",
+            "title": "Filesystem 集成 + Claude Agent SDK",
+            "description": "整个项目目录作为 AI 上下文,Extended Thinking 可视化",
+            "status": "shipped"
+          },
+          {
+            "date": "2026 Q1",
+            "title": "ACP 长连接 + Workspace 协作",
+            "description": "持久化 Agent 会话、跨项目成员管理、Token 配额",
+            "status": "shipped"
+          },
+          {
+            "date": "2026 Q2",
+            "title": "云沙箱 GA + MCP 工具市场",
+            "description": "一键执行任意代码、官方 MCP Server 目录",
+            "status": "in-progress"
+          },
+          {
+            "date": "2026 Q3",
+            "title": "团队版正式发布 + 审计日志",
+            "description": "SSO、审计日志、SCIM 用户预置",
+            "status": "planned"
+          },
+          {
+            "date": "2026 Q4",
+            "title": "移动端 + 离线优先",
+            "description": "iOS / Android 客户端,断网仍可编辑",
+            "status": "planned"
+          }
+        ]
+      },
+      "contact": {
+        "label": "Contact / 联系方式",
+        "title": "我们想听到你的声音。",
+        "description": "无论是产品反馈、定制需求,还是单纯想聊 AI 与文件系统,都可以通过以下方式联系。",
+        "channels": [
+          {
+            "label": "Email",
+            "value": "hello@rabbitai-lab.com",
+            "href": "mailto:hello@rabbitai-lab.com"
+          },
+          {
+            "label": "GitHub",
+            "value": "github.com/rabbitai-lab",
+            "href": "https://github.com/rabbitai-lab"
+          },
+          {
+            "label": "Twitter / X",
+            "value": "@rabbitai_lab",
+            "href": "https://twitter.com/rabbitai_lab"
+          },
+          {
+            "label": "Discord",
+            "value": "Join our community",
+            "href": "https://discord.gg/rabbitai-lab"
+          }
+        ]
+      },
+      "cta": {
+        "title": "想一起把这件事做出来吗?",
+        "subtitle": "我们在招人,也在寻找早期用户与合作伙伴。",
+        "primary": "免费开始",
+        "secondary": "加入 Discord"
+      }
     }
   }
 }

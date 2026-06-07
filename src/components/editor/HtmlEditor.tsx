@@ -33,7 +33,7 @@ export default function HtmlEditor({
   onContentChange,
 }: HtmlEditorProps) {
   const [content, setContent] = useState<string>(initialValue);
-  const [mode, setMode] = useState<ViewMode>("edit");
+  const [mode, setMode] = useState<ViewMode>("preview");
   const [saving, setSaving] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -58,7 +58,7 @@ export default function HtmlEditor({
     setContent(initialValue);
     persistedRef.current = initialValue;
     setIsDirty(false);
-    setMode("edit");
+    setMode("preview");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, initialValue, filePath]);
 

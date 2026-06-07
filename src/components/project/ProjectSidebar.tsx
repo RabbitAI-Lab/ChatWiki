@@ -70,8 +70,8 @@ export default function ProjectSidebar({
   const displayTree = activeView === "docs" ? tree : rootTree;
 
   return (
-    <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
-      <div className="px-3 h-[41px] flex items-center justify-between border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+    <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-white dark:bg-[var(--sidebar-bg)] shrink-0">
+      <div className="px-3 h-[41px] flex items-center justify-between border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{t('documents', { name: projectName })}</h3>
         {onRefresh && (
           <button

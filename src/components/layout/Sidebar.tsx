@@ -73,7 +73,10 @@ export default function Sidebar({ initialWidth, initialCollapsed, brandName }: S
       </div>
 
       {/* Chats History - resizable */}
-      <div className="border-t border-gray-100 dark:border-zinc-700 shrink-0">
+      <div className="shrink-0">
+        <div className="h-2 flex items-center group">
+          <div className="w-full h-px bg-transparent group-hover:bg-gray-100 dark:group-hover:bg-zinc-700 transition-colors" />
+        </div>
         <AuthGate>
           <ResizableChatsHistory />
         </AuthGate>

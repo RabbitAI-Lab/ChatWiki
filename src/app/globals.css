@@ -13,6 +13,19 @@
   --popup-border: #e5e7eb;
   --popup-header-bg: rgba(249, 250, 251, 0.5);
   --sender-bg: #ffffff;
+
+  /* 营销站语义令牌(与产品内部解耦,后续可独立主题化) */
+  --marketing-bg: #ffffff;
+  --marketing-fg: #0a0a0a;
+  --marketing-muted: #71717a;
+  --marketing-accent: #3B82F6;
+  --marketing-surface: #f9fafb;
+  --marketing-border: #e5e7eb;
+  --marketing-card: #ffffff;
+
+  /* 排版与节奏 */
+  --space-section: clamp(4rem, 3rem + 5vw, 8rem);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
@@ -26,6 +39,14 @@
   --popup-border: #27272a;
   --popup-header-bg: rgba(24, 24, 27, 0.5);
   --sender-bg: #18181b;
+
+  --marketing-bg: #0a0a0a;
+  --marketing-fg: #fafafa;
+  --marketing-muted: #a1a1aa;
+  --marketing-accent: #60a5fa;
+  --marketing-surface: #111113;
+  --marketing-border: #27272a;
+  --marketing-card: #18181b;
 }
 
 body {

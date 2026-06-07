@@ -30,7 +30,7 @@ function AntdThemeSync({ children, locale }: { children: ReactNode; locale: stri
             : antdTheme.defaultAlgorithm,
       }}
     >
-      <AntApp className="flex h-full w-full">{children}</AntApp>
+      <AntApp className="h-full w-full">{children}</AntApp>
     </ConfigProvider>
   );
 }
