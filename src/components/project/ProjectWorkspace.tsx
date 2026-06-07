@@ -591,6 +591,7 @@ export default function ProjectWorkspace({
           }}
           getCachedContent={(filePath) => contentCache.current[filePath]}
           initialSubTab={initialSubTab}
+          onProjectUpdate={() => router.refresh()}
         />
       </div>
     </div>

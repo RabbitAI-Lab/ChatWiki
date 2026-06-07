@@ -65,6 +65,8 @@ interface ProjectEditorAreaProps {
   getCachedContent: (filePath: string) => string | undefined;
   /** URL 参数传入的子Tab初始值 */
   initialSubTab?: string;
+  /** 项目信息更新回调（标题/描述变更时通知父组件） */
+  onProjectUpdate?: (name: string, description: string) => void;
 }
 
 export default function ProjectEditorArea({
@@ -94,6 +96,7 @@ export default function ProjectEditorArea({
   onToolCall,
   getCachedContent,
   initialSubTab,
+  onProjectUpdate,
 }: ProjectEditorAreaProps) {
   const t = useTranslations('project');
 
@@ -116,6 +119,7 @@ export default function ProjectEditorArea({
           onNewChat={onNewChat}
           onNavigateToDocument={onNavigateToDocument}
           initialSubTab={initialSubTab}
+          onProjectUpdate={onProjectUpdate}
         />
       </div>
 

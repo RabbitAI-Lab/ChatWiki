@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/useAuth";
 import type {
   Repository,
@@ -16,10 +17,11 @@ import McpPanel from "./McpPanel";
 import SkillsPanel from "./SkillsPanel";
 import MemberManager from "./MemberManager";
 import LogPanel from "./LogPanel";
+import ProjectSettingsPanel from "./ProjectSettingsPanel";
 import Badge from "@/components/ui/Badge";
 import type { ProjectMeta, RecentChat } from "./types";
 
-type SubTab = "activity" | "integration" | "skills" | "mcp" | "members" | "log";
+type SubTab = "activity" | "integration" | "skills" | "mcp" | "members" | "log" | "settings";
 
 interface ProjectInfoTabProps {
   projectId: string;
@@ -35,6 +37,8 @@ interface ProjectInfoTabProps {
   onNavigateToDocument?: (documentPath: string) => void;
   /** URL 参数传入的子Tab初始值 */
   initialSubTab?: string;
+  /** 项目信息更新回调（标题/描述变更时通知父组件） */
+  onProjectUpdate?: (name: string, description: string) => void;
 }
 
 const SUB_TAB_KEYS: SubTab[] = [
@@ -44,6 +48,7 @@ const SUB_TAB_KEYS: SubTab[] = [
   "mcp",
   "members",
   "log",
+  "settings",
 ];
 
 function formatDate(dateStr: string) {
@@ -56,8 +61,9 @@ function formatDate(dateStr: string) {
 }
 
 export default function ProjectInfoTab({
-  projectName,
-  projectMeta,
+  projectId,
+  projectName: initialProjectName,
+  projectMeta: initialProjectMeta,
   projectPath,
   recentChats,
   recentDocuments,
@@ -66,8 +72,12 @@ export default function ProjectInfoTab({
   onNewChat,
   onNavigateToDocument,
   initialSubTab,
+  onProjectUpdate,
 }: ProjectInfoTabProps) {
   const t = useTranslations('project');
+  const router = useRouter();
+  const [projectName, setProjectName] = useState(initialProjectName);
+  const [projectMeta, setProjectMeta] = useState<ProjectMeta | null>(initialProjectMeta);
   const [activeSubTab, setActiveSubTab] = useState<SubTab>(
     initialSubTab && SUB_TAB_KEYS.includes(initialSubTab as SubTab)
       ? (initialSubTab as SubTab)
@@ -105,6 +115,12 @@ export default function ProjectInfoTab({
     setOwnerId(newOwnerId);
     setMembers(newMembers);
   };
+
+  const handleProjectUpdate = useCallback((name: string, description: string) => {
+    setProjectName(name);
+    setProjectMeta((prev) => prev ? { ...prev, name, description } : prev);
+    onProjectUpdate?.(name, description);
+  }, [onProjectUpdate]);
 
   // 检查同步状态
   useEffect(() => {
@@ -265,6 +281,19 @@ export default function ProjectInfoTab({
         )}
         {activeSubTab === "log" && (
           <LogPanel projectPath={projectPath} />
+        )}
+        {activeSubTab === "settings" && (
+          <ProjectSettingsPanel
+            projectId={projectId}
+            projectName={projectName}
+            projectMeta={projectMeta}
+            members={members}
+            ownerId={ownerId}
+            ownerName={ownerName}
+            onProjectUpdate={handleProjectUpdate}
+            onOwnerTransfer={handleOwnerTransfer}
+            onProjectDelete={() => router.push("/")}
+          />
         )}
       </div>
     </div>

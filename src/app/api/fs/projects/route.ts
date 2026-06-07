@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(meta);
 }
 
-// DELETE /api/fs/projects - delete project
+// DELETE /api/fs/projects - delete project (owner only)
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
@@ -66,16 +66,23 @@ export async function DELETE(req: NextRequest) {
   const { id } = body;
   if (!id) return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
 
+  const dirSegments = ["projects", id];
+  const meta = readProjectMeta(dirSegments);
+  if (!meta) return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
+  if (meta.ownerId !== auth.id) {
+    return NextResponse.json({ error: t('api.onlyOwnerCanDelete') }, { status: 403 });
+  }
+
   deleteProject(id);
   return NextResponse.json({ success: true });
 }
 
-// PATCH /api/fs/projects - update project (name / sortOrder)
+// PATCH /api/fs/projects - update project (name / sortOrder / description)
 export async function PATCH(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { id, name, sortOrder } = body;
+  const { id, name, sortOrder, description } = body;
   if (!id) return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
 
   const dirSegments = ["projects", id];
@@ -85,6 +92,7 @@ export async function PATCH(req: NextRequest) {
 
   if (name !== undefined) meta.name = name;
   if (sortOrder !== undefined) meta.sortOrder = sortOrder;
+  if (description !== undefined) meta.description = description;
   writeProjectMeta(meta, dirSegments);
   return NextResponse.json(meta);
 }

@@ -85,7 +85,7 @@ export default function ChatPageContent({
 
   // Project context state
   const [projectId] = useState(initialProjectId);
-  const [projectName] = useState(initialProjectName);
+  const [projectName, setProjectName] = useState(initialProjectName);
   const [projectMeta] = useState<ProjectMetaType | null | undefined>(initialProjectMeta);
   const [recentChats] = useState(initialRecentChats);
   const [recentDocuments] = useState(initialRecentDocuments);
@@ -377,6 +377,7 @@ export default function ChatPageContent({
               onSwitchToChat={chatSwitching.handleSwitchToChat}
               onNewChat={() => router.push("/chat/new")}
               onNavigateToDocument={handleNavigateToDocument}
+              onProjectUpdate={(name) => setProjectName(name)}
             />
           </div>
 
