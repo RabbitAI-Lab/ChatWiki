@@ -3,9 +3,7 @@ import { requireAuth } from "@/lib/auth/session";
 import { streamModelResponse, streamUserModelResponse } from "@/lib/model-service";
 import type { ChatCompletionRequest } from "@/lib/types";
 import { ModelError } from "@/lib/types";
-import path from "node:path";
-import fs from "node:fs";
-import { getDataRoot } from "@/lib/fs";
+import { resolvePath, createDir } from "@/lib/fs";
 import { db } from "@/db";
 import { systemPrompts } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -33,18 +31,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Construct cwd from DATA_ROOT and projectId or workspaceId
   let cwd: string | undefined;
   if (projectId) {
-    cwd = path.join(getDataRoot(), "projects", projectId);
+    cwd = resolvePath("projects", projectId);
+    createDir(["projects", projectId]);
   } else if (workspaceId) {
-    cwd = path.join(getDataRoot(), "workspace", workspaceId);
-  }
-
-  // Ensure cwd directory exists (defensive: workspace/project dirs may not yet be created)
-  if (cwd && !fs.existsSync(cwd)) {
-    fs.mkdirSync(cwd, { recursive: true });
-    console.log("[Route] created missing cwd:", cwd);
+    cwd = resolvePath("workspace", workspaceId);
+    createDir(["workspace", workspaceId]);
   }
 
   // Inject cwd info into the system message

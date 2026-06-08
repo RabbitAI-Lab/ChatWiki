@@ -77,6 +77,11 @@ function assertValidSegments(segments: string[]): void {
   }
 }
 
+/** Resolve a full path under data root (no file extension added). */
+export function resolvePath(...segments: string[]): string {
+  return path.join(getDataRoot(), ...segments);
+}
+
 export function listOrgs(enterpriseId: string): string[] {
   const dirPath = path.join(getDataRoot(), "enterprise", enterpriseId);
   if (!fs.existsSync(dirPath)) return [];

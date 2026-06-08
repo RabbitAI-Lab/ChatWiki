@@ -24,6 +24,7 @@ export type { TreeNode } from "./tree";
 // ── Core filesystem utilities ──
 export {
   getDataRoot,
+  resolvePath,
   buildPath,
   buildHtmlPath,
   listOrgs,

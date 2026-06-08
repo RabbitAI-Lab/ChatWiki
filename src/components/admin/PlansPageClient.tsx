@@ -373,8 +373,9 @@ export default function PlansPageClient({ initialPlans }: Props) {
         }}
         okText={editingPlan ? t('plansPage.btnSave') : t('plansPage.btnCreate')}
         cancelText={t('modelConfigModal.btnCancel')}
+        centered
         mask={{ closable: false }}
-        styles={{ mask: { background: 'rgba(0, 0, 0, 0.6)' } }}
+        styles={{ mask: { background: 'rgba(0, 0, 0, 0.6)' }, container: { border: '1px solid var(--popup-border)' }, body: { maxHeight: 'calc(90vh - 110px)', overflowY: 'auto' } }}
         width={720}
       >
         <Form
