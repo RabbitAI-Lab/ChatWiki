@@ -12,21 +12,19 @@ export default async function SharedChatPage({
 }) {
   const { token } = await params;
 
-  const share = db
+  const [share] = await db
     .select()
     .from(sharedChats)
-    .where(eq(sharedChats.token, token))
-    .get();
+    .where(eq(sharedChats.token, token));
   if (!share) notFound();
 
-  const chat = db.select().from(chats).where(eq(chats.id, share.chatId)).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, share.chatId));
   if (!chat) notFound();
 
-  const messages = db
+  const messages = await db
     .select()
     .from(chatMessages)
-    .where(eq(chatMessages.chatId, chat.id))
-    .all();
+    .where(eq(chatMessages.chatId, chat.id));
 
   return (
     <SharedChatView
@@ -37,7 +35,7 @@ export default async function SharedChatPage({
         content: m.content,
         createdAt: m.createdAt,
       }))}
-      brandName={getBrandName()}
+      brandName={await getBrandName()}
     />
   );
 }

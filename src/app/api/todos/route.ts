@@ -7,12 +7,11 @@ import { getApiT } from "@/lib/i18n-api";
 
 // GET /api/todos
 export const GET = withAuth(async (_req, user) => {
-  const all = db
+  const all = await db
     .select()
     .from(todos)
     .where(eq(todos.userId, user.id))
-    .orderBy(desc(todos.createdAt))
-    .all();
+    .orderBy(desc(todos.createdAt));
   return NextResponse.json(all);
 });
 
@@ -33,17 +32,16 @@ export const POST = withAuth(async (req, user) => {
   }
 
   const now = new Date().toISOString();
-  const result = db.insert(todos).values({
+  const [inserted] = await db.insert(todos).values({
     userId: user.id,
     title: title.trim(),
     description: (description || "").trim(),
-    completed: 0,
+    completed: false,
     createdAt: now,
     updatedAt: now,
-  }).run();
+  }).returning();
 
-  const newTodo = db.select().from(todos).where(eq(todos.id, Number(result.lastInsertRowid))).get();
-  return NextResponse.json(newTodo);
+  return NextResponse.json(inserted);
 });
 
 // PUT /api/todos
@@ -56,7 +54,7 @@ export const PUT = withAuth(async (req, user) => {
     return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
   }
 
-  const existing = db.select().from(todos).where(eq(todos.id, id)).get();
+  const [existing] = await db.select().from(todos).where(eq(todos.id, id));
   if (!existing) {
     return NextResponse.json({ error: t('api.todos.todoNotFound') }, { status: 404 });
   }
@@ -83,11 +81,11 @@ export const PUT = withAuth(async (req, user) => {
     updates.description = description.trim();
   }
   if (completed !== undefined) {
-    updates.completed = completed ? 1 : 0;
+    updates.completed = completed ? true : false;
   }
 
-  db.update(todos).set(updates).where(eq(todos.id, id)).run();
-  const updated = db.select().from(todos).where(eq(todos.id, id)).get();
+  await db.update(todos).set(updates).where(eq(todos.id, id));
+  const [updated] = await db.select().from(todos).where(eq(todos.id, id));
   return NextResponse.json(updated);
 });
 
@@ -101,7 +99,7 @@ export const DELETE = withAuth(async (req, user) => {
     return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
   }
 
-  const existing = db.select().from(todos).where(eq(todos.id, id)).get();
+  const [existing] = await db.select().from(todos).where(eq(todos.id, id));
   if (!existing) {
     return NextResponse.json({ error: t('api.todos.todoNotFound') }, { status: 404 });
   }
@@ -109,6 +107,6 @@ export const DELETE = withAuth(async (req, user) => {
     return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
   }
 
-  db.delete(todos).where(eq(todos.id, id)).run();
+  await db.delete(todos).where(eq(todos.id, id));
   return NextResponse.json({ success: true });
 });

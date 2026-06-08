@@ -31,11 +31,10 @@ export async function POST(req: NextRequest) {
     const { currentPassword, newPassword } = parsed.data;
 
     // 获取当前密码哈希
-    const user = db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, authResult.id))
-      .get();
+      .where(eq(users.id, authResult.id));
 
     if (!user) {
       return NextResponse.json({ error: t('api.auth.userNotFound') }, { status: 404 });
@@ -52,10 +51,9 @@ export async function POST(req: NextRequest) {
 
     // 更新密码
     const newHash = await hashPassword(newPassword);
-    db.update(users)
+    await db.update(users)
       .set({ passwordHash: newHash, updatedAt: new Date().toISOString() })
-      .where(eq(users.id, authResult.id))
-      .run();
+      .where(eq(users.id, authResult.id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

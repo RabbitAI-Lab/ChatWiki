@@ -47,7 +47,7 @@ export function startMcpServer() {
     }
     let requestUserId: string | null = null;
     if (rawKey) {
-      const validated = validateApiKey(rawKey);
+      const validated = await validateApiKey(rawKey);
       if (!validated) {
         res.status(401).json({ error: "Invalid API key" });
         return;

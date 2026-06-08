@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const dirSegments = ["workspace", workspaceId];
 
   try {
-    const meta = readWorkspaceMeta(dirSegments);
+    const meta = await readWorkspaceMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
     }

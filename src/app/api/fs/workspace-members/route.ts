@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
   const dirSegments = ["workspace", workspaceId];
-  const meta = readWorkspaceMeta(dirSegments);
+  const meta = await readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
   }
@@ -42,13 +42,13 @@ export async function POST(req: NextRequest) {
   try {
     // 根据 accountName 查询用户表自动关联 userId
     if (!member.userId && member.accountName) {
-      const userRow = db.select().from(users).where(eq(users.email, member.accountName)).get()
-        ?? db.select().from(users).where(eq(users.name, member.accountName)).get();
+      const [userRow] = await db.select().from(users).where(eq(users.email, member.accountName))
+        ?? (await db.select().from(users).where(eq(users.name, member.accountName)));
       if (userRow) {
         member.userId = userRow.id;
       }
     }
-    const members = addWorkspaceMember(dirSegments, member);
+    const members = await addWorkspaceMember(dirSegments, member);
     logOperation({
       projectId: extractProjectId(dirSegments),
       category: "member",
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest) {
   }
   const dirSegments = ["workspace", workspaceId];
   try {
-    const updated = updateWorkspaceMember(dirSegments, memberId, updates);
+    const updated = await updateWorkspaceMember(dirSegments, memberId, updates);
     if (!updated) {
       return NextResponse.json({ error: t('api.memberNotFound') }, { status: 404 });
     }
@@ -99,7 +99,7 @@ export async function DELETE(req: NextRequest) {
   }
   const dirSegments = ["workspace", workspaceId];
   try {
-    const meta = readWorkspaceMeta(dirSegments);
+    const meta = await readWorkspaceMeta(dirSegments);
     const memberName = meta?.members?.find((m) => m.id === memberId)?.accountName || memberId;
     removeWorkspaceMember(dirSegments, memberId);
     logOperation({

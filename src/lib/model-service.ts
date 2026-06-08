@@ -29,12 +29,12 @@ type ModelConfigRow = {
 /** 统一的模型配置接口（管理员模型 + BYOK 模型共用） */
 type UnifiedModelConfig = ModelConfigRow | UserModelConfigRow;
 
-export function resolveModelConfig(modelId: number): ModelConfigRow {
-  const config = db
+export async function resolveModelConfig(modelId: number): Promise<ModelConfigRow> {
+  const [config] = await db
     .select()
     .from(modelConfigs)
     .where(eq(modelConfigs.id, modelId))
-    .get();
+    .limit(1);
 
   if (!config) {
     throw new ModelError("模型配置不存在，请检查模型设置", "MODEL_NOT_FOUND");
@@ -54,8 +54,8 @@ export function resolveModelConfig(modelId: number): ModelConfigRow {
   return config as ModelConfigRow;
 }
 
-export function readMcpServers(): Record<string, McpServerConfig> | undefined {
-  const config = db.select().from(mcpConfig).get();
+export async function readMcpServers(): Promise<Record<string, McpServerConfig> | undefined> {
+  const [config] = await db.select().from(mcpConfig).limit(1);
   if (!config?.configJson || config.configJson === "{}") return undefined;
   try {
     const parsed = JSON.parse(config.configJson);
@@ -80,7 +80,7 @@ export async function* streamModelResponse(
     chatId?: number;
   }
 ): AsyncGenerator<StreamEvent> {
-  const config = resolveModelConfig(modelId);
+  const config = await resolveModelConfig(modelId);
   yield* streamWithConfig(config, messages, options, modelId);
 }
 
@@ -100,7 +100,7 @@ export async function* streamUserModelResponse(
   if (!options?.userId) {
     throw new ModelError("BYOK 模型需要用户认证", "INVALID_CONFIG");
   }
-  const config = resolveUserModelConfig(userModelId, options.userId);
+  const config = await resolveUserModelConfig(userModelId, options.userId);
   console.log("[ModelService] BYOK userModelId=", userModelId, "provider=", config.provider);
   yield* streamWithConfig(config, messages, options, userModelId);
 }
@@ -289,7 +289,7 @@ async function* streamWithConfig(
   };
 
   // 注入 MCP 服务器配置（全局 MCP + 项目 MCP + 客户端 tool in-process MCP）
-  const resolved = resolveMcpServersForUser(options?.userId, options?.projectId);
+  const resolved = await resolveMcpServersForUser(options?.userId, options?.projectId);
   const clientToolsServer = createClientToolsMcpServer();
   // 为所有 MCP 配置添加 alwaysLoad: true，确保 SDK 同步等待 MCP 连接完成再构建 prompt
   // 否则 stdio/sse 类型的 MCP 如果启动较慢，第一轮对话时工具尚未注册，会报 "no tool available"
@@ -449,7 +449,7 @@ async function* streamWithConfig(
           if (!isByokModel) {
             // 持久化到 token_usage_logs
             try {
-              db.insert(tokenUsageLogs).values({
+              await db.insert(tokenUsageLogs).values({
                 userId: options?.userId || "unknown",
                 modelId: modelIdForLog,
                 chatId: options?.chatId,
@@ -465,7 +465,7 @@ async function* streamWithConfig(
                 projectId: options?.projectId,
                 workspaceId: options?.workspaceId,
                 createdAt: new Date().toISOString(),
-              }).run();
+              });
             } catch (err) {
               console.error("[TokenUsage] failed to log usage:", err);
             }
@@ -573,12 +573,12 @@ async function* streamWithConfig(
  * 合并全局 + 项目级 MCP 配置，并替换 headers 中的 `${user-api-key}` 占位符。
  * 供 SDK 直调模式和 ACP 模式共用。
  */
-export function resolveMcpServersForUser(
+export async function resolveMcpServersForUser(
   userId: string | undefined,
   projectId: string | undefined,
-): Record<string, McpServerConfig> {
+): Promise<Record<string, McpServerConfig>> {
   // 1. 读取全局 MCP
-  const globalMcpServers = readMcpServers();
+  const globalMcpServers = await readMcpServers();
 
   // 2. 读取项目级 MCP
   let projectMcpServers: Record<string, McpServerConfig> | undefined;
@@ -601,7 +601,7 @@ export function resolveMcpServersForUser(
   };
 
   // 4. 查询用户系统 Key（用于替换占位符）
-  const userApiKey = userId ? getSystemKey(userId)?.keyField : undefined;
+  const userApiKey = userId ? (await getSystemKey(userId))?.keyField : undefined;
 
   // 5. 替换 headers 中的 ${user-api-key}
   const PLACEHOLDER = "${user-api-key}";

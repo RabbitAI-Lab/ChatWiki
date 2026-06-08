@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     const { email, password, name, inviteCode, generalKey } = parsed.data;
 
     // 检查注册是否开放
-    if (!isOpenRegistration()) {
+    if (!(await isOpenRegistration())) {
       return NextResponse.json(
         { error: t('api.auth.registrationClosed') },
         { status: 403 }
@@ -52,11 +52,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine whether either credential was supplied
-    const hasGeneralKey = isValidGeneralRegistrationKey(generalKey);
+    const hasGeneralKey = await isValidGeneralRegistrationKey(generalKey);
     const hasInviteCode = !!inviteCode;
 
     // 邀请码要求检查：通用秘钥可作为邀请码的替代
-    const requireCode = isInviteCodeRequired();
+    const requireCode = await isInviteCodeRequired();
     if (requireCode && !hasInviteCode && !hasGeneralKey) {
       return NextResponse.json(
         { error: t('api.auth.inviteCodeOrKeyRequired') },
@@ -66,11 +66,10 @@ export async function POST(req: NextRequest) {
 
     // 验证邀请码
     if (hasInviteCode) {
-      const codeRow = db
+      const [codeRow] = await db
         .select()
         .from(inviteCodes)
-        .where(eq(inviteCodes.code, inviteCode!))
-        .get();
+        .where(eq(inviteCodes.code, inviteCode!));
 
       if (!codeRow || codeRow.usedById) {
         return NextResponse.json(
@@ -81,11 +80,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 检查邮箱唯一性
-    const existingUser = db
+    const [existingUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
-      .get();
+      .where(eq(users.email, email));
 
     if (existingUser) {
       return NextResponse.json(
@@ -99,28 +97,26 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const passwordHash = await hashPassword(password);
 
-    db.insert(users)
+    await db.insert(users)
       .values({
         id: userId,
         email,
         passwordHash,
         name: name || null,
-        emailVerified: 0,
+        emailVerified: false,
         accountType: "personal",
         createdAt: now,
         updatedAt: now,
-      })
-      .run();
+      });
 
     // 自动创建 MCP API Key
-    createSystemKey(userId);
+    await createSystemKey(userId);
 
     // 认领邀请码（原子操作）—— 通用秘钥可重复使用，不需标记
     if (hasInviteCode) {
-      db.update(inviteCodes)
+      await db.update(inviteCodes)
         .set({ usedById: userId, usedAt: now })
-        .where(eq(inviteCodes.code, inviteCode!))
-        .run();
+        .where(eq(inviteCodes.code, inviteCode!));
     }
 
     // 创建邮箱验证令牌（含 6 位数字验证码）
@@ -128,7 +124,7 @@ export async function POST(req: NextRequest) {
     const verificationCode = generateVerificationCode();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    db.insert(emailVerifications)
+    await db.insert(emailVerifications)
       .values({
         id: crypto.randomUUID(),
         userId,
@@ -136,11 +132,10 @@ export async function POST(req: NextRequest) {
         code: verificationCode,
         expiresAt,
         createdAt: now,
-      })
-      .run();
+      });
 
     // 发送验证邮件（未配置 SMTP 时 mail.ts 内部回退到控制台输出）
-    const smtpEnabled = isSmtpConfigured();
+    const smtpEnabled = await isSmtpConfigured();
     try {
       await sendVerificationEmail(email, verificationToken, verificationCode);
     } catch (error) {
@@ -152,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     // SMTP 未配置时，把验证链接与验证码直接返回给前端，方便本地开发
-    const verifyUrl = `${getAppUrl()}/verify-email?token=${verificationToken}`;
+    const verifyUrl = `${await getAppUrl()}/verify-email?token=${verificationToken}`;
 
     return NextResponse.json({
       message: t('api.auth.registrationSuccess'),

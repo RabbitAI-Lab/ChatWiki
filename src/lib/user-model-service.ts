@@ -26,17 +26,17 @@ export interface UserModelConfigRow {
 /**
  * 解析用户 BYOK 模型配置（解密 API Key + 校验所有权）
  */
-export function resolveUserModelConfig(
+export async function resolveUserModelConfig(
   id: number,
   userId: string
-): UserModelConfigRow {
-  const row = db
+): Promise<UserModelConfigRow> {
+  const [row] = await db
     .select()
     .from(userModelConfigs)
     .where(
       and(eq(userModelConfigs.id, id), eq(userModelConfigs.userId, userId))
     )
-    .get();
+    .limit(1);
 
   if (!row) {
     throw new ModelError("BYOK 模型不存在或无权访问", "MODEL_NOT_FOUND");

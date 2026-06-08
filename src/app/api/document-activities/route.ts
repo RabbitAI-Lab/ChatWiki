@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     conditions.push(gte(documentActivities.createdAt, since));
   }
 
-  const activities = db
+  const activities = (await db
     .select({
       id: documentActivities.id,
       projectId: documentActivities.projectId,
@@ -40,8 +40,7 @@ export async function GET(req: NextRequest) {
     .leftJoin(users, eq(documentActivities.userId, users.id))
     .where(and(...conditions))
     .orderBy(desc(documentActivities.createdAt))
-    .limit(limit)
-    .all()
+    .limit(limit))
     .map((row) => ({
       id: row.id,
       projectId: row.projectId,

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const authResult = await requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  const list = db
+  const list = await db
     .select({
       id: passkeys.id,
       deviceName: passkeys.deviceName,
@@ -16,8 +16,7 @@ export async function GET(req: NextRequest) {
       lastUsedAt: passkeys.lastUsedAt,
     })
     .from(passkeys)
-    .where(eq(passkeys.userId, authResult.id))
-    .all();
+    .where(eq(passkeys.userId, authResult.id));
 
   return NextResponse.json({ passkeys: list });
 }

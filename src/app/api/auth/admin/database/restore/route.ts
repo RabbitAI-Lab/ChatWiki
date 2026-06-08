@@ -42,10 +42,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = restoreFromJson(body.data, body.options);
+    const result = await restoreFromJson(body.data, body.options);
 
     if (result.errors.length > 0) {
       console.warn("[database] restore completed with warnings:", result.errors);
+    }
+
+    // 事务回滚时返回失败状态
+    if (result.rolledBack) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: t('api.auth.database.restoreFailed') + ": " + (result.errors[0]?.error || "unknown"),
+          stats: result,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true, stats: result });

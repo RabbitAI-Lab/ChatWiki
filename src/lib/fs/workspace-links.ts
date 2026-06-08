@@ -12,8 +12,8 @@ import { eq, and } from "drizzle-orm";
  * List projects linked to a workspace (via DB member records).
  * Returns ProjectMeta[] for each linked project.
  */
-export function listWorkspaceProjects(_type: string, _accountId: string, workspaceId: string): ProjectMeta[] {
-  const memberRows = db
+export async function listWorkspaceProjects(_type: string, _accountId: string, workspaceId: string): Promise<ProjectMeta[]> {
+  const memberRows = await db
     .select({ entityId: entityMembers.entityId })
     .from(entityMembers)
     .where(
@@ -21,12 +21,11 @@ export function listWorkspaceProjects(_type: string, _accountId: string, workspa
         eq(entityMembers.entityId, workspaceId),
         eq(entityMembers.entityType, "workspace_project")
       )
-    )
-    .all();
+    );
 
   const result: ProjectMeta[] = [];
   for (const row of memberRows) {
-    const projectMeta = readProjectMeta(["projects", row.entityId]);
+    const projectMeta = await readProjectMeta(["projects", row.entityId]);
     if (projectMeta) {
       result.push(projectMeta);
     }
@@ -37,9 +36,9 @@ export function listWorkspaceProjects(_type: string, _accountId: string, workspa
 /**
  * Link a project to a workspace by inserting a DB record.
  */
-export function linkProjectToWorkspace(_type: string, _accountId: string, workspaceId: string, projectId: string): void {
+export async function linkProjectToWorkspace(_type: string, _accountId: string, workspaceId: string, projectId: string): Promise<void> {
   const now = new Date().toISOString();
-  db.insert(entityMembers)
+  await db.insert(entityMembers)
     .values({
       entityId: workspaceId,
       entityType: "workspace_project",
@@ -50,21 +49,19 @@ export function linkProjectToWorkspace(_type: string, _accountId: string, worksp
       addedAt: now,
       createdAt: now,
     })
-    .onConflictDoNothing()
-    .run();
+    .onConflictDoNothing();
 }
 
 /**
  * Unlink a project from a workspace by removing the DB record.
  */
-export function unlinkProjectFromWorkspace(_type: string, _accountId: string, workspaceId: string, projectId: string): void {
-  db.delete(entityMembers)
+export async function unlinkProjectFromWorkspace(_type: string, _accountId: string, workspaceId: string, projectId: string): Promise<void> {
+  await db.delete(entityMembers)
     .where(
       and(
         eq(entityMembers.entityId, workspaceId),
         eq(entityMembers.entityType, "workspace_project"),
         eq(entityMembers.memberId, projectId)
       )
-    )
-    .run();
+    );
 }

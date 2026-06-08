@@ -10,7 +10,7 @@ import { parseColorScheme } from "@/lib/color-scheme";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("metadata");
-  const brandName = getBrandName();
+  const brandName = await getBrandName();
   return {
     title: `${t("title")} · ${brandName}`,
     description: t("description"),
@@ -25,12 +25,12 @@ export default async function AppLayout({
   const cookieStore = await cookies();
   const savedWidth = cookieStore.get("sidebar-width")?.value;
   const savedCollapsed = cookieStore.get("sidebar-collapsed")?.value;
-  const brandName = getBrandName();
+  const brandName = await getBrandName();
   const locale = await getLocale();
   const msgs = await getMessages();
 
   // Read color scheme for antd theme sync
-  const colorSchemeRaw = getSetting("color_scheme");
+  const colorSchemeRaw = await getSetting("color_scheme");
   const colorScheme = colorSchemeRaw ? parseColorScheme(colorSchemeRaw) : null;
 
   return (

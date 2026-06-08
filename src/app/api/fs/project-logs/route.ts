@@ -28,18 +28,16 @@ export async function GET(req: NextRequest) {
 
   const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
-  const logs = db.select()
+  const logs = await db.select()
     .from(operationLogs)
     .where(whereClause)
     .orderBy(desc(operationLogs.createdAt))
     .limit(pageSize)
-    .offset((page - 1) * pageSize)
-    .all();
+    .offset((page - 1) * pageSize);
 
-  const countResult = db.select({ count: sql<number>`count(*)` })
+  const [countResult] = await db.select({ count: sql<number>`count(*)` })
     .from(operationLogs)
-    .where(whereClause)
-    .get();
+    .where(whereClause);
 
   const total = countResult?.count ?? 0;
 

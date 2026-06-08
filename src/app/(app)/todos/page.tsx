@@ -9,7 +9,7 @@ interface Todo {
   id: number;
   title: string;
   description: string;
-  completed: number;
+  completed: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -129,8 +129,8 @@ export default function TodosPage() {
     form.setFieldsValue({ title: todo.title, description: todo.description });
   };
 
-  const pendingTodos = todos.filter((t) => t.completed === 0);
-  const completedTodos = todos.filter((t) => t.completed === 1);
+  const pendingTodos = todos.filter((t) => t.completed === false);
+  const completedTodos = todos.filter((t) => t.completed === true);
 
   if (loading) {
     return (
@@ -327,14 +327,14 @@ function TodoItem({
   setConfirmDeleteId: (id: number | null) => void;
 }) {
   const t = useTranslations('todosPage');
-  const isCompleted = todo.completed === 1;
+  const isCompleted = todo.completed === true;
 
   return (
     <div
       className={`group flex items-start gap-3 p-3 rounded-lg border transition-colors ${
         isCompleted
-          ? "bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-700"
-          : "bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 hover:border-blue-200 dark:hover:border-blue-800"
+          ? "bg-transparent border-gray-100 dark:border-zinc-700"
+          : "bg-transparent border-gray-200 dark:border-zinc-700 hover:border-blue-200 dark:hover:border-blue-800"
       }`}
     >
       {/* Checkbox */}

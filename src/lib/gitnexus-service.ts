@@ -73,7 +73,7 @@ export interface RunGitNexusResult {
  *
  * cwd = dataRoot / ...dirSegments（项目/工作空间根目录，不进入 repos 子目录）
  */
-export function runGitNexus(opts: RunGitNexusOptions): RunGitNexusResult {
+export async function runGitNexus(opts: RunGitNexusOptions): Promise<RunGitNexusResult> {
   const { scope, dirSegments, command, force, skipGit } = opts;
   const key = taskKey(dirSegments);
 
@@ -87,7 +87,7 @@ export function runGitNexus(opts: RunGitNexusOptions): RunGitNexusResult {
     return {
       started: false,
       reason: "already_running",
-      status: readCurrentStatus(scope, dirSegments, fallbackPhase),
+      status: await readCurrentStatus(scope, dirSegments, fallbackPhase),
     };
   }
 
@@ -110,7 +110,7 @@ export function runGitNexus(opts: RunGitNexusOptions): RunGitNexusResult {
     phase: inProgressPhase,
     indexExists: checkIndexExists(rootPath),
   };
-  updateStatus(scope, dirSegments, initialStatus);
+  await updateStatus(scope, dirSegments, initialStatus);
 
   // 4. spawn 子进程
   const args = ["-y", "gitnexus@latest", command];
@@ -172,7 +172,7 @@ export function runGitNexus(opts: RunGitNexusOptions): RunGitNexusResult {
     escalateKill(child);
   }, timeout);
 
-  const finalize = (phase: GitNexusPhase, lastError?: string) => {
+  const finalize = async (phase: GitNexusPhase, lastError?: string) => {
     if (finalized) return;
     finalized = true;
     clearTimeout(timer);
@@ -183,7 +183,7 @@ export function runGitNexus(opts: RunGitNexusOptions): RunGitNexusResult {
     );
     console.log(`[gitnexus]   stdout (tail 2000):\n${tail(stdoutBuf)}`);
     console.log(`[gitnexus]   stderr (tail 2000):\n${tail(stderrBuf)}`);
-    updateStatus(scope, dirSegments, {
+    await updateStatus(scope, dirSegments, {
       phase,
       indexExists: checkIndexExists(rootPath),
       ...(phase === "success" ? { lastSuccessAt: new Date().toISOString() } : {}),
@@ -247,21 +247,21 @@ export function isGitNexusRunning(dirSegments: string[]): boolean {
  * 刷新某个 project/workspace 根的 indexExists 物理状态并写回 meta。
  * 返回最新值。
  */
-export function refreshIndexExists(
+export async function refreshIndexExists(
   scope: "project" | "workspace",
   dirSegments: string[]
-): boolean {
+): Promise<boolean> {
   const rootPath = path.join(getDataRoot(), ...dirSegments);
   const exists = checkIndexExists(rootPath);
 
   const meta =
-    scope === "project" ? readProjectMeta(dirSegments) : readWorkspaceMeta(dirSegments);
+    scope === "project" ? await readProjectMeta(dirSegments) : await readWorkspaceMeta(dirSegments);
   if (!meta) return exists;
 
   const current = meta.gitnexusStatus;
   if (!current) return exists;
   if (current.indexExists !== exists) {
-    updateStatus(scope, dirSegments, { indexExists: exists });
+    await updateStatus(scope, dirSegments, { indexExists: exists });
   }
   return exists;
 }
@@ -276,30 +276,30 @@ function checkIndexExists(localPath: string): boolean {
   }
 }
 
-function readCurrentStatus(
+async function readCurrentStatus(
   scope: "project" | "workspace",
   dirSegments: string[],
   fallbackPhase: GitNexusPhase
-): GitNexusStatus {
+): Promise<GitNexusStatus> {
   const meta =
-    scope === "project" ? readProjectMeta(dirSegments) : readWorkspaceMeta(dirSegments);
+    scope === "project" ? await readProjectMeta(dirSegments) : await readWorkspaceMeta(dirSegments);
   return meta?.gitnexusStatus || { phase: fallbackPhase, indexExists: false };
 }
 
-function updateStatus(
+async function updateStatus(
   scope: "project" | "workspace",
   dirSegments: string[],
   updates: Partial<GitNexusStatus>
-): void {
+): Promise<void> {
   const meta =
-    scope === "project" ? readProjectMeta(dirSegments) : readWorkspaceMeta(dirSegments);
+    scope === "project" ? await readProjectMeta(dirSegments) : await readWorkspaceMeta(dirSegments);
   if (!meta) return;
   const current: GitNexusStatus = meta.gitnexusStatus || { phase: "idle", indexExists: false };
   meta.gitnexusStatus = { ...current, ...updates };
   if (scope === "project") {
-    writeProjectMeta(meta, dirSegments);
+    await writeProjectMeta(meta, dirSegments);
   } else {
-    writeWorkspaceMeta(meta, dirSegments);
+    await writeWorkspaceMeta(meta, dirSegments);
   }
 }
 

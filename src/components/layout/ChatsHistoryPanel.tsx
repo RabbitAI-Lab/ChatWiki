@@ -160,8 +160,8 @@ export default function ChatsHistoryPanel({ chats, panelCollapsed, onTogglePanel
                     className={cn(
                       "group relative flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-lg transition-colors text-left cursor-pointer",
                       isActive
-                        ? "bg-gray-100 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 font-medium"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                        ? "bg-gray-100 dark:bg-[#171D38] text-gray-900 dark:text-gray-100 font-medium"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#1E2845]"
                     )}
                   >
                     <span className="truncate">{chat.title}</span>

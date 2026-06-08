@@ -2,8 +2,8 @@ import { db } from "@/db";
 import { sandboxConfig } from "@/db/schema";
 import SandboxPageClient from "@/components/admin/SandboxPageClient";
 
-export default function SandboxPage() {
-  const config = db.select().from(sandboxConfig).get();
+export default async function SandboxPage() {
+  const [config] = await db.select().from(sandboxConfig);
 
   return (
     <SandboxPageClient

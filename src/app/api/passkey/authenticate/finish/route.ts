@@ -21,24 +21,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: t('api.passkey.missingChallengeKey') }, { status: 400 });
     }
 
-    const challengeStr = getSetting(challengeKey);
+    const challengeStr = await getSetting(challengeKey);
     if (!challengeStr) {
       return NextResponse.json({ error: t('api.passkey.noPendingAuthentication') }, { status: 400 });
     }
 
     // 根据 credentialId 查找 passkey
     const credentialId = credential.id as string;
-    const passkey = db
+    const [passkey] = await db
       .select()
       .from(passkeys)
-      .where(eq(passkeys.credentialId, credentialId))
-      .get();
+      .where(eq(passkeys.credentialId, credentialId));
 
     if (!passkey) {
       return NextResponse.json({ error: t('api.passkey.passkeyNotFound') }, { status: 400 });
     }
 
-    const rpID = getSetting("passkey_rp_id") || req.headers.get("host")?.split(":")[0] || "localhost";
+    const rpID = (await getSetting("passkey_rp_id")) || req.headers.get("host")?.split(":")[0] || "localhost";
     const origin = req.headers.get("origin") || `https://${rpID}`;
 
     const verification = await verifyAuthenticationResponse({
@@ -59,20 +58,18 @@ export async function POST(req: NextRequest) {
 
     // 更新 signCount 和 lastUsedAt
     const now = new Date().toISOString();
-    db.update(passkeys)
+    await db.update(passkeys)
       .set({
         signCount: Number(verification.authenticationInfo.newCounter),
         lastUsedAt: now,
       })
-      .where(eq(passkeys.id, passkey.id))
-      .run();
+      .where(eq(passkeys.id, passkey.id));
 
     // 获取用户信息
-    const user = db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, passkey.userId))
-      .get();
+      .where(eq(users.id, passkey.userId));
 
     if (!user) {
       return NextResponse.json({ error: t('api.auth.userNotFound') }, { status: 400 });
@@ -82,7 +79,7 @@ export async function POST(req: NextRequest) {
     const tokens = await generateTokenPair(user.id, user.email);
 
     // 清理 challenge
-    setSetting(challengeKey, "");
+    await setSetting(challengeKey, "");
 
     const response = NextResponse.json({
       accessToken: tokens.accessToken,
@@ -91,9 +88,9 @@ export async function POST(req: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        emailVerified: user.emailVerified === 1,
+        emailVerified: user.emailVerified === true,
         accountType: user.accountType,
-        isAdmin: isAdmin(user.id),
+        isAdmin: await isAdmin(user.id),
       },
     });
 

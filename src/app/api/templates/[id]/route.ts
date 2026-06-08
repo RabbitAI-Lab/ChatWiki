@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const t = db.select().from(templates).where(eq(templates.id, parseInt(id))).get();
+  const [t] = await db.select().from(templates).where(eq(templates.id, parseInt(id)));
   if (!t) return NextResponse.json({ error: "Not found" }, { status: 404 }); // non-authed GET
   return NextResponse.json(t);
 }
@@ -28,9 +28,9 @@ export async function PATCH(
   const { name, description, content, icon, agentPrompt } = body;
 
   // 检查是否为系统模板
-  const existing = db.select().from(templates).where(eq(templates.id, parseInt(id))).get();
+  const [existing] = await db.select().from(templates).where(eq(templates.id, parseInt(id)));
   if (!existing) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
-  if (existing.isSystem === 1) {
+  if (existing.isSystem === true) {
     return NextResponse.json({ error: t('api.templates.systemTemplateCannotModify') }, { status: 403 });
   }
 
@@ -41,7 +41,7 @@ export async function PATCH(
   if (icon !== undefined) updateData.icon = icon;
   if (agentPrompt !== undefined) updateData.agentPrompt = agentPrompt;
 
-  db.update(templates).set(updateData).where(eq(templates.id, parseInt(id))).run();
+  await db.update(templates).set(updateData).where(eq(templates.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }
 
@@ -53,13 +53,13 @@ export async function DELETE(
   const { id } = await params;
 
   // 检查是否为系统模板
-  const existing = db.select().from(templates).where(eq(templates.id, parseInt(id))).get();
+  const [existing] = await db.select().from(templates).where(eq(templates.id, parseInt(id)));
   const t = await getApiT();
   if (!existing) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
-  if (existing.isSystem === 1) {
+  if (existing.isSystem === true) {
     return NextResponse.json({ error: t('api.templates.systemTemplateCannotDelete') }, { status: 403 });
   }
 
-  db.delete(templates).where(eq(templates.id, parseInt(id))).run();
+  await db.delete(templates).where(eq(templates.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }

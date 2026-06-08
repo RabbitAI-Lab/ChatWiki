@@ -10,7 +10,7 @@ import { getApiT } from "@/lib/i18n-api";
 /** 校验 chat 访问权限 */
 async function verifyChatAccess(req: NextRequest, chatId: string): Promise<{ ok: true } | NextResponse> {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
-  const chat = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   const t = await getApiT();
   if (!chat) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
   if (!canAccessChat(auth, chat)) return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
@@ -25,11 +25,10 @@ export async function GET(
   const { chatId } = await params;
   const verify = await verifyChatAccess(req, chatId);
   if (verify instanceof NextResponse) return verify;
-  const share = db
+  const [share] = await db
     .select()
     .from(sharedChats)
-    .where(eq(sharedChats.chatId, parseInt(chatId)))
-    .get();
+    .where(eq(sharedChats.chatId, parseInt(chatId)));
 
   if (!share) {
     return NextResponse.json({ shared: false, token: null, createdAt: null });
@@ -48,18 +47,17 @@ export async function POST(
   const chatIdNum = parseInt(chatId);
 
   // 已存在则直接返回
-  const existing = db
+  const [existing] = await db
     .select()
     .from(sharedChats)
-    .where(eq(sharedChats.chatId, chatIdNum))
-    .get();
+    .where(eq(sharedChats.chatId, chatIdNum));
   if (existing) {
     return NextResponse.json({ token: existing.token, createdAt: existing.createdAt });
   }
 
   const token = randomUUID();
   const now = new Date().toISOString();
-  db.insert(sharedChats).values({ chatId: chatIdNum, token, createdAt: now }).run();
+  await db.insert(sharedChats).values({ chatId: chatIdNum, token, createdAt: now });
 
   return NextResponse.json({ token, createdAt: now });
 }
@@ -75,12 +73,12 @@ export async function PATCH(
   const chatIdNum = parseInt(chatId);
 
   // 删除旧记录
-  db.delete(sharedChats).where(eq(sharedChats.chatId, chatIdNum)).run();
+  await db.delete(sharedChats).where(eq(sharedChats.chatId, chatIdNum));
 
   // 生成新 token
   const token = randomUUID();
   const now = new Date().toISOString();
-  db.insert(sharedChats).values({ chatId: chatIdNum, token, createdAt: now }).run();
+  await db.insert(sharedChats).values({ chatId: chatIdNum, token, createdAt: now });
 
   return NextResponse.json({ token, createdAt: now });
 }
@@ -93,6 +91,6 @@ export async function DELETE(
   const { chatId } = await params;
   const verify = await verifyChatAccess(req, chatId);
   if (verify instanceof NextResponse) return verify;
-  db.delete(sharedChats).where(eq(sharedChats.chatId, parseInt(chatId))).run();
+  await db.delete(sharedChats).where(eq(sharedChats.chatId, parseInt(chatId)));
   return NextResponse.json({ success: true });
 }

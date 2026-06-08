@@ -8,12 +8,12 @@ export async function GET(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
   const t = await getApiT();
 
-  if (!isSaTokenEnabled()) {
+  if (!(await isSaTokenEnabled())) {
     return NextResponse.json({ success: false, message: t('api.sso.ssoNotConfigured') });
   }
 
   try {
-    const config = getSaTokenConfig();
+    const config = await getSaTokenConfig();
     const res = await fetch(`${config.endpoint}/sso/isSso`, {
       signal: AbortSignal.timeout(5000),
     });

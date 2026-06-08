@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   // Static handler — note: no req means no auth possible; skipping guard
   // (if this handler needs auth, it should be a route with req param)
-  const all = db.select().from(systemPrompts).orderBy(systemPrompts.sortOrder).all();
+  const all = await db.select().from(systemPrompts).orderBy(systemPrompts.sortOrder);
   return NextResponse.json(all);
 }
 
@@ -29,18 +29,18 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const result = db
+  const [inserted] = await db
     .insert(systemPrompts)
     .values({
       name,
       content,
       description: description ?? null,
-      enabled: enabled ?? 1,
+      enabled: enabled ?? true,
       sortOrder: sortOrder ?? 0,
       createdAt: now,
       updatedAt: now,
     })
-    .run();
+    .returning();
 
-  return NextResponse.json({ id: result.lastInsertRowid, name });
+  return NextResponse.json({ id: inserted.id, name });
 }

@@ -40,16 +40,16 @@ export default async function WorkspacePage({
   // Build FS path: ["workspace", "{workspaceId}"]
   const workspaceDirSegments = ["workspace", workspaceId];
 
-  const workspaceMeta = readWorkspaceMeta(workspaceDirSegments);
+  const workspaceMeta = await readWorkspaceMeta(workspaceDirSegments);
   if (!workspaceMeta) notFound();
 
-  const linkedProjects = listWorkspaceProjects(
+  const linkedProjects = await listWorkspaceProjects(
     "",
     "",
     workspaceId,
   );
 
-  const projectIds = linkedProjects.map((p) => p.id);
+  const projectIds = linkedProjects.map((p: { id: string }) => p.id);
 
   // Build docs path for workspace file tree
   const docsDirSegments = [...workspaceDirSegments, "docs"];
@@ -82,7 +82,7 @@ export default async function WorkspacePage({
 
   const modifierUser = aliasedTable(users, "modifier_user");
 
-  const recentChats = db
+  const recentChats = (await db
     .select({
       id: chats.id,
       title: chats.title,
@@ -97,8 +97,7 @@ export default async function WorkspacePage({
     .leftJoin(users, eq(chats.userId, users.id))
     .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(and(...chatConditions))
-    .orderBy(desc(chats.updatedAt))
-    .all()
+    .orderBy(desc(chats.updatedAt)))
     .map((row) => ({
       id: row.id,
       title: row.title,
@@ -112,7 +111,7 @@ export default async function WorkspacePage({
   const recentDocuments =
     projectIds.length === 0
       ? []
-      : db
+      : (await db
           .select({
             id: documentActivities.id,
             projectId: documentActivities.projectId,
@@ -134,8 +133,7 @@ export default async function WorkspacePage({
             ),
           )
           .orderBy(desc(documentActivities.createdAt))
-          .limit(20)
-          .all()
+          .limit(20))
           .map((row) => ({
             id: row.id,
             projectId: row.projectId,

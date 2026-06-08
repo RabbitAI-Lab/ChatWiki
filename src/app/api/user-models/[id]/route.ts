@@ -17,13 +17,12 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
 
-  const row = db
+  const [row] = await db
     .select()
     .from(userModelConfigs)
     .where(
       and(eq(userModelConfigs.id, parseInt(id)), eq(userModelConfigs.userId, auth.id))
-    )
-    .get();
+    );
 
   if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -53,13 +52,12 @@ export async function PATCH(
   const { id } = await params;
 
   // 验证所有权
-  const existing = db
+  const [existing] = await db
     .select()
     .from(userModelConfigs)
     .where(
       and(eq(userModelConfigs.id, parseInt(id)), eq(userModelConfigs.userId, auth.id))
-    )
-    .get();
+    );
 
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -110,10 +108,9 @@ export async function PATCH(
   }
   if (body.backend !== undefined) updateData.backend = body.backend;
 
-  db.update(userModelConfigs)
+  await db.update(userModelConfigs)
     .set(updateData)
-    .where(eq(userModelConfigs.id, parseInt(id)))
-    .run();
+    .where(eq(userModelConfigs.id, parseInt(id)));
 
   return NextResponse.json({ success: true });
 }
@@ -128,11 +125,10 @@ export async function DELETE(
   const { id } = await params;
 
   // 只删除自己的模型
-  db.delete(userModelConfigs)
+  await db.delete(userModelConfigs)
     .where(
       and(eq(userModelConfigs.id, parseInt(id)), eq(userModelConfigs.userId, auth.id))
-    )
-    .run();
+    );
 
   return NextResponse.json({ success: true });
 }

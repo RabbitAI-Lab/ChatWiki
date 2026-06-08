@@ -13,9 +13,8 @@ export async function DELETE(
 
   const { id } = await params;
 
-  db.delete(cliTokens)
-    .where(and(eq(cliTokens.id, id), eq(cliTokens.userId, authResult.id)))
-    .run();
+  await db.delete(cliTokens)
+    .where(and(eq(cliTokens.id, id), eq(cliTokens.userId, authResult.id)));
 
   return NextResponse.json({ success: true });
 }

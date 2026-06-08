@@ -207,7 +207,7 @@ export default function ChatPageContent({
   if (!projectId) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center h-[41px] bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 overflow-x-auto shrink-0">
+        <div className="flex items-center h-[41px] border-b border-gray-200 dark:border-zinc-700 overflow-x-auto shrink-0">
           <TabButton
             active={tabSystem.activeTabId === CHAT_TAB}
             onClick={() => tabSystem.setActiveTabId(CHAT_TAB)}
@@ -258,7 +258,7 @@ export default function ChatPageContent({
       />
       {/* Left Panel - File Tree */}
       <div className="w-[240px] h-full flex flex-col border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 shrink-0">
-        <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-between gap-2">
+        <div className="px-3 h-[41px] border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
             {projectName || projectId} {t("tabs.documents")}
           </h3>
@@ -322,7 +322,7 @@ export default function ChatPageContent({
       {/* Right Panel - Tab System */}
       <div className="flex-1 h-full flex flex-col overflow-hidden">
         {/* Tab Bar */}
-        <div className="flex items-center h-[41px] bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 overflow-x-auto shrink-0">
+        <div className="flex items-center h-[41px] border-b border-gray-200 dark:border-zinc-700 overflow-x-auto shrink-0">
           <TabButton
             active={tabSystem.activeTabId === PROJECT_INFO_TAB}
             onClick={() => tabSystem.setActiveTabId(PROJECT_INFO_TAB)}

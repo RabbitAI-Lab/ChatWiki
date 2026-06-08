@@ -356,8 +356,8 @@ export default function AdminSidebar() {
                     onClick={() => router.push(item.href)}
                     className={cn(
                       "flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer select-none text-gray-900 dark:text-gray-100",
-                      isActive && "bg-blue-50 dark:bg-blue-900/30 font-medium",
-                      !isActive && "hover:bg-gray-50 dark:hover:bg-zinc-700/50"
+                      isActive && "bg-blue-50 dark:bg-[#171D38] font-medium",
+                      !isActive && "hover:bg-gray-50 dark:hover:bg-[#1E2845]"
                     )}
                   >
                     <span className={cn("text-blue-400")}>{item.icon}</span>

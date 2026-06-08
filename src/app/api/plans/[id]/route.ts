@@ -42,10 +42,9 @@ export async function PATCH(
   }
   if (body.billingMode !== undefined) updateData.billingMode = body.billingMode;
 
-  db.update(plans)
+  await db.update(plans)
     .set(updateData)
-    .where(eq(plans.id, parseInt(id)))
-    .run();
+    .where(eq(plans.id, parseInt(id)));
 
   return NextResponse.json({ success: true });
 }
@@ -56,8 +55,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  db.delete(plans)
-    .where(eq(plans.id, parseInt(id)))
-    .run();
+  await db.delete(plans)
+    .where(eq(plans.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }

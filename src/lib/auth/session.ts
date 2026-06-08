@@ -34,11 +34,11 @@ export async function getUserFromRequest(
   }
 
   const userId = payload.sub;
-  const row = db
+  const [row] = await db
     .select()
     .from(users)
     .where(eq(users.id, userId))
-    .get();
+    .limit(1);
 
   if (!row) {
     return null;
@@ -48,7 +48,7 @@ export async function getUserFromRequest(
     id: row.id,
     email: row.email,
     name: row.name,
-    emailVerified: row.emailVerified === 1,
+    emailVerified: row.emailVerified === true,
     accountType: row.accountType,
     enterpriseId: row.enterpriseId,
     role: row.role as "admin" | "user",

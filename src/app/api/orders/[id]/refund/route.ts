@@ -20,9 +20,8 @@ export async function POST(
     const { reason } = body as { reason?: string };
 
     // 查找订单
-    const order = db.select().from(orders)
-      .where(and(eq(orders.id, orderId), eq(orders.userId, user.id)))
-      .get();
+    const [order] = await db.select().from(orders)
+      .where(and(eq(orders.id, orderId), eq(orders.userId, user.id)));
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -33,7 +32,7 @@ export async function POST(
     }
 
     // 检查退款截止日期
-    const deadlineDays = getRefundDeadlineDays();
+    const deadlineDays = await getRefundDeadlineDays();
     if (order.paidAt) {
       const paidDate = new Date(order.paidAt);
       const deadline = new Date(paidDate);
@@ -47,12 +46,11 @@ export async function POST(
     }
 
     // 检查是否已有待处理的退款
-    const existingRefund = db.select().from(refunds)
+    const [existingRefund] = await db.select().from(refunds)
       .where(and(
         eq(refunds.orderId, orderId),
         eq(refunds.status, "pending"),
-      ))
-      .get();
+      ));
 
     if (existingRefund) {
       return NextResponse.json({ error: "A refund request is already pending" }, { status: 400 });
@@ -62,7 +60,7 @@ export async function POST(
     const now = new Date().toISOString();
     const refundId = uuidv4();
 
-    db.insert(refunds).values({
+    await db.insert(refunds).values({
       id: refundId,
       orderId,
       userId: user.id,
@@ -72,7 +70,7 @@ export async function POST(
       provider: order.provider,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
 
     // 通知管理员
     try {

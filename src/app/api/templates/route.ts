@@ -9,7 +9,7 @@ import { getApiT } from "@/lib/i18n-api";
 export async function GET() {
   // Static handler — note: no req means no auth possible; skipping guard
   // (if this handler needs auth, it should be a route with req param)
-  const all = db.select().from(templates).all();
+  const all = await db.select().from(templates);
   return NextResponse.json(all);
 }
 
@@ -25,17 +25,16 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const result = db.insert(templates).values({
+  const [inserted] = await db.insert(templates).values({
     name,
     description: description || null,
     content: content || "",
     icon: icon || null,
     agentPrompt: agentPrompt || "",
-    isSystem: 0,  // 用户创建的模板
+    isSystem: false,  // 用户创建的模板
     createdAt: now,
     updatedAt: now,
-  }).run();
+  }).returning();
 
-  const newTemplate = db.select().from(templates).where(eq(templates.id, Number(result.lastInsertRowid))).get();
-  return NextResponse.json(newTemplate);
+  return NextResponse.json(inserted);
 }

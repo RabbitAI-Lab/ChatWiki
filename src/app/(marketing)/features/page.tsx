@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function FeaturesPage() {
   const t = await getTranslations("marketing.features");
-  const brandName = getBrandName();
+  const brandName = await getBrandName();
 
   return (
     <main id="main">

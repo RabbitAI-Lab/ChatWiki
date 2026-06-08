@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   // Static handler — note: no req means no auth possible; skipping guard
   // (if this handler needs auth, it should be a route with req param)
-  const config = db.select().from(storageConfig).get();
+  const [config] = await db.select().from(storageConfig);
   return NextResponse.json({
     storagePath: config?.storagePath ?? "",
     updatedAt: config?.updatedAt ?? null,
@@ -70,17 +70,15 @@ export async function PUT(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const existing = db.select().from(storageConfig).get();
+  const [existing] = await db.select().from(storageConfig);
 
   if (existing) {
-    db.update(storageConfig)
+    await db.update(storageConfig)
       .set({ storagePath: trimmed, updatedAt: now })
-      .where(eq(storageConfig.id, existing.id))
-      .run();
+      .where(eq(storageConfig.id, existing.id));
   } else {
-    db.insert(storageConfig)
-      .values({ storagePath: trimmed, createdAt: now, updatedAt: now })
-      .run();
+    await db.insert(storageConfig)
+      .values({ storagePath: trimmed, createdAt: now, updatedAt: now });
   }
 
   return NextResponse.json({ success: true, updatedAt: now });

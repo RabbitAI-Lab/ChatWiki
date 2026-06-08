@@ -169,22 +169,22 @@ async function sendNotification(job: typeof notificationJobs.$inferSelect): Prom
     return false;
   }
 
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   if (!transporter) {
     console.log(`[notification] SMTP not configured, skipping: ${job.type}`);
     return false;
   }
 
   const data = JSON.parse(job.data || "{}");
-  data.brandName = data.brandName || getBrandName();
-  data.appUrl = data.appUrl || getAppUrl();
+  data.brandName = data.brandName || await getBrandName();
+  data.appUrl = data.appUrl || await getAppUrl();
 
   const subject = renderTemplate(template.subject, data);
   const html = renderTemplate(template.html, data);
 
   try {
     await transporter.sendMail({
-      from: getFromAddress(),
+      from: await getFromAddress(),
       to: job.email,
       subject,
       html,
@@ -200,36 +200,33 @@ async function sendNotification(job: typeof notificationJobs.$inferSelect): Prom
 
 async function processPendingNotifications() {
   const now = new Date().toISOString();
-  const jobs = db
+  const jobs = await db
     .select()
     .from(notificationJobs)
     .where(and(
       eq(notificationJobs.status, "pending"),
       lte(notificationJobs.scheduledAt, now),
     ))
-    .limit(50)
-    .all();
+    .limit(50);
 
   for (const job of jobs) {
     try {
       const success = await sendNotification(job);
       if (success) {
-        db.update(notificationJobs)
+        await db.update(notificationJobs)
           .set({ status: "sent", sentAt: new Date().toISOString() })
-          .where(eq(notificationJobs.id, job.id))
-          .run();
+          .where(eq(notificationJobs.id, job.id));
       }
     } catch (error) {
       const attempts = job.attempts + 1;
       const errMsg = error instanceof Error ? error.message : "Unknown error";
-      db.update(notificationJobs)
+      await db.update(notificationJobs)
         .set({
           attempts,
           lastError: errMsg,
           status: attempts >= MAX_ATTEMPTS ? "failed" : "pending",
         })
-        .where(eq(notificationJobs.id, job.id))
-        .run();
+        .where(eq(notificationJobs.id, job.id));
     }
   }
 }
@@ -237,15 +234,14 @@ async function processPendingNotifications() {
 // ── 兜底：确保活跃订阅都有续费预告 ──
 
 async function ensureRenewalReminders() {
-  const reminderDays = getRenewalReminderDays();
+  const reminderDays = await getRenewalReminderDays();
   const now = new Date();
 
   // 查询所有活跃的订阅制订阅
-  const activeSubs = db
+  const activeSubs = await db
     .select()
     .from(userSubscriptions)
-    .where(eq(userSubscriptions.status, "active"))
-    .all();
+    .where(eq(userSubscriptions.status, "active"));
 
   for (const sub of activeSubs) {
     if (!sub.expiresAt) continue;
@@ -258,7 +254,7 @@ async function ensureRenewalReminders() {
     if (reminderDate < now) continue; // 已过期
 
     // 检查是否已有预告任务
-    const existing = db
+    const [existing] = await db
       .select()
       .from(notificationJobs)
       .where(and(
@@ -266,18 +262,18 @@ async function ensureRenewalReminders() {
         eq(notificationJobs.type, "subscription_renewal_upcoming"),
         eq(notificationJobs.status, "pending"),
       ))
-      .get();
+      .limit(1);
 
     if (!existing) {
-      const user = db.select().from(users).where(eq(users.id, sub.userId)).get();
+      const [user] = await db.select().from(users).where(eq(users.id, sub.userId)).limit(1);
       if (!user) continue;
 
       const { plans } = await import("@/db/schema");
-      const plan = db.select().from(plans).where(eq(plans.id, sub.planId)).get();
+      const [plan] = await db.select().from(plans).where(eq(plans.id, sub.planId)).limit(1);
 
-      const appUrl = getAppUrl();
+      const appUrl = await getAppUrl();
       // 直接插入
-      db.insert(notificationJobs).values({
+      await db.insert(notificationJobs).values({
         type: "subscription_renewal_upcoming",
         subscriptionId: sub.id,
         userId: sub.userId,
@@ -286,12 +282,12 @@ async function ensureRenewalReminders() {
           planTitle: plan?.title || "",
           renewalDate: expiresDate.toISOString().split("T")[0],
           cancelUrl: `${appUrl}/billing`,
-          brandName: getBrandName(),
+          brandName: await getBrandName(),
         }),
         status: "pending",
         scheduledAt: reminderDate.toISOString(),
         createdAt: now.toISOString(),
-      }).run();
+      });
     }
   }
 }
@@ -299,26 +295,24 @@ async function ensureRenewalReminders() {
 // ── 过期未支付订单清理 ──
 
 async function expireStaleOrders() {
-  const timeoutHours = getCheckoutTimeoutHours();
+  const timeoutHours = await getCheckoutTimeoutHours();
   const cutoff = new Date(Date.now() - timeoutHours * 3600 * 1000).toISOString();
   const { orders } = await import("@/db/schema");
 
-  db.update(orders)
+  await db.update(orders)
     .set({ status: "cancelled", cancelledAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
     .where(and(
       eq(orders.status, "pending"),
       lte(orders.createdAt, cutoff),
-    ))
-    .run();
+    ));
 
   // 同时 skip 超期的催付通知
-  db.update(notificationJobs)
+  await db.update(notificationJobs)
     .set({ status: "skipped" as const })
     .where(and(
       eq(notificationJobs.status, "pending"),
       eq(notificationJobs.type, "order_pending_reminder"),
-    ))
-    .run();
+    ));
 }
 
 // ── 启动调度器 ──

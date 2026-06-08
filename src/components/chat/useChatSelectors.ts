@@ -7,7 +7,7 @@ export interface ModelItem {
   id: number;
   provider: string;
   modelName: string;
-  isDefault: number;
+  isDefault: boolean;
 }
 
 export interface UserModelItem {
@@ -88,6 +88,12 @@ export function useChatSelectors({
 
   const handleModelChange = (id: number | string | undefined) => {
     setSelectedModelId(id);
+    // 持久化到 localStorage
+    if (id) {
+      localStorage.setItem("last-selected-model-id", String(id));
+    } else {
+      localStorage.removeItem("last-selected-model-id");
+    }
     if (typeof id === 'string' && id.startsWith('byok_')) {
       // BYOK 模型
       const userModelId = parseInt(id.replace('byok_', ''));
@@ -137,9 +143,24 @@ export function useChatSelectors({
       .then((data) => {
         setModels(data);
         if (!initialModelId) {
-          const defaultModel = data.find((m: { isDefault: number }) => m.isDefault === 1);
-          if (defaultModel) {
-            setSelectedModelId(defaultModel.id);
+          const savedModelId = localStorage.getItem("last-selected-model-id");
+          if (savedModelId) {
+            if (savedModelId.startsWith('byok_')) {
+              setSelectedModelId(savedModelId);
+            } else {
+              const numId = Number(savedModelId);
+              const exists = data.some((m: { id: number }) => m.id === numId);
+              if (exists) {
+                setSelectedModelId(numId);
+              } else {
+                localStorage.removeItem("last-selected-model-id");
+                const defaultModel = data.find((m: { isDefault: boolean }) => m.isDefault === true);
+                if (defaultModel) setSelectedModelId(defaultModel.id);
+              }
+            }
+          } else {
+            const defaultModel = data.find((m: { isDefault: boolean }) => m.isDefault === true);
+            if (defaultModel) setSelectedModelId(defaultModel.id);
           }
         }
       });

@@ -24,7 +24,7 @@ interface ModelCardProps {
   onToggleApiKey: (id: number) => void;
   onSetDefault: (model: ModelConfig) => void;
   onEdit: (model: ModelConfig) => void;
-  onDelete: (id: number, name: string, isDefault?: number) => void;
+  onDelete: (id: number, name: string, isDefault?: boolean) => void;
 }
 
 export default function ModelCard({

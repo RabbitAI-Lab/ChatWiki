@@ -57,21 +57,21 @@ function configHash(cfg: SmtpConfig): string {
   return `${cfg.host}:${cfg.port}:${cfg.user}:${cfg.pass}`;
 }
 
-export function getTransporter(): nodemailer.Transporter | null {
+export async function getTransporter(): Promise<nodemailer.Transporter | null> {
   // 优先从系统设置读取，fallback 到环境变量
   const envConfig = getSmtpConfig();
-  const settingsConfig: SmtpConfig | null = (() => {
-    const host = getSetting("smtp_host");
-    const user = getSetting("smtp_user");
-    const pass = getSetting("smtp_pass");
+  const settingsConfig: SmtpConfig | null = await (async () => {
+    const host = await getSetting("smtp_host");
+    const user = await getSetting("smtp_user");
+    const pass = await getSetting("smtp_pass");
     if (!host || !user || !pass) return null;
     return {
       host,
-      port: parseInt(getSetting("smtp_port") || "465", 10),
-      secure: getSetting("smtp_secure") !== "false",
+      port: parseInt((await getSetting("smtp_port")) || "465", 10),
+      secure: (await getSetting("smtp_secure")) !== "false",
       user,
       pass,
-      fromEmail: getSetting("smtp_from_email") || `noreply@${host}`,
+      fromEmail: (await getSetting("smtp_from_email")) || `noreply@${host}`,
     };
   })();
 
@@ -94,17 +94,17 @@ export function getTransporter(): nodemailer.Transporter | null {
   return cachedTransporter;
 }
 
-export function getFromAddress(): string {
+export async function getFromAddress(): Promise<string> {
   // 优先使用系统设置的 fromEmail
-  const sysFrom = getSetting("smtp_from_email");
+  const sysFrom = await getSetting("smtp_from_email");
   if (sysFrom) return sysFrom;
-  const sysHost = getSetting("smtp_host");
+  const sysHost = await getSetting("smtp_host");
   if (sysHost) return `noreply@${sysHost}`;
   return getSmtpConfig()?.fromEmail || "noreply@chatwiki.app";
 }
 
-export function isSmtpConfigured(): boolean {
-  return getTransporter() !== null;
+export async function isSmtpConfigured(): Promise<boolean> {
+  return (await getTransporter()) !== null;
 }
 
 /**
@@ -119,8 +119,8 @@ export async function sendVerificationEmail(
   token: string,
   code?: string
 ): Promise<void> {
-  const transporter = getTransporter();
-  const verifyUrl = `${getAppUrl()}/verify-email?token=${token}`;
+  const transporter = await getTransporter();
+  const verifyUrl = `${await getAppUrl()}/verify-email?token=${token}`;
 
   if (!transporter) {
     console.log(`[mail] SMTP not configured. Verify URL: ${verifyUrl}`);
@@ -128,9 +128,9 @@ export async function sendVerificationEmail(
     return;
   }
 
-  const brandName = getBrandName();
-  const subjectTpl = getSetting("email_verify_subject") || DEFAULT_EMAIL_TEMPLATES.verifySubject;
-  const htmlTpl = getSetting("email_verify_html") || DEFAULT_EMAIL_TEMPLATES.verifyHtml;
+  const brandName = await getBrandName();
+  const subjectTpl = (await getSetting("email_verify_subject")) || DEFAULT_EMAIL_TEMPLATES.verifySubject;
+  const htmlTpl = (await getSetting("email_verify_html")) || DEFAULT_EMAIL_TEMPLATES.verifyHtml;
   const codeBlockHtml = code ? getCodeBlockHtml(code) : "";
 
   const vars = {
@@ -144,7 +144,7 @@ export async function sendVerificationEmail(
 
   try {
     await transporter.sendMail({
-      from: getFromAddress(),
+      from: await getFromAddress(),
       to: email,
       subject,
       html,
@@ -175,16 +175,16 @@ export function generateVerificationCode(): string {
 export async function testSmtpConnection(
   toEmail: string
 ): Promise<{ success: boolean; message: string }> {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   if (!transporter) {
     return { success: false, message: "SMTP not configured" };
   }
 
   try {
     await transporter.verify();
-    const brandName = getBrandName();
+    const brandName = await getBrandName();
     await transporter.sendMail({
-      from: getFromAddress(),
+      from: await getFromAddress(),
       to: toEmail,
       subject: `${brandName} - SMTP Test`,
       text: "This is a test email to verify your SMTP configuration.",

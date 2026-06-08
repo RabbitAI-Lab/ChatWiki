@@ -9,11 +9,11 @@ export async function GET(req: NextRequest) {
   const authResult = await requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  let row = getSystemKey(authResult.id);
+  let row = await getSystemKey(authResult.id);
   if (!row) {
     // 遗留用户首次访问，按需创建
-    createSystemKey(authResult.id);
-    row = getSystemKey(authResult.id);
+    await createSystemKey(authResult.id);
+    row = await getSystemKey(authResult.id);
   }
 
   if (!row) {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const authResult = await requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  const result = regenerateSystemKey(authResult.id);
+  const result = await regenerateSystemKey(authResult.id);
 
   return NextResponse.json({
     key: result.key,

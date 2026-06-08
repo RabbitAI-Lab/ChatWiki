@@ -10,11 +10,10 @@ export default async function TemplateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const template = db
+  const [template] = await db
     .select()
     .from(templates)
-    .where(eq(templates.id, parseInt(id)))
-    .get();
+    .where(eq(templates.id, parseInt(id)));
 
   if (!template) {
     notFound();

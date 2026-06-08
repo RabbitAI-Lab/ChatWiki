@@ -27,8 +27,8 @@ function matchFeatureKey(featureName: string, key: string): boolean {
  * 3. 解析 features，检查是否存在匹配 featureKey 的条目 && included === true
  * 4. 额外防护：plan 被禁用 或 订阅已过期 → 不通过
  */
-export function hasFeature(userId: string, featureKey: string): boolean {
-  const subscription = db
+export async function hasFeature(userId: string, featureKey: string): Promise<boolean> {
+  const [subscription] = await db
     .select({
       planFeatures: plans.features,
       planEnabled: plans.enabled,
@@ -40,13 +40,13 @@ export function hasFeature(userId: string, featureKey: string): boolean {
       eq(userSubscriptions.userId, userId),
       eq(userSubscriptions.status, "active"),
     ))
-    .get();
+    .limit(1);
 
   // 无活跃订阅
   if (!subscription) return false;
 
   // plan 被禁用
-  if (subscription.planEnabled !== 1) return false;
+  if (subscription.planEnabled !== true) return false;
 
   // 订阅过期（双重保险）
   if (new Date(subscription.expiresAt) < new Date()) return false;
@@ -65,8 +65,8 @@ export function hasFeature(userId: string, featureKey: string): boolean {
 /**
  * 获取用户已启用的所有功能 key 列表
  */
-export function getUserFeatures(userId: string): string[] {
-  const subscription = db
+export async function getUserFeatures(userId: string): Promise<string[]> {
+  const [subscription] = await db
     .select({
       planFeatures: plans.features,
       planEnabled: plans.enabled,
@@ -78,10 +78,10 @@ export function getUserFeatures(userId: string): string[] {
       eq(userSubscriptions.userId, userId),
       eq(userSubscriptions.status, "active"),
     ))
-    .get();
+    .limit(1);
 
   if (!subscription) return [];
-  if (subscription.planEnabled !== 1) return [];
+  if (subscription.planEnabled !== true) return [];
   if (new Date(subscription.expiresAt) < new Date()) return [];
 
   let features: PlanFeature[] = [];
@@ -97,11 +97,10 @@ export function getUserFeatures(userId: string): string[] {
 /**
  * 获取系统中所有已定义的 feature name（去重），用于 admin 用户
  */
-export function getAllFeatureNames(): string[] {
-  const allPlans = db
+export async function getAllFeatureNames(): Promise<string[]> {
+  const allPlans = await db
     .select({ features: plans.features })
-    .from(plans)
-    .all();
+    .from(plans);
 
   const nameSet = new Set<string>();
   for (const plan of allPlans) {
@@ -127,14 +126,14 @@ export function getAllFeatureNames(): string[] {
  *   const featureErr = requireFeature(auth, "workspace");
  *   if (featureErr) return featureErr;
  */
-export function requireFeature(
+export async function requireFeature(
   auth: AuthUser,
   featureKey: string,
-): NextResponse | null {
+): Promise<NextResponse | null> {
   // admin 跳过检查
   if (auth.isAdmin) return null;
 
-  const allowed = hasFeature(auth.id, featureKey);
+  const allowed = await hasFeature(auth.id, featureKey);
   if (allowed) return null;
 
   return NextResponse.json(

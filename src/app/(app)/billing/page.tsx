@@ -52,7 +52,7 @@ interface Plan {
   discountType: "none" | "percentage" | "fixed";
   discountValue: number;
   features: string; // JSON
-  enabled: number;
+  enabled: boolean;
   sortOrder: number;
   providerPrices?: string | null;
   billingMode?: string | null;
@@ -215,7 +215,7 @@ export default function BillingPage() {
         const plansResult = await plansRes.json();
         const plansData: Plan[] = plansResult.plans || plansResult;
         setPaymentAvailable(!!plansResult.paymentAvailable);
-        setPlans(plansData.filter((p) => p.enabled === 1));
+        setPlans(plansData.filter((p) => p.enabled === true));
       }
       if (subRes.ok) {
         const subData = await subRes.json();
@@ -246,7 +246,7 @@ export default function BillingPage() {
           const plansData: Plan[] = (plansResult as { plans: Plan[] }).plans || plansResult as Plan[];
           if (!cancelled) {
             setPaymentAvailable(!!(plansResult as { paymentAvailable?: boolean }).paymentAvailable);
-            setPlans(plansData.filter((p) => p.enabled === 1));
+            setPlans(plansData.filter((p) => p.enabled === true));
           }
         });
       }

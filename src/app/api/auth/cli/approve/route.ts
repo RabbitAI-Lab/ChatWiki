@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    db.insert(cliAuthorizationCodes)
+    await db.insert(cliAuthorizationCodes)
       .values({
         id: crypto.randomUUID(),
         code,
@@ -46,8 +46,7 @@ export async function POST(req: NextRequest) {
         redirectUri: redirect_uri,
         expiresAt,
         createdAt: now,
-      })
-      .run();
+      });
 
     // 重定向回 CLI 的 localhost 回调
     const callbackUrl = new URL(redirect_uri);

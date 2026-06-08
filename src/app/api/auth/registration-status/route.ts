@@ -6,10 +6,10 @@ import {
 } from "@/lib/auth/settings";
 
 export async function GET() {
-  const generalKey = getGeneralRegistrationKey();
+  const generalKey = await getGeneralRegistrationKey();
   return NextResponse.json({
-    openRegistration: isOpenRegistration(),
-    requireInviteCode: isInviteCodeRequired(),
+    openRegistration: await isOpenRegistration(),
+    requireInviteCode: await isInviteCodeRequired(),
     generalKeyEnabled: !!generalKey && generalKey.length > 0,
   });
 }

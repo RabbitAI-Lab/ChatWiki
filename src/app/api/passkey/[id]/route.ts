@@ -25,10 +25,9 @@ export async function PATCH(
   }
 
   if (parsed.data.deviceName !== undefined) {
-    db.update(passkeys)
+    await db.update(passkeys)
       .set({ deviceName: parsed.data.deviceName })
-      .where(and(eq(passkeys.id, id), eq(passkeys.userId, authResult.id)))
-      .run();
+      .where(and(eq(passkeys.id, id), eq(passkeys.userId, authResult.id)));
   }
 
   return NextResponse.json({ success: true });
@@ -43,9 +42,8 @@ export async function DELETE(
 
   const { id } = await params;
 
-  db.delete(passkeys)
-    .where(and(eq(passkeys.id, id), eq(passkeys.userId, authResult.id)))
-    .run();
+  await db.delete(passkeys)
+    .where(and(eq(passkeys.id, id), eq(passkeys.userId, authResult.id)));
 
   return NextResponse.json({ success: true });
 }

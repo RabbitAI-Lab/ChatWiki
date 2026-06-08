@@ -232,8 +232,8 @@ export default function ProjectsPanel() {
               className={cn(
                 "relative flex items-center gap-2 w-full px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer select-none",
                 isDragging && "opacity-40",
-                !isDragging && isActive && "bg-gray-100 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 font-medium",
-                !isDragging && !isActive && "text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-zinc-700",
+                !isDragging && isActive && "bg-gray-100 dark:bg-[#171D38] text-gray-900 dark:text-gray-100 font-medium",
+                !isDragging && !isActive && "text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-[#1E2845]",
               )}
               onClick={() => router.push(`${projectPath}?openChat=true`)}
             >

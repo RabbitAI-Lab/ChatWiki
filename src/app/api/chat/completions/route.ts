@@ -61,10 +61,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Inject global system prompts
-  const activePrompts = db.select().from(systemPrompts)
-    .where(eq(systemPrompts.enabled, 1))
-    .orderBy(systemPrompts.sortOrder)
-    .all();
+  const activePrompts = await db.select().from(systemPrompts)
+    .where(eq(systemPrompts.enabled, true))
+    .orderBy(systemPrompts.sortOrder);
 
   console.log("[SystemPrompts] active prompts count:", activePrompts.length,
     activePrompts.map(p => ({ id: p.id, name: p.name, enabled: p.enabled })));

@@ -24,12 +24,12 @@ const PROJECT_STRATEGY: EntityStrategy = {
   metaFileName: ".project.json",
   defaultNamePrefix: "Project",
   createDocsDir: true,
-  readMeta(dirSegments) {
+  async readMeta(dirSegments) {
     const entityId = dirSegments[dirSegments.length - 1];
     return readMetaFromDb(entityId, "project");
   },
-  writeMeta(meta, _dirSegments) {
-    writeMetaToDb(meta, "project");
+  async writeMeta(meta, _dirSegments) {
+    await writeMetaToDb(meta, "project");
   },
 };
 
@@ -47,12 +47,12 @@ export const deleteProject = projectEntityCrud.remove;
 // Metadata read/write
 // ────────────────────────────────────────────────────────────
 
-export function readProjectMeta(dirSegments: string[]): ProjectMeta | null {
+export async function readProjectMeta(dirSegments: string[]): Promise<ProjectMeta | null> {
   return PROJECT_STRATEGY.readMeta(dirSegments);
 }
 
-export function writeProjectMeta(meta: ProjectMeta, dirSegments: string[]): void {
-  PROJECT_STRATEGY.writeMeta(meta, dirSegments);
+export async function writeProjectMeta(meta: ProjectMeta, dirSegments: string[]): Promise<void> {
+  await PROJECT_STRATEGY.writeMeta(meta, dirSegments);
 }
 
 // ────────────────────────────────────────────────────────────
@@ -61,9 +61,9 @@ export function writeProjectMeta(meta: ProjectMeta, dirSegments: string[]): void
 
 const projectRepoCrud = createRepositoryCrud(PROJECT_STRATEGY);
 
-export const addRepository: (dirSegments: string[], repository: Repository) => Repository[] = projectRepoCrud.add;
-export const removeRepository: (dirSegments: string[], repoId: string) => void = projectRepoCrud.remove;
-export const updateRepository: (dirSegments: string[], repoId: string, updates: Partial<Omit<Repository, "id">>) => Repository | null = projectRepoCrud.update;
+export const addRepository: (dirSegments: string[], repository: Repository) => Promise<Repository[]> = projectRepoCrud.add;
+export const removeRepository: (dirSegments: string[], repoId: string) => Promise<void> = projectRepoCrud.remove;
+export const updateRepository: (dirSegments: string[], repoId: string, updates: Partial<Omit<Repository, "id">>) => Promise<Repository | null> = projectRepoCrud.update;
 
 // ────────────────────────────────────────────────────────────
 // Member CRUD
@@ -71,9 +71,9 @@ export const updateRepository: (dirSegments: string[], repoId: string, updates: 
 
 const projectMemberCrud = createMemberCrud(PROJECT_STRATEGY);
 
-export const addMember: (dirSegments: string[], member: ProjectMember) => ProjectMember[] = projectMemberCrud.add;
-export const removeMember: (dirSegments: string[], memberId: string) => void = projectMemberCrud.remove;
-export const updateMember: (dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>) => ProjectMember | null = projectMemberCrud.update;
+export const addMember: (dirSegments: string[], member: ProjectMember) => Promise<ProjectMember[]> = projectMemberCrud.add;
+export const removeMember: (dirSegments: string[], memberId: string) => Promise<void> = projectMemberCrud.remove;
+export const updateMember: (dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>) => Promise<ProjectMember | null> = projectMemberCrud.update;
 
 // ────────────────────────────────────────────────────────────
 // MCP Config

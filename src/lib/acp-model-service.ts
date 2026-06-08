@@ -71,7 +71,7 @@ export async function* streamAcpModelResponse(
   _retryAttempted = false
 ): AsyncGenerator<StreamEvent> {
   // 如果已从 model-service 传入预解析的 config，直接使用（避免重复查询 DB）
-  const config = preResolvedConfig ?? resolveModelConfig(modelId);
+  const config = preResolvedConfig ?? (await resolveModelConfig(modelId));
 
   // 构建 pool key
   const key = buildPoolKey({
@@ -110,7 +110,7 @@ export async function* streamAcpModelResponse(
     console.log("[ACP] 连接池 entry 就绪, key=", key, "closed=", entry.closed);
 
     // 2. 解析全局/项目 MCP 配置并替换 user-api-key 占位符
-    const resolvedMcpServers = resolveMcpServersForUser(options.userId, options.projectId);
+    const resolvedMcpServers = await resolveMcpServersForUser(options.userId, options.projectId);
     const acpMcpServers = convertToAcpMcpServers(resolvedMcpServers);
     console.log("[ACP] resolved MCP servers:", acpMcpServers.map((s) => (s as { name?: string }).name).join(", "));
 
@@ -188,28 +188,26 @@ export async function* streamAcpModelResponse(
         console.log("[ACP] 后台保存 AI 回复到 DB, chatId=", options.chatId, "textLength=", text.length);
 
         // 查询该 chat 最后一条消息，检查是否已有 assistant 消息（幂等）
-        const lastMsg = db.select().from(chatMessages)
+        const [lastMsg] = await db.select().from(chatMessages)
           .where(eq(chatMessages.chatId, options.chatId))
           .orderBy(desc(chatMessages.id))
-          .limit(1)
-          .get();
+          .limit(1);
 
         if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === text) {
           console.log("[ACP] 后台保存跳过: assistant 消息已存在");
         } else {
-          db.insert(chatMessages).values({
+          await db.insert(chatMessages).values({
             chatId: options.chatId,
             role: "assistant",
             content: text,
             thinking: thinking || null,
             createdAt: new Date().toISOString(),
-          }).run();
+          });
 
           // 更新 chat 的 updatedAt
-          db.update(chats)
+          await db.update(chats)
             .set({ updatedAt: new Date().toISOString() })
-            .where(eq(chats.id, options.chatId))
-            .run();
+            .where(eq(chats.id, options.chatId));
 
           console.log("[ACP] 后台保存成功, chatId=", options.chatId);
         }
@@ -303,7 +301,7 @@ export async function* streamAcpModelResponse(
       const isByokModel = !!preResolvedConfig;
       if (!isByokModel) {
         try {
-          db.insert(tokenUsageLogs).values({
+          await db.insert(tokenUsageLogs).values({
             userId: options.userId,
             modelId,
             chatId: options.chatId,
@@ -319,7 +317,7 @@ export async function* streamAcpModelResponse(
             projectId: options.projectId,
             workspaceId: options.workspaceId,
             createdAt: new Date().toISOString(),
-          }).run();
+          });
         } catch (err) {
           console.error("[ACP TokenUsage] failed to log:", err);
         }

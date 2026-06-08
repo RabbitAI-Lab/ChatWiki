@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       ? `strftime('%Y-%m-%dT%H:00', created_at)` // 按小时
       : `datetime((strftime('%s', created_at) / ${bucketSeconds}) * ${bucketSeconds}, 'unixepoch')`; // 按N分钟
 
-  const rows = db
+  const rows = await db
     .select({
       bucket: sql<string>`${sql.raw(bucketExpr)} as bucket`,
       tokens: sql<number>`COALESCE(SUM(${tokenUsageLogs.totalTokens}), 0)`,
@@ -65,8 +65,7 @@ export async function GET(req: NextRequest) {
       gte(tokenUsageLogs.createdAt, sinceStr),
     ))
     .groupBy(sql.raw(bucketExpr))
-    .orderBy(sql.raw(bucketExpr))
-    .all();
+    .orderBy(sql.raw(bucketExpr));
 
   return NextResponse.json({
     range,

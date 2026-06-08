@@ -20,15 +20,14 @@ export async function POST(req: NextRequest) {
     }
 
     // 获取用户当前活跃订阅
-    const subscription = db
+    const [subscription] = await db
       .select()
       .from(userSubscriptions)
       .where(and(
         eq(userSubscriptions.userId, user.id),
         eq(userSubscriptions.status, "active"),
       ))
-      .orderBy(desc(userSubscriptions.createdAt))
-      .get();
+      .orderBy(desc(userSubscriptions.createdAt));
 
     if (!subscription) {
       return NextResponse.json({ error: "No active subscription found" }, { status: 404 });

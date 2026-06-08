@@ -14,11 +14,10 @@ export async function GET(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
   const user = authResult as AuthUser;
 
-  const codes = db
+  const codes = await db
     .select()
     .from(inviteCodes)
-    .where(eq(inviteCodes.createdById, user.id))
-    .all();
+    .where(eq(inviteCodes.createdById, user.id));
 
   return NextResponse.json({
     codes: codes.map((c) => ({
@@ -37,11 +36,10 @@ export async function POST(req: NextRequest) {
   const user = authResult as AuthUser;
 
   // 检查数量限制
-  const existing = db
+  const existing = await db
     .select()
     .from(inviteCodes)
-    .where(eq(inviteCodes.createdById, user.id))
-    .all();
+    .where(eq(inviteCodes.createdById, user.id));
 
   if (existing.length >= MAX_CODES_PER_USER) {
     const t = await getApiT();
@@ -54,14 +52,13 @@ export async function POST(req: NextRequest) {
   const code = crypto.randomBytes(4).toString("hex");
   const now = new Date().toISOString();
 
-  db.insert(inviteCodes)
+  await db.insert(inviteCodes)
     .values({
       id: crypto.randomUUID(),
       code,
       createdById: user.id,
       createdAt: now,
-    })
-    .run();
+    });
 
   return NextResponse.json({ code }, { status: 201 });
 }

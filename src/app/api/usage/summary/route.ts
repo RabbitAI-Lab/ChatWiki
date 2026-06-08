@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   // 1. 查询当前活跃订阅
-  const subscription = db
+  const [subscription] = await db
     .select({
       id: userSubscriptions.id,
       planId: userSubscriptions.planId,
@@ -29,8 +29,7 @@ export async function GET(req: NextRequest) {
     .where(and(
       eq(userSubscriptions.userId, auth.id),
       eq(userSubscriptions.status, "active"),
-    ))
-    .get();
+    ));
 
   if (!subscription) {
     return NextResponse.json({ subscription: null, quota: null });
@@ -43,7 +42,7 @@ export async function GET(req: NextRequest) {
   const periodStart = subscription.startedAt;
 
   // 3. 查询本周期用量
-  const usageRow = db
+  const [usageRow] = await db
     .select({
       totalTokens: sql<number>`COALESCE(SUM(${tokenUsageLogs.totalTokens}), 0)`,
       inputTokens: sql<number>`COALESCE(SUM(${tokenUsageLogs.inputTokens}), 0)`,
@@ -56,8 +55,7 @@ export async function GET(req: NextRequest) {
     .where(and(
       eq(tokenUsageLogs.userId, auth.id),
       gte(tokenUsageLogs.createdAt, periodStart),
-    ))
-    .get();
+    ));
 
   const used = usageRow?.totalTokens || 0;
   const remaining = tokenLimit > 0 ? Math.max(0, tokenLimit - used) : 0;

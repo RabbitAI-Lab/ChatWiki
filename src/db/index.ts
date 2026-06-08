@@ -1,242 +1,158 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "./schema";
 import fs from "fs";
 import os from "os";
 import path from "path";
 
-// ── Lazy path computation (avoids Turbopack NFT tracing at build time) ──
+// ── Global singleton to survive HMR hot reloads ──
+const globalForDb = globalThis as typeof globalThis & {
+  __pgliteClient?: PGlite;
+  __pgliteDrizzle?: ReturnType<typeof drizzle<typeof schema>>;
+  __pgliteReady?: Promise<void>;
+  __pgliteReadyFlag?: boolean;
+};
+
+// ── Lazy path computation ──
 let _rabbitdocsHome: string | undefined;
 function getRabbitdocsHome(): string {
   if (!_rabbitdocsHome) {
-    _rabbitdocsHome = process.env.RABBITDOCS_HOME || path.join(/*turbopackIgnore: true*/ os.homedir(), ".rabbitdocs");
+    _rabbitdocsHome = process.env.RABBITDOCS_HOME || path.join(os.homedir(), ".rabbitdocs");
   }
   return _rabbitdocsHome;
 }
 
-let _dbPath: string | undefined;
-function getDbFilePath(): string {
-  if (!_dbPath) {
-    _dbPath = path.join(getRabbitdocsHome(), "data.db");
+let _dataDir: string | undefined;
+function getDataDir(): string {
+  if (!_dataDir) {
+    _dataDir = path.join(getRabbitdocsHome(), "pgdata");
   }
-  return _dbPath;
+  return _dataDir;
 }
-
-function getWalPath(): string { return getDbFilePath() + "-wal"; }
-function getShmPath(): string { return getDbFilePath() + "-shm"; }
-
-let _migrationsDir: string | undefined;
-function getMigrationsDir(): string {
-  if (!_migrationsDir) {
-    _migrationsDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "drizzle");
-  }
-  return _migrationsDir;
-}
-
-// ── Migration tracking ──
-const MIGRATIONS_TABLE = "_migrations";
-
-function ensureMigrationsTable(db: Database.Database) {
-  db.exec(`CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
-}
-
-/**
- * If the _migrations table didn't exist before this call, it means we are upgrading
- * an existing database that was created by running all migrations blindly.
- * In that case, mark ALL existing migration files as already applied.
- */
-function bootstrapMigrationTracking(db: Database.Database): boolean {
-  const tableExists = (db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(MIGRATIONS_TABLE)) != null;
-  ensureMigrationsTable(db);
-  if (tableExists) return false; // already bootstrapped
-  // First time: mark all existing migration files as applied
-  const files = fs.readdirSync(getMigrationsDir()).filter(f => f.endsWith(".sql")).sort();
-  const now = new Date().toISOString();
-  const insert = db.prepare(`INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (name, applied_at) VALUES (?, ?)`);
-  for (const file of files) {
-    insert.run(file, now);
-  }
-  console.log(`[db] Bootstrapped migration tracking: marked ${files.length} existing migrations as applied.`);
-  return true;
-}
-
-function getAppliedMigrations(db: Database.Database): Set<string> {
-  const rows = db.prepare(`SELECT name FROM ${MIGRATIONS_TABLE}`).all() as Array<{ name: string }>;
-  return new Set(rows.map((r) => r.name));
-}
-
-function recordMigration(db: Database.Database, name: string) {
-  const now = new Date().toISOString();
-  db.prepare(`INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (name, applied_at) VALUES (?, ?)`).run(name, now);
-}
-
-// ── Run all migrations (fresh DB only) ──
-function runMigrations(db: Database.Database) {
-  const dir = getMigrationsDir();
-  const files = fs.readdirSync(dir)
-    .filter(f => f.endsWith(".sql"))
-    .sort();
-  
-  console.log(`[db] Running ${files.length} migrations on fresh database...`);
-  ensureMigrationsTable(db);
-  for (const file of files) {
-    const sql = fs.readFileSync(path.join(dir, file), "utf-8");
-    db.exec(sql);
-    recordMigration(db, file);
-    console.log(`[db]   ✓ ${file}`);
-  }
-}
-
-function checkIntegrity(db: Database.Database): boolean {
-  try {
-    const result = db.pragma("integrity_check") as Array<{ integrity_check: string }>;
-    return result.length === 1 && result[0].integrity_check === "ok";
-  } catch {
-    return false;
-  }
-}
-
-function hasSchema(db: Database.Database): boolean {
-  try {
-    const result = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'").get() as { name: string } | undefined;
-    return !!result;
-  } catch {
-    return false;
-  }
-}
-
-function tryApplyPragmas(db: Database.Database): boolean {
-  try {
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ── Initialize database ──
-function initDatabase(): Database.Database {
-  const home = getRabbitdocsHome();
-  const dbPath = getDbFilePath();
-  // Ensure ~/.rabbitdocs directory exists
-  if (!fs.existsSync(home)) {
-    fs.mkdirSync(home, { recursive: true });
-  }
-
-  const db = new Database(dbPath);
-
-  if (tryApplyPragmas(db) && checkIntegrity(db) && hasSchema(db)) {
-    // Existing healthy database with schema — apply only NEW migrations
-    try {
-      bootstrapMigrationTracking(db);
-      const applied = getAppliedMigrations(db);
-      const migrationFiles = fs.readdirSync(getMigrationsDir())
-        .filter(f => f.endsWith(".sql"))
-        .sort()
-        .filter(f => !applied.has(f));
-
-      if (migrationFiles.length > 0) {
-        const dir = getMigrationsDir();
-        console.log(`[db] Applying ${migrationFiles.length} new migrations...`);
-        for (const file of migrationFiles) {
-          try {
-            const sql = fs.readFileSync(path.join(dir, file), "utf-8");
-            const statements = sql.split(";").map(s => s.trim()).filter(s => s.length > 0);
-            for (const stmt of statements) {
-              try {
-                db.exec(stmt);
-              } catch {
-                // Individual statement may fail if already applied — that's ok
-              }
-            }
-            recordMigration(db, file);
-            console.log(`[db]   ✓ ${file}`);
-          } catch {
-            // File read error — skip
-          }
-        }
-      } else {
-        console.log("[db] All migrations already applied.");
-      }
-    } catch { /* directory read error */ }
-    return db;
-  }
-
-  // Database missing schema or integrity check failed — recreate from scratch
-  console.warn(
-    !checkIntegrity(db)
-      ? "[db] Integrity check FAILED, recreating database..."
-      : "[db] Schema missing, recreating database..."
-  );
-  db.close();
-
-  for (const p of [dbPath, getWalPath(), getShmPath()]) {
-    try { fs.unlinkSync(p); } catch { /* ok */ }
-  }
-
-  const newDb = new Database(dbPath);
-  newDb.pragma("journal_mode = WAL");
-  newDb.pragma("foreign_keys = ON");
-
-  runMigrations(newDb);
-
-  console.log("[db] Database initialized successfully.");
-  return newDb;
-}
-
-// ── Lazy singleton: defer DB init until first runtime access ──
-// During `next build`, modules are imported for type-checking and SSG.
-// By detecting the build phase, we skip DB initialization entirely.
-// The DB is explicitly initialized via initDb() in instrumentation.ts
-// which only runs at server startup, not during build.
-
-let _sqlite: Database.Database | null = null;
-let _drizzleInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
-let _seeded = false;
 
 function isBuildPhase(): boolean {
-  // Next.js sets NEXT_PHASE during build; also support explicit opt-out
   return process.env.NEXT_PHASE === "phase-production-build";
 }
 
 /**
- * Explicitly initialize the database (called from instrumentation.ts at server startup).
- * This ensures migrations and seeding happen at runtime, not during build.
+ * Eagerly create PGlite + Drizzle instances (both synchronous).
+ * The actual PG backend readiness is deferred to initDb().
  */
-export function initDb() {
+function ensureInstance(): void {
+  if (globalForDb.__pgliteDrizzle) return;
   if (isBuildPhase()) return;
-  if (_sqlite) return; // already initialized
-  _sqlite = initDatabase();
-  _drizzleInstance = drizzle(_sqlite, { schema });
-  // Run seed once
-  if (!_seeded) {
-    _seeded = true;
-    import("./seed").then(({ seed }) => seed()).catch((err) => console.error("[seed] Error:", err));
+
+  const dataDir = getDataDir();
+  const home = getRabbitdocsHome();
+
+  if (!fs.existsSync(home)) {
+    fs.mkdirSync(home, { recursive: true });
   }
+
+  console.log(`[db] Creating PGlite instance at ${dataDir}...`);
+  const client = new PGlite(dataDir);
+  const drizzleInstance = drizzle(client, { schema });
+
+  globalForDb.__pgliteClient = client;
+  globalForDb.__pgliteDrizzle = drizzleInstance;
+}
+
+// ── Create instance eagerly at module load time ──
+// PGlite constructor is synchronous; waitReady is async and handled in initDb().
+// This ensures the Proxy always has a real Drizzle instance to delegate to.
+ensureInstance();
+
+/**
+ * Initialize the database (called from instrumentation.ts at server startup).
+ * Waits for PGlite backend readiness, runs migrations and seed.
+ */
+export async function initDb(): Promise<void> {
+  if (isBuildPhase()) return;
+  // Ensure instance exists (may already be created by ensureInstance above)
+  ensureInstance();
+  // Already fully initialized
+  if (globalForDb.__pgliteReadyFlag) return;
+  // Already initializing — wait for the same promise
+  if (globalForDb.__pgliteReady) return globalForDb.__pgliteReady;
+
+  globalForDb.__pgliteReady = (async () => {
+    try {
+      const client = globalForDb.__pgliteClient!;
+
+      console.log("[db] Waiting for PGlite backend readiness...");
+      await client.waitReady;
+      console.log("[db] PGlite backend ready.");
+
+      // Run migrations using Drizzle's built-in migrator
+      const migrationsDir = path.join(process.cwd(), "drizzle");
+      if (fs.existsSync(migrationsDir)) {
+        const sqlFiles = fs.readdirSync(migrationsDir).filter(f => f.endsWith(".sql"));
+        if (sqlFiles.length > 0) {
+          console.log(`[db] Running ${sqlFiles.length} migrations...`);
+          migrate(globalForDb.__pgliteDrizzle!, { migrationsFolder: migrationsDir });
+          console.log("[db] Migrations applied successfully.");
+        }
+      }
+
+      // Run seed
+      try {
+        const { seed } = await import("./seed");
+        await seed();
+      } catch (err) {
+        console.error("[seed] Error:", err);
+      }
+
+      // Reset serial sequences as safety measure (covers edge cases
+      // like DB restore, manual edits, or migration oddities)
+      try {
+        const { resetSerialSequences } = await import("@/lib/db-dump");
+        await resetSerialSequences();
+      } catch (err) {
+        console.error("[db] Sequence reset failed:", err);
+      }
+
+      // Initialize data root from DB config
+      try {
+        const { initDataRootFromDb } = await import("@/lib/fs/core");
+        await initDataRootFromDb();
+      } catch { /* ok */ }
+
+      globalForDb.__pgliteReadyFlag = true;
+      console.log("[db] Database initialized successfully.");
+    } catch (err) {
+      console.error("[db] Failed to initialize:", err);
+      globalForDb.__pgliteReady = undefined;
+      throw err;
+    }
+  })();
+
+  return globalForDb.__pgliteReady;
 }
 
 /**
- * Get the drizzle DB instance, initializing lazily if needed.
- * During build phase, property accesses are silently ignored (returns undefined).
- * At runtime, this initializes on first access and returns a real instance.
+ * The Drizzle DB instance. Always available after module load.
+ * During build phase, returns undefined (Turbopack type-checking).
+ * At runtime, delegates directly to the real drizzle instance.
+ *
+ * Note: actual queries will fail until initDb() completes (PGlite
+ * backend not ready), but the chain builder API (db.select().from()...)
+ * works immediately.
  */
 export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
   get(_target, prop, receiver) {
     if (isBuildPhase()) return undefined;
-    if (!_drizzleInstance) {
-      initDb();
-    }
-    return Reflect.get(_drizzleInstance!, prop, receiver);
+    // Ensure instance exists (safety net for edge cases)
+    ensureInstance();
+    return Reflect.get(globalForDb.__pgliteDrizzle!, prop, receiver);
   },
 });
 
 // ── Graceful shutdown ──
-function shutdown() {
+async function shutdown() {
   try {
-    if (_sqlite) {
-      _sqlite.pragma("wal_checkpoint(TRUNCATE)");
-      _sqlite.close();
+    if (globalForDb.__pgliteClient) {
+      await globalForDb.__pgliteClient.close();
     }
   } catch { /* ok */ }
   process.exit(0);
@@ -245,16 +161,11 @@ function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-/**
- * Get the raw better-sqlite3 instance (for advanced operations like dump/restore).
- * Throws if DB has not been initialized yet.
- */
-export function getSqlite(): Database.Database {
-  if (!_sqlite) {
-    initDb();
-  }
-  return _sqlite!;
+/** Get the raw PGlite client for direct SQL queries (e.g., admin dump/restore). */
+export function getRawClient(): PGlite {
+  if (!globalForDb.__pgliteClient) throw new Error("[db] Database not initialized.");
+  return globalForDb.__pgliteClient;
 }
 
-/** Database file path (for info/dump purposes). */
-export { getDbFilePath as dbPath };
+/** Database data directory path (for info purposes). */
+export { getDataDir as dbPath };

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const offset = (page - 1) * pageSize;
 
-  const refundList = db
+  const refundList = await db
     .select({
       id: refunds.id,
       orderId: refunds.orderId,
@@ -46,14 +46,12 @@ export async function GET(req: NextRequest) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(refunds.createdAt))
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
-  const countResult = db
+  const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(refunds)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .get();
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   return NextResponse.json({
     refunds: refundList,

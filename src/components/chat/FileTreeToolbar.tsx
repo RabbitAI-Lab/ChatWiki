@@ -12,11 +12,11 @@ interface FileTreeToolbarProps {
 export default function FileTreeToolbar({ onCreateFile, onCreateDir, onUpload, disabled }: FileTreeToolbarProps) {
   const t = useTranslations("chat");
   return (
-    <div className="px-2 py-1.5 border-b border-gray-100 flex gap-0.5 justify-center">
+    <div className="px-2 py-1.5 border-b border-gray-100 flex gap-0.5">
       <button
         onClick={() => onCreateFile()}
         disabled={disabled}
-        className="flex items-center gap-1 px-1.5 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
       >
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -28,7 +28,7 @@ export default function FileTreeToolbar({ onCreateFile, onCreateDir, onUpload, d
       <button
         onClick={() => onCreateDir()}
         disabled={disabled}
-        className="flex items-center gap-1 px-1.5 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
       >
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -40,7 +40,7 @@ export default function FileTreeToolbar({ onCreateFile, onCreateDir, onUpload, d
       <button
         onClick={() => onUpload()}
         disabled={disabled}
-        className="flex items-center gap-1 px-1.5 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
       >
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />

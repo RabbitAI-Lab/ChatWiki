@@ -12,12 +12,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get("accountId") || auth.id;
 
-  const projects = listProjects(accountId);
-  const ownedIds = new Set(projects.map((p) => p.id));
+  const projects = await listProjects(accountId);
+  const ownedIds = new Set(projects.map((p: { id: string }) => p.id));
 
   // 查询用户作为成员的项目（DB索引），不依赖 symlink
   try {
-    const memberRows = db
+    const memberRows = await db
       .select({
         entityId: entityMembers.entityId,
       })
@@ -27,12 +27,11 @@ export async function GET(req: NextRequest) {
           eq(entityMembers.userId, accountId),
           eq(entityMembers.entityType, "project")
         )
-      )
-      .all();
+      );
 
     for (const row of memberRows) {
       if (ownedIds.has(row.entityId)) continue;
-      const meta = readProjectMeta(["projects", row.entityId]);
+      const meta = await readProjectMeta(["projects", row.entityId]);
       if (meta) {
         projects.push(meta);
         ownedIds.add(row.entityId);
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
   const accountId = auth.id;
   if (!name) return NextResponse.json({ error: t('api.nameRequired') }, { status: 400 });
 
-  const meta = createProject(accountId, name);
+  const meta = await createProject(accountId, name);
   return NextResponse.json(meta);
 }
 
@@ -67,13 +66,13 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
 
   const dirSegments = ["projects", id];
-  const meta = readProjectMeta(dirSegments);
+  const meta = await readProjectMeta(dirSegments);
   if (!meta) return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
   if (meta.ownerId !== auth.id) {
     return NextResponse.json({ error: t('api.onlyOwnerCanDelete') }, { status: 403 });
   }
 
-  deleteProject(id);
+  await deleteProject(id);
   return NextResponse.json({ success: true });
 }
 
@@ -87,13 +86,13 @@ export async function PATCH(req: NextRequest) {
 
   const dirSegments = ["projects", id];
 
-  const meta = readProjectMeta(dirSegments);
+  const meta = await readProjectMeta(dirSegments);
   if (!meta) return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
 
   if (name !== undefined) meta.name = name;
   if (sortOrder !== undefined) meta.sortOrder = sortOrder;
   if (description !== undefined) meta.description = description;
-  writeProjectMeta(meta, dirSegments);
+  await writeProjectMeta(meta, dirSegments);
   return NextResponse.json(meta);
 }
 
@@ -108,10 +107,10 @@ export async function PUT(req: NextRequest) {
 
   for (const item of orders) {
     const dirSegments = ["projects", item.id];
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (meta) {
       meta.sortOrder = item.sortOrder;
-      writeProjectMeta(meta, dirSegments);
+      await writeProjectMeta(meta, dirSegments);
     }
   }
   return NextResponse.json({ success: true });

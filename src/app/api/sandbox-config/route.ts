@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   // Static handler — note: no req means no auth possible; skipping guard
   // (if this handler needs auth, it should be a route with req param)
-  const config = db.select().from(sandboxConfig).get();
+  const [config] = await db.select().from(sandboxConfig);
   return NextResponse.json({
     sandboxUrl: config?.sandboxUrl ?? "openapi.sandbox.rabbitai-lab.com",
     updatedAt: config?.updatedAt ?? null,
@@ -33,17 +33,15 @@ export async function PUT(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const existing = db.select().from(sandboxConfig).get();
+  const [existing] = await db.select().from(sandboxConfig);
 
   if (existing) {
-    db.update(sandboxConfig)
+    await db.update(sandboxConfig)
       .set({ sandboxUrl: sandboxUrl.trim(), updatedAt: now })
-      .where(eq(sandboxConfig.id, existing.id))
-      .run();
+      .where(eq(sandboxConfig.id, existing.id));
   } else {
-    db.insert(sandboxConfig)
-      .values({ sandboxUrl: sandboxUrl.trim(), createdAt: now, updatedAt: now })
-      .run();
+    await db.insert(sandboxConfig)
+      .values({ sandboxUrl: sandboxUrl.trim(), createdAt: now, updatedAt: now });
   }
 
   return NextResponse.json({ success: true, updatedAt: now });

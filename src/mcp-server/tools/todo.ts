@@ -32,12 +32,11 @@ export function registerTodoTools(server: McpServer) {
       const auth = requireAuth();
       if (typeof auth !== "string") return auth;
 
-      const rows = db
+      const rows = await db
         .select()
         .from(todos)
         .where(eq(todos.userId, auth))
-        .orderBy(desc(todos.createdAt))
-        .all();
+        .orderBy(desc(todos.createdAt));
       return {
         content: [{ type: "text", text: JSON.stringify(rows, null, 2) }],
       };
@@ -76,23 +75,22 @@ export function registerTodoTools(server: McpServer) {
 
       const desc = (description || "").trim();
       const now = new Date().toISOString();
-      const result = db
+      const result = await db
         .insert(todos)
         .values({
           userId: auth,
           title: trimmedTitle,
           description: desc,
-          completed: 0,
+          completed: false,
           createdAt: now,
           updatedAt: now,
         })
-        .run();
+        .returning({ id: todos.id });
 
-      const newTodo = db
+      const [newTodo] = await db
         .select()
         .from(todos)
-        .where(eq(todos.id, Number(result.lastInsertRowid)))
-        .get();
+        .where(eq(todos.id, result[0].id));
 
       return {
         content: [{ type: "text", text: JSON.stringify(newTodo, null, 2) }],
@@ -129,7 +127,7 @@ export function registerTodoTools(server: McpServer) {
       const auth = requireAuth();
       if (typeof auth !== "string") return auth;
 
-      const existing = db.select().from(todos).where(eq(todos.id, id)).get();
+      const [existing] = await db.select().from(todos).where(eq(todos.id, id));
       if (!existing) {
         return {
           content: [{ type: "text", text: `Todo not found: id=${id}` }],
@@ -168,11 +166,11 @@ export function registerTodoTools(server: McpServer) {
         updates.description = description.trim();
       }
       if (completed !== undefined) {
-        updates.completed = completed ? 1 : 0;
+        updates.completed = completed;
       }
 
-      db.update(todos).set(updates).where(eq(todos.id, id)).run();
-      const updated = db.select().from(todos).where(eq(todos.id, id)).get();
+      await db.update(todos).set(updates).where(eq(todos.id, id));
+      const [updated] = await db.select().from(todos).where(eq(todos.id, id));
 
       return {
         content: [{ type: "text", text: JSON.stringify(updated, null, 2) }],
@@ -193,7 +191,7 @@ export function registerTodoTools(server: McpServer) {
       const auth = requireAuth();
       if (typeof auth !== "string") return auth;
 
-      const existing = db.select().from(todos).where(eq(todos.id, id)).get();
+      const [existing] = await db.select().from(todos).where(eq(todos.id, id));
       if (!existing) {
         return {
           content: [{ type: "text", text: `Todo not found: id=${id}` }],
@@ -207,7 +205,7 @@ export function registerTodoTools(server: McpServer) {
         };
       }
 
-      db.delete(todos).where(eq(todos.id, id)).run();
+      await db.delete(todos).where(eq(todos.id, id));
       return {
         content: [{ type: "text", text: `Todo deleted: id=${id}` }],
       };

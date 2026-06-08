@@ -74,12 +74,11 @@ export default async function PricingPage() {
   const preferredCurrency = locale === "zh" ? "CNY" : "USD";
 
   // Query enabled plans from DB
-  const dbPlans = db
+  const dbPlans = await db
     .select()
     .from(plans)
-    .where(eq(plans.enabled, 1))
-    .orderBy(plans.sortOrder)
-    .all();
+    .where(eq(plans.enabled, true))
+    .orderBy(plans.sortOrder);
 
   const highlightIndex = Math.floor(dbPlans.length / 2);
 

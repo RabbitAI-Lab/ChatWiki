@@ -7,12 +7,12 @@ import type { ProviderConfigField } from "./types";
  * 初始化并注册所有已启用的支付提供商。
  * 在服务启动时调用一次；后台修改配置后可再次调用刷新。
  */
-export function initProviders(): void {
+export async function initProviders(): Promise<void> {
   const knownProviders = ["stripe" /* , "paypal", "alipay" */];
 
   for (const name of knownProviders) {
     try {
-      const config = getProviderConfig(name);
+      const config = await getProviderConfig(name);
       if (!config) continue;
 
       switch (name) {

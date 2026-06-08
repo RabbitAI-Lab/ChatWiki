@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get("accountId") || auth.id;
 
-  const workspaces = listWorkspaces(accountId);
+  const workspaces = await listWorkspaces(accountId);
   return NextResponse.json(workspaces);
 }
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
 
   // 功能门控：workspace 功能需要订阅包含该 feature 的套餐
-  const featureErr = requireFeature(auth, "workspace");
+  const featureErr = await requireFeature(auth, "workspace");
   if (featureErr) return featureErr;
 
   const t = await getApiT();
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const accountId = auth.id;
   if (!name) return NextResponse.json({ error: t('api.nameRequired') }, { status: 400 });
 
-  const meta = createWorkspace(accountId, name);
+  const meta = await createWorkspace(accountId, name);
   return NextResponse.json(meta);
 }
 
@@ -40,7 +40,7 @@ export async function DELETE(req: NextRequest) {
   const { id } = body;
   if (!id) return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
 
-  deleteWorkspace(id);
+  await deleteWorkspace(id);
   return NextResponse.json({ success: true });
 }
 
@@ -54,12 +54,12 @@ export async function PATCH(req: NextRequest) {
 
   const dirSegments = ["workspace", id];
 
-  const meta = readWorkspaceMeta(dirSegments);
+  const meta = await readWorkspaceMeta(dirSegments);
   if (!meta) return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
 
   if (name !== undefined) meta.name = name;
   if (sortOrder !== undefined) meta.sortOrder = sortOrder;
-  writeWorkspaceMeta(meta, dirSegments);
+  await writeWorkspaceMeta(meta, dirSegments);
   return NextResponse.json(meta);
 }
 
@@ -74,10 +74,10 @@ export async function PUT(req: NextRequest) {
 
   for (const item of orders) {
     const dirSegments = ["workspace", item.id];
-    const meta = readWorkspaceMeta(dirSegments);
+    const meta = await readWorkspaceMeta(dirSegments);
     if (meta) {
       meta.sortOrder = item.sortOrder;
-      writeWorkspaceMeta(meta, dirSegments);
+      await writeWorkspaceMeta(meta, dirSegments);
     }
   }
   return NextResponse.json({ success: true });

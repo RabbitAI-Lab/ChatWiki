@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Clean 分支：清理项目根的 .gitnexus/ 索引
-    const result = runGitNexus({
+    const result = await runGitNexus({
       scope: "project",
       dirSegments,
       command: "clean",

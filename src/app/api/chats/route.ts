@@ -23,27 +23,24 @@ export async function GET(req: NextRequest) {
   if (scope === "all") {
     // 兼容旧调用: 显示自己的 chats + 成员项目/工作空间的 chats
     const userCondition = or(eq(chats.userId, auth.id), isNull(chats.userId));
-    const ownedEntities = db
+    const ownedEntities = await db
       .select({ id: entities.id, type: entities.type })
       .from(entities)
-      .where(eq(entities.ownerId, auth.id))
-      .all();
+      .where(eq(entities.ownerId, auth.id));
     const ownedProjectIds = ownedEntities.filter(e => e.type === "project").map(e => e.id);
     const ownedWorkspaceIds = ownedEntities.filter(e => e.type === "workspace").map(e => e.id);
     const memberProjectIds = [...ownedProjectIds];
     const memberWorkspaceIds = [...ownedWorkspaceIds];
     // 查找参与的实体
-    const memberRows = db
+    const memberRows = await db
       .select({ entityId: entityMembers.entityId })
       .from(entityMembers)
-      .where(eq(entityMembers.userId, auth.id))
-      .all();
+      .where(eq(entityMembers.userId, auth.id));
     if (memberRows.length > 0) {
-      const memberEntities = db
+      const memberEntities = await db
         .select({ id: entities.id, type: entities.type })
         .from(entities)
-        .where(inArray(entities.id, memberRows.map(r => r.entityId)))
-        .all();
+        .where(inArray(entities.id, memberRows.map(r => r.entityId)));
       for (const e of memberEntities) {
         if (e.type === "project" && !memberProjectIds.includes(e.id)) memberProjectIds.push(e.id);
         if (e.type === "workspace" && !memberWorkspaceIds.includes(e.id)) memberWorkspaceIds.push(e.id);
@@ -59,11 +56,10 @@ export async function GET(req: NextRequest) {
     }
   } else if (scope === "owned") {
     // "我的项目/空间": 查 entities 表中 ownerId = auth.id 的 project/workspace
-    const ownedEntities = db
+    const ownedEntities = await db
       .select({ id: entities.id, type: entities.type })
       .from(entities)
-      .where(eq(entities.ownerId, auth.id))
-      .all();
+      .where(eq(entities.ownerId, auth.id));
     const ownedProjectIds = ownedEntities.filter(e => e.type === "project").map(e => e.id);
     const ownedWorkspaceIds = ownedEntities.filter(e => e.type === "workspace").map(e => e.id);
 
@@ -77,7 +73,7 @@ export async function GET(req: NextRequest) {
     conditions.push(or(...parts)!);
   } else {
     // "我参与的": 查 entityMembers 表中 userId = auth.id 且 ownerId != auth.id
-    const memberRows = db
+    const memberRows2 = await db
       .select({ entityId: entityMembers.entityId })
       .from(entityMembers)
       .where(
@@ -85,19 +81,17 @@ export async function GET(req: NextRequest) {
           eq(entityMembers.userId, auth.id),
           sql`${entityMembers.ownerId} != ${auth.id}`
         )
-      )
-      .all();
-    const participatedIds = memberRows.map(r => r.entityId);
+      );
+    const participatedIds = memberRows2.map(r => r.entityId);
     if (participatedIds.length === 0) {
       // 没有参与的实体，直接返回空
       return NextResponse.json({ chats: [], total: 0, page, pageSize, totalPages: 0 });
     }
     // 分别查这些 ID 是 project 还是 workspace
-    const participatedEntities = db
+    const participatedEntities = await db
       .select({ id: entities.id, type: entities.type })
       .from(entities)
-      .where(inArray(entities.id, participatedIds))
-      .all();
+      .where(inArray(entities.id, participatedIds));
     const participatedProjectIds = participatedEntities.filter(e => e.type === "project").map(e => e.id);
     const participatedWorkspaceIds = participatedEntities.filter(e => e.type === "workspace").map(e => e.id);
 
@@ -120,17 +114,16 @@ export async function GET(req: NextRequest) {
   }
   const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const totalResult = db
+  const [totalResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(chats)
-    .where(whereCondition)
-    .get();
+    .where(whereCondition);
   const total = totalResult?.count ?? 0;
 
   const creatorUser = aliasedTable(users, "creator_user");
   const modifierUser = aliasedTable(users, "modifier_user");
 
-  const rows = db
+  const rows = await db
     .select({
       id: chats.id,
       title: chats.title,
@@ -153,8 +146,7 @@ export async function GET(req: NextRequest) {
     .where(whereCondition)
     .orderBy(desc(chats.updatedAt))
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
   return NextResponse.json({ chats: rows, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
@@ -162,7 +154,7 @@ export async function GET(req: NextRequest) {
 // DELETE /api/chats - 清空当前用户的会话
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
-  db.delete(chats).where(eq(chats.userId, auth.id)).run();
+  await db.delete(chats).where(eq(chats.userId, auth.id));
   return NextResponse.json({ success: true });
 }
 
@@ -173,7 +165,7 @@ export async function POST(req: NextRequest) {
   const { title, modelId, templateId, projectId, workspaceId } = body;
 
   const now = new Date().toISOString();
-  const result = db.insert(chats).values({
+  const [created] = await db.insert(chats).values({
     userId: auth.id,
     title: title || "New Chat",
     modelId: modelId ?? undefined,
@@ -182,11 +174,7 @@ export async function POST(req: NextRequest) {
     workspaceId: workspaceId ?? undefined,
     createdAt: now,
     updatedAt: now,
-  }).run();
-
-  const created = db.select().from(chats).where(
-    eq(chats.id, result.lastInsertRowid as number)
-  ).get();
+  }).returning();
 
   return NextResponse.json(created);
 }

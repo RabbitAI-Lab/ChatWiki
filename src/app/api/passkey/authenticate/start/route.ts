@@ -7,7 +7,7 @@ import { getSetting, setSetting } from "@/lib/auth/settings";
 import { getApiT } from "@/lib/i18n-api";
 
 export async function POST(req: NextRequest) {
-  const enabled = getSetting("passkey_enabled") === "true";
+  const enabled = (await getSetting("passkey_enabled")) === "true";
   if (!enabled) {
     const t = await getApiT();
     return NextResponse.json({ error: t('api.passkey.authenticationDisabled') }, { status: 400 });
@@ -22,18 +22,16 @@ export async function POST(req: NextRequest) {
   }> = [];
 
   if (email) {
-    const user = db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
-      .get();
+      .where(eq(users.email, email));
 
     if (user) {
-      const userPasskeys = db
+      const userPasskeys = await db
         .select()
         .from(passkeys)
-        .where(eq(passkeys.userId, user.id))
-        .all();
+        .where(eq(passkeys.userId, user.id));
 
       allowCredentials = userPasskeys.map((p) => ({
         id: p.credentialId as `${string}${string}`,
@@ -44,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const rpID = getSetting("passkey_rp_id") || req.headers.get("host")?.split(":")[0] || "localhost";
+  const rpID = (await getSetting("passkey_rp_id")) || req.headers.get("host")?.split(":")[0] || "localhost";
 
   const options = await generateAuthenticationOptions({
     rpID,
@@ -54,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   // 存储 challenge
   const challengeKey = `passkey_auth_challenge_${Date.now()}`;
-  setSetting(challengeKey, options.challenge as unknown as string);
+  await setSetting(challengeKey, options.challenge as unknown as string);
 
   return NextResponse.json({ ...options, _challengeKey: challengeKey });
 }

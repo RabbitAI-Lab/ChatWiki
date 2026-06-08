@@ -62,17 +62,17 @@ export default async function ProjectPage({
   }
 
   // Read project metadata
-  const projectMeta = readProjectMeta(projectDirSegments);
+  const projectMeta = await readProjectMeta(projectDirSegments);
   const projectName = projectMeta?.name || projectId;
 
   // Resolve owner user info (name + email fallback)
   let ownerUser: { name: string | null; email: string } | null = null;
   if (projectMeta?.ownerId) {
-    ownerUser = db
+    const [ownerUserRow] = await db
       .select({ name: users.name, email: users.email })
       .from(users)
-      .where(eq(users.id, projectMeta.ownerId))
-      .get() ?? null;
+      .where(eq(users.id, projectMeta.ownerId));
+    ownerUser = ownerUserRow ?? null;
   }
 
   // Resolve account info
@@ -91,7 +91,7 @@ export default async function ProjectPage({
   ];
   const modifierUser = aliasedTable(users, "modifier_user");
 
-  const recentChats = db
+  const recentChats = (await db
     .select({
       id: chats.id,
       title: chats.title,
@@ -106,8 +106,7 @@ export default async function ProjectPage({
     .leftJoin(users, eq(chats.userId, users.id))
     .leftJoin(modifierUser, eq(chats.updatedBy, modifierUser.id))
     .where(and(...chatConditions))
-    .orderBy(desc(chats.updatedAt))
-    .all()
+    .orderBy(desc(chats.updatedAt)))
     .map((row) => ({
       id: row.id,
       title: row.title,
@@ -118,7 +117,7 @@ export default async function ProjectPage({
     }));
 
   // Fetch recent document activities for this project (last 20 days)
-  const recentDocuments = db
+  const recentDocuments = (await db
     .select({
       id: documentActivities.id,
       projectId: documentActivities.projectId,
@@ -138,8 +137,7 @@ export default async function ProjectPage({
       gte(documentActivities.createdAt, twentyDaysAgo)
     ))
     .orderBy(desc(documentActivities.createdAt))
-    .limit(20)
-    .all()
+    .limit(20))
     .map((row) => ({
       id: row.id,
       projectId: row.projectId,

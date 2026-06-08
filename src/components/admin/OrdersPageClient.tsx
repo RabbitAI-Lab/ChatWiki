@@ -290,7 +290,7 @@ export default function OrdersPageClient() {
           onChange: (p, ps) => { setPage(p); setPageSize(ps); },
         }}
         scroll={{ x: 1000 }}
-        size="small"
+        size="middle"
       />
     </div>
   );

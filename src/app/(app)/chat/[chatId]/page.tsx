@@ -26,7 +26,7 @@ export default async function ChatPage({
   }
 
   // 查询 chat，通过 canAccessChat 做权限检查
-  const chat = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   if (!chat) notFound();
 
   if (currentUserId) {
@@ -48,11 +48,10 @@ export default async function ChatPage({
   }
 
   // 孤立 chat（无 projectId 和 workspaceId）：保留原有的独立页面渲染
-  const messages = db
+  const messages = await db
     .select()
     .from(chatMessages)
-    .where(eq(chatMessages.chatId, parseInt(chatId)))
-    .all();
+    .where(eq(chatMessages.chatId, parseInt(chatId)));
 
   return (
     <ChatPageContent

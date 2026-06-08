@@ -221,8 +221,8 @@ export class StripeProvider implements PaymentProvider {
 // Provider 实例在创建时缓存配置。后台修改配置后需重新注册。
 // 这在 index.ts 的 initProviders() 中处理。
 
-export function createStripeProviderFromConfig(): StripeProvider | null {
-  const config = getProviderConfig("stripe");
+export async function createStripeProviderFromConfig(): Promise<StripeProvider | null> {
+  const config = await getProviderConfig("stripe");
   if (!config) return null;
   return new StripeProvider(config);
 }

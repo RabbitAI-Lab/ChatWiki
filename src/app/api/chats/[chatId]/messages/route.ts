@@ -16,15 +16,14 @@ export async function GET(
   const t = await getApiT();
 
   // 校验 chat 访问权限
-  const chat = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   if (!chat) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
   if (!canAccessChat(auth, chat)) return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
 
-  const messages = db
+  const messages = await db
     .select()
     .from(chatMessages)
-    .where(eq(chatMessages.chatId, parseInt(chatId)))
-    .all();
+    .where(eq(chatMessages.chatId, parseInt(chatId)));
 
   return NextResponse.json(messages);
 }
@@ -39,7 +38,7 @@ export async function POST(
   const t = await getApiT();
 
   // 校验 chat 访问权限
-  const existing = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [existing] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   if (!existing) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
   if (!canAccessChat(auth, existing)) return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
 
@@ -52,11 +51,10 @@ export async function POST(
 
   // 幂等插入：assistant 消息去重
   if (role === "assistant") {
-    const lastMsg = db.select().from(chatMessages)
+    const [lastMsg] = await db.select().from(chatMessages)
       .where(eq(chatMessages.chatId, parseInt(chatId)))
       .orderBy(desc(chatMessages.id))
-      .limit(1)
-      .get();
+      .limit(1);
 
     if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === content) {
       // 已存在相同的 assistant 消息，直接返回已有记录
@@ -71,7 +69,7 @@ export async function POST(
     }
   }
 
-  const result = db.insert(chatMessages).values({
+  const [inserted] = await db.insert(chatMessages).values({
     chatId: parseInt(chatId),
     role,
     content,
@@ -79,22 +77,21 @@ export async function POST(
     thinking: thinking ?? null,
     thinkingSignature: thinkingSignature ?? null,
     // 标记错误消息
-    isError: isError ? 1 : 0,
+    isError: isError ? true : false,
     createdAt: new Date().toISOString(),
-  }).run();
+  }).returning();
 
   // Update chat's updatedAt and updatedBy
-  db.update(chats)
+  await db.update(chats)
     .set({ updatedAt: new Date().toISOString(), updatedBy: auth.id })
-    .where(eq(chats.id, parseInt(chatId)))
-    .run();
+    .where(eq(chats.id, parseInt(chatId)));
 
   return NextResponse.json({
-    id: result.lastInsertRowid,
+    id: inserted.id,
     role,
     content,
     thinking: thinking ?? null,
     thinkingSignature: thinkingSignature ?? null,
-    isError: isError ? 1 : 0,
+    isError: isError ? true : false,
   });
 }

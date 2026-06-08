@@ -8,11 +8,11 @@ export async function GET(req: NextRequest) {
   const authResult = await requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  const keys = listApiKeys(authResult.id);
+  const keys = await listApiKeys(authResult.id);
   return NextResponse.json({
     keys: keys.map((k) => ({
       ...k,
-      isSystem: k.isSystem === 1,
+      isSystem: k.isSystem === true,
     })),
   });
 }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const parsed = createSchema.safeParse(body);
     const name = parsed.success ? parsed.data.name : undefined;
 
-    const result = createApiKey(authResult.id, name);
+    const result = await createApiKey(authResult.id, name);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     const msg = error instanceof Error ? error.message : t('api.apiKeys.failedToCreate');

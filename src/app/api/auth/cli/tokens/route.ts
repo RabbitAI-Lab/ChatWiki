@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const authResult = await requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  const tokens = db
+  const tokens = await db
     .select({
       id: cliTokens.id,
       name: cliTokens.name,
@@ -17,8 +17,7 @@ export async function GET(req: NextRequest) {
       createdAt: cliTokens.createdAt,
     })
     .from(cliTokens)
-    .where(eq(cliTokens.userId, authResult.id))
-    .all();
+    .where(eq(cliTokens.userId, authResult.id));
 
   return NextResponse.json({ tokens });
 }

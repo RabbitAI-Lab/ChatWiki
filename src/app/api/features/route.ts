@@ -11,11 +11,11 @@ export async function GET(req: NextRequest) {
 
   // admin 用户拥有所有已定义的功能
   if (auth.isAdmin) {
-    const allFeatures = getAllFeatureNames();
+    const allFeatures = await getAllFeatureNames();
     return NextResponse.json({ features: allFeatures });
   }
 
   // 普通用户：查订阅 → 过滤 included 的 feature names
-  const features = getUserFeatures(auth.id);
+  const features = await getUserFeatures(auth.id);
   return NextResponse.json({ features });
 }

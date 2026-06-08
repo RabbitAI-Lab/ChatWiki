@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/plans
 export async function GET() {
-  const all = db.select().from(plans).orderBy(plans.sortOrder).all();
+  const all = await db.select().from(plans).orderBy(plans.sortOrder);
   const paymentAvailable = isProviderAvailable("stripe");
   return NextResponse.json({ plans: all, paymentAvailable });
 }
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const result = db
+  const [inserted] = await db
     .insert(plans)
     .values({
       title,
@@ -39,14 +39,14 @@ export async function POST(req: NextRequest) {
       discountType: discountType ?? "none",
       discountValue: discountValue ?? 0,
       features: typeof features === "string" ? features : JSON.stringify(features ?? []),
-      enabled: enabled ?? 1,
+      enabled: enabled ?? true,
       sortOrder: sortOrder ?? 0,
       tokenLimitMonthly: tokenLimitMonthly ?? 0,
       tokenLimitYearly: tokenLimitYearly ?? 0,
       createdAt: now,
       updatedAt: now,
     })
-    .run();
+    .returning();
 
-  return NextResponse.json({ id: result.lastInsertRowid, title });
+  return NextResponse.json({ id: inserted.id, title });
 }

@@ -22,7 +22,7 @@ export async function POST(
       note?: string;
     };
 
-    const refund = db.select().from(refunds).where(eq(refunds.id, refundId)).get();
+    const [refund] = await db.select().from(refunds).where(eq(refunds.id, refundId));
     if (!refund) {
       return NextResponse.json({ error: "Refund not found" }, { status: 404 });
     }
@@ -34,7 +34,7 @@ export async function POST(
     const now = new Date().toISOString();
 
     if (action === "reject") {
-      db.update(refunds)
+      await db.update(refunds)
         .set({
           status: "rejected",
           reviewedBy: admin.id,
@@ -42,13 +42,12 @@ export async function POST(
           reviewNote: note || null,
           updatedAt: now,
         })
-        .where(eq(refunds.id, refundId))
-        .run();
+        .where(eq(refunds.id, refundId));
 
       // 通知用户退款被拒
       try {
         const { createRefundStatusNotification } = await import("@/lib/payment/notification");
-        const order = db.select().from(orders).where(eq(orders.id, refund.orderId)).get();
+        const [order] = await db.select().from(orders).where(eq(orders.id, refund.orderId));
         await createRefundStatusNotification(refund.userId, refund.orderId, "refund_rejected", {
           amount: (refund.amount / 100).toFixed(2),
           currency: order?.currency || "CNY",
@@ -63,7 +62,7 @@ export async function POST(
 
     if (action === "approve") {
       // 获取关联订单
-      const order = db.select().from(orders).where(eq(orders.id, refund.orderId)).get();
+      const [order] = await db.select().from(orders).where(eq(orders.id, refund.orderId));
       if (!order) {
         return NextResponse.json({ error: "Associated order not found" }, { status: 404 });
       }
@@ -80,7 +79,7 @@ export async function POST(
       }
 
       // 更新退款状态为 processing
-      db.update(refunds)
+      await db.update(refunds)
         .set({
           status: "processing",
           amount: refundAmount,
@@ -89,8 +88,7 @@ export async function POST(
           reviewNote: note || null,
           updatedAt: now,
         })
-        .where(eq(refunds.id, refundId))
-        .run();
+        .where(eq(refunds.id, refundId));
 
       // 通过 Provider 执行退款
       try {
@@ -102,38 +100,34 @@ export async function POST(
         });
 
         // 更新退款记录
-        db.update(refunds)
+        await db.update(refunds)
           .set({
             status: "completed",
             providerRefundId: result.providerRefundId,
             updatedAt: new Date().toISOString(),
           })
-          .where(eq(refunds.id, refundId))
-          .run();
+          .where(eq(refunds.id, refundId));
 
         // 更新订单状态
         const newOrderStatus = refundAmount >= order.amount ? "refunded" : "partially_refunded";
-        db.update(orders)
+        await db.update(orders)
           .set({ status: newOrderStatus, updatedAt: new Date().toISOString() })
-          .where(eq(orders.id, order.id))
-          .run();
+          .where(eq(orders.id, order.id));
 
         // 全额退款时取消订阅
         if (newOrderStatus === "refunded" && order.subscriptionId) {
-          db.update(userSubscriptions)
+          await db.update(userSubscriptions)
             .set({
               status: "cancelled",
               cancelledAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             })
-            .where(eq(userSubscriptions.id, order.subscriptionId!))
-            .run();
+            .where(eq(userSubscriptions.id, order.subscriptionId!));
 
           // 尝试在支付渠道取消订阅
           try {
-            const sub = db.select().from(userSubscriptions)
-              .where(eq(userSubscriptions.id, order.subscriptionId!))
-              .get();
+            const [sub] = await db.select().from(userSubscriptions)
+              .where(eq(userSubscriptions.id, order.subscriptionId!));
             if (sub?.providerSubscriptionId && paymentProvider.cancelSubscription) {
               await paymentProvider.cancelSubscription(sub.providerSubscriptionId);
             }
@@ -157,10 +151,9 @@ export async function POST(
       } catch (refundError) {
         console.error("[refund-review] Provider refund failed:", refundError);
 
-        db.update(refunds)
+        await db.update(refunds)
           .set({ status: "failed", updatedAt: new Date().toISOString() })
-          .where(eq(refunds.id, refundId))
-          .run();
+          .where(eq(refunds.id, refundId));
 
         return NextResponse.json(
           { error: `Refund failed: ${refundError instanceof Error ? refundError.message : "Unknown error"}` },

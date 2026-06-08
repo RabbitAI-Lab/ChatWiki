@@ -24,8 +24,8 @@ export default function AuthLanguageSwitcher() {
   };
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-0.5 text-xs">
-      <Languages className="h-3.5 w-3.5 ml-1 text-gray-400 dark:text-zinc-500" aria-hidden="true" />
+    <div className="inline-flex items-center gap-1 rounded-md p-0.5 text-xs">
+      <Languages className="h-3.5 w-3.5 ml-1 text-gray-400 dark:text-gray-500" aria-hidden="true" />
       {SUPPORTED.map((l) => {
         const active = l.code === current;
         return (
@@ -38,8 +38,8 @@ export default function AuthLanguageSwitcher() {
             className={[
               "px-2 py-1 rounded font-mono transition-colors duration-150",
               active
-                ? "bg-gray-100 dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 shadow-sm"
-                : "text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-300",
+                ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300",
               isPending ? "opacity-60 cursor-not-allowed" : "",
             ].join(" ")}
           >

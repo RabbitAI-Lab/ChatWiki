@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   const offset = (page - 1) * pageSize;
 
-  const orderList = db
+  const orderList = await db
     .select({
       id: orders.id,
       userId: orders.userId,
@@ -51,34 +51,35 @@ export async function GET(req: NextRequest) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(orders.createdAt))
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
   // 统计数据
+  const [totalRevenueRow] = await db.select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
+    .from(orders).where(eq(orders.status, "paid"));
+  const [monthlyRevenueRow] = await db.select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
+    .from(orders)
+    .where(and(
+      eq(orders.status, "paid"),
+      sql`TO_CHAR(paid_at, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`
+    ));
+  const [pendingRefundsRow] = await db.select({ count: sql<number>`count(*)` })
+    .from(refunds).where(eq(refunds.status, "pending"));
+  const { userSubscriptions: userSubsSchema } = await import("@/db/schema");
+  const [activeSubsRow] = await db.select({ count: sql<number>`count(*)` })
+    .from(userSubsSchema)
+    .where(eq(userSubsSchema.status, "active"));
   const stats = {
-    totalRevenue: db.select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
-      .from(orders).where(eq(orders.status, "paid")).get()?.total || 0,
-    monthlyRevenue: db.select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
-      .from(orders)
-      .where(and(
-        eq(orders.status, "paid"),
-        sql`strftime('%Y-%m', paid_at) = strftime('%Y-%m', 'now')`
-      ))
-      .get()?.total || 0,
-    pendingRefunds: db.select({ count: sql<number>`count(*)` })
-      .from(refunds).where(eq(refunds.status, "pending")).get()?.count || 0,
-    activeSubscriptions: db.select({ count: sql<number>`count(*)` })
-      .from((await import("@/db/schema")).userSubscriptions)
-      .where(eq((await import("@/db/schema")).userSubscriptions.status, "active"))
-      .get()?.count || 0,
+    totalRevenue: totalRevenueRow?.total || 0,
+    monthlyRevenue: monthlyRevenueRow?.total || 0,
+    pendingRefunds: pendingRefundsRow?.count || 0,
+    activeSubscriptions: activeSubsRow?.count || 0,
   };
 
-  const countResult = db
+  const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(orders)
     .leftJoin(users, eq(orders.userId, users.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .get();
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   return NextResponse.json({
     orders: orderList,

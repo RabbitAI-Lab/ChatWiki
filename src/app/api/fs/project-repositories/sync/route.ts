@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const dirSegments = ["projects", projectId];
 
   try {
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }

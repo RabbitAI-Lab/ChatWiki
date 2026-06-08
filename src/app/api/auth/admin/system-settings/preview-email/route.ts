@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const brandName = getSetting("brand_name") || "RabbitDocs";
+    const brandName = (await getSetting("brand_name")) || "RabbitDocs";
     const sampleCode = "384726";
     const sampleVerifyUrl =
       "https://example.com/verify-email?token=sample-token";

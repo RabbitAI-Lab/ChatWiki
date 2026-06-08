@@ -8,20 +8,20 @@ import { findMemberEntityIds } from "@/lib/fs";
  * 3. chat 的 userId 为 null（旧数据）
  * 4. chat 关联的项目/工作空间，用户是其成员
  */
-export function canAccessChat(
+export async function canAccessChat(
   auth: { id: string; isAdmin: boolean },
   chat: { userId: string | null; projectId: string | null; workspaceId: string | null }
-): boolean {
+): Promise<boolean> {
   if (auth.isAdmin) return true;
   if (!chat.userId || chat.userId === auth.id) return true;
 
   // 检查成员项目/工作空间
   if (chat.projectId) {
-    const memberProjectIds = findMemberEntityIds(auth.id, "projects", ".project.json");
+    const memberProjectIds = await findMemberEntityIds(auth.id, "projects", ".project.json");
     if (memberProjectIds.includes(chat.projectId)) return true;
   }
   if (chat.workspaceId) {
-    const memberWorkspaceIds = findMemberEntityIds(auth.id, "workspace", ".workspace.json");
+    const memberWorkspaceIds = await findMemberEntityIds(auth.id, "workspace", ".workspace.json");
     if (memberWorkspaceIds.includes(chat.workspaceId)) return true;
   }
 

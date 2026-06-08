@@ -11,11 +11,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const record = db
+  const [record] = await db
     .select()
     .from(systemPrompts)
-    .where(eq(systemPrompts.id, parseInt(id)))
-    .get();
+    .where(eq(systemPrompts.id, parseInt(id)));
   if (!record)
     return NextResponse.json({ error: "Not found" }, { status: 404 }); // non-authed GET
   return NextResponse.json(record);
@@ -39,10 +38,9 @@ export async function PATCH(
   if (body.enabled !== undefined) updateData.enabled = body.enabled;
   if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
 
-  db.update(systemPrompts)
+  await db.update(systemPrompts)
     .set(updateData)
-    .where(eq(systemPrompts.id, parseInt(id)))
-    .run();
+    .where(eq(systemPrompts.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }
 
@@ -54,19 +52,17 @@ export async function DELETE(
   const { id } = await params;
 
   // 禁止删除内置系统提示词
-  const record = db
+  const [record] = await db
     .select()
     .from(systemPrompts)
-    .where(eq(systemPrompts.id, parseInt(id)))
-    .get();
+    .where(eq(systemPrompts.id, parseInt(id)));
   const t = await getApiT();
   if (!record)
     return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
-  if (record.isSystem === 1)
+  if (record.isSystem === true)
     return NextResponse.json({ error: t('api.systemPrompts.cannotDeleteBuiltin') }, { status: 403 });
 
-  db.delete(systemPrompts)
-    .where(eq(systemPrompts.id, parseInt(id)))
-    .run();
+  await db.delete(systemPrompts)
+    .where(eq(systemPrompts.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }

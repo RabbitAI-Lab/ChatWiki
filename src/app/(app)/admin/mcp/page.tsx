@@ -3,8 +3,8 @@ import { mcpConfig } from "@/db/schema";
 import McpPageClient from "@/components/admin/McpPageClient";
 import { getBrandName } from "@/lib/auth/settings";
 
-export default function McpPage() {
-  const config = db.select().from(mcpConfig).get();
+export default async function McpPage() {
+  const [config] = await db.select().from(mcpConfig);
 
   return (
     <McpPageClient
@@ -16,7 +16,7 @@ export default function McpPage() {
             }
           : undefined
       }
-      brandName={getBrandName()}
+      brandName={await getBrandName()}
     />
   );
 }

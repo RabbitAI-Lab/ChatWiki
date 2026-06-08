@@ -15,11 +15,10 @@ export async function POST(req: NextRequest) {
 
     // 查找用户的 satoken login ID
     if (!loginId) {
-      const user = db
+      const [user] = await db
         .select({ satokenLoginId: users.satokenLoginId })
         .from(users)
-        .where(eq(users.id, authResult.id))
-        .get();
+        .where(eq(users.id, authResult.id));
 
       if (user?.satokenLoginId) {
         await saTokenLogout(user.satokenLoginId);

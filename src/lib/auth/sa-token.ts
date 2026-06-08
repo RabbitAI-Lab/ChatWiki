@@ -12,22 +12,22 @@ interface SaTokenConfig {
   timeout: number;
 }
 
-export function getSaTokenConfig(): SaTokenConfig {
+export async function getSaTokenConfig(): Promise<SaTokenConfig> {
   return {
-    enabled: getSetting("satoken_enabled") === "true",
-    endpoint: getSetting("satoken_endpoint") || "",
-    secretkey: getSetting("satoken_secretkey") || "",
-    timeout: parseInt(getSetting("satoken_timeout") || "86400", 10),
+    enabled: (await getSetting("satoken_enabled")) === "true",
+    endpoint: (await getSetting("satoken_endpoint")) || "",
+    secretkey: (await getSetting("satoken_secretkey")) || "",
+    timeout: parseInt((await getSetting("satoken_timeout")) || "86400", 10),
   };
 }
 
-export function isSaTokenEnabled(): boolean {
-  const config = getSaTokenConfig();
+export async function isSaTokenEnabled(): Promise<boolean> {
+  const config = await getSaTokenConfig();
   return config.enabled && !!config.endpoint && !!config.secretkey;
 }
 
-export function getAuthUrl(callbackUrl: string): string {
-  const config = getSaTokenConfig();
+export async function getAuthUrl(callbackUrl: string): Promise<string> {
+  const config = await getSaTokenConfig();
   return `${config.endpoint}/sso/auth?redirect=${encodeURIComponent(callbackUrl)}`;
 }
 
@@ -36,7 +36,7 @@ export async function checkTicket(ticket: string): Promise<{
   loginId?: string;
   error?: string;
 }> {
-  const config = getSaTokenConfig();
+  const config = await getSaTokenConfig();
   const url = `${config.endpoint}/sso/checkTicket?ticket=${encodeURIComponent(ticket)}&secretkey=${encodeURIComponent(config.secretkey)}`;
 
   try {
@@ -85,11 +85,11 @@ export async function handleCallback(ticket: string): Promise<{
   const { isAdmin } = await import("./settings");
 
   // 查找或创建用户
-  let user = db
+  let [user] = await db
     .select()
     .from(users)
     .where(eq(users.satokenLoginId, loginId))
-    .get();
+    .limit(1);
 
   if (!user) {
     // 自动创建用户
@@ -97,25 +97,24 @@ export async function handleCallback(ticket: string): Promise<{
     const now = new Date().toISOString();
     const email = `${loginId}@sso.local`;
 
-    db.insert(users)
+    await db.insert(users)
       .values({
         id: userId,
         email,
         passwordHash: "", // SSO 用户无密码
         name: loginId,
-        emailVerified: 1,
+        emailVerified: true,
         accountType: "personal",
         satokenLoginId: loginId,
         createdAt: now,
         updatedAt: now,
-      })
-      .run();
+      });
 
-    user = db
+    [user] = await db
       .select()
       .from(users)
       .where(eq(users.id, userId))
-      .get();
+      .limit(1);
   }
 
   if (!user) return null;
@@ -130,15 +129,15 @@ export async function handleCallback(ticket: string): Promise<{
       id: user.id,
       email: user.email,
       name: user.name,
-      emailVerified: user.emailVerified === 1,
+      emailVerified: user.emailVerified === true,
       accountType: user.accountType,
-      isAdmin: isAdmin(user.id),
+      isAdmin: await isAdmin(user.id),
     },
   };
 }
 
 export async function saTokenLogout(loginId: string): Promise<void> {
-  const config = getSaTokenConfig();
+  const config = await getSaTokenConfig();
   if (!config.enabled || !config.endpoint) return;
 
   try {

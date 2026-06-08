@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 获取 Stripe Provider
-    const config = getProviderConfig("stripe");
+    const config = await getProviderConfig("stripe");
     if (!config) {
       return NextResponse.json({ error: "Stripe not configured" }, { status: 400 });
     }
@@ -65,13 +65,13 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
   if (!event.orderId) return;
 
   // 幂等检查
-  const order = db.select().from(orders).where(eq(orders.id, event.orderId)).get();
+  const [order] = await db.select().from(orders).where(eq(orders.id, event.orderId));
   if (!order || order.status === "paid") return;
 
   const now = new Date().toISOString();
 
   // 1. 更新 Order
-  db.update(orders)
+  await db.update(orders)
     .set({
       status: "paid",
       paidAt: now,
@@ -80,19 +80,17 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
       providerInvoiceId: event.providerInvoiceId || order.providerInvoiceId,
       updatedAt: now,
     })
-    .where(eq(orders.id, event.orderId))
-    .run();
+    .where(eq(orders.id, event.orderId));
 
   // 2. 更新用户 providerCustomerIds
   if (event.userId && event.providerCustomerId) {
-    const user = db.select().from(users).where(eq(users.id, event.userId)).get();
+    const [user] = await db.select().from(users).where(eq(users.id, event.userId));
     if (user) {
       const customerIds = JSON.parse(user.providerCustomerIds || "{}");
       customerIds["stripe"] = event.providerCustomerId;
-      db.update(users)
+      await db.update(users)
         .set({ providerCustomerIds: JSON.stringify(customerIds) })
-        .where(eq(users.id, event.userId))
-        .run();
+        .where(eq(users.id, event.userId));
     }
   }
 
@@ -109,16 +107,15 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
     }
 
     // 检查是否已有活跃订阅
-    const existingSub = db.select().from(userSubscriptions)
+    const [existingSub] = await db.select().from(userSubscriptions)
       .where(and(
         eq(userSubscriptions.userId, event.userId),
         eq(userSubscriptions.status, "active"),
-      ))
-      .get();
+      ));
 
     if (existingSub) {
       // 升级/续费：更新
-      db.update(userSubscriptions)
+      await db.update(userSubscriptions)
         .set({
           planId: event.planId,
           billingCycle,
@@ -130,11 +127,10 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
           paymentMode,
           updatedAt: now,
         })
-        .where(eq(userSubscriptions.id, existingSub.id))
-        .run();
+        .where(eq(userSubscriptions.id, existingSub.id));
     } else {
       // 新建订阅
-      db.insert(userSubscriptions).values({
+      await db.insert(userSubscriptions).values({
         id: uuidv4(),
         userId: event.userId,
         planId: event.planId,
@@ -148,7 +144,7 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
         paymentMode,
         createdAt: now,
         updatedAt: now,
-      }).run();
+      });
     }
 
     // 4. 创建通知
@@ -156,9 +152,8 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
       const { createOrderPaidNotifications, cancelPendingReminders } = await import("@/lib/payment/notification");
       await cancelPendingReminders(event.orderId);
 
-      const plan = db.select().from(plans)
-        .where(eq(plans.id, event.planId!))
-        .get();
+      const [plan] = await db.select().from(plans)
+        .where(eq(plans.id, event.planId!));
 
       await createOrderPaidNotifications(event.orderId, event.userId, {
         planTitle: plan?.title || "",
@@ -177,9 +172,8 @@ async function handleCheckoutCompleted(event: StandardWebhookEvent) {
 async function handleSubscriptionRenewed(event: StandardWebhookEvent) {
   if (!event.providerSubscriptionId) return;
 
-  const sub = db.select().from(userSubscriptions)
-    .where(eq(userSubscriptions.providerSubscriptionId, event.providerSubscriptionId))
-    .get();
+  const [sub] = await db.select().from(userSubscriptions)
+    .where(eq(userSubscriptions.providerSubscriptionId, event.providerSubscriptionId));
   if (!sub) return;
 
   const now = new Date();
@@ -190,13 +184,12 @@ async function handleSubscriptionRenewed(event: StandardWebhookEvent) {
     endDate.setFullYear(endDate.getFullYear() + 1);
   }
 
-  db.update(userSubscriptions)
+  await db.update(userSubscriptions)
     .set({
       expiresAt: endDate.toISOString(),
       updatedAt: now.toISOString(),
     })
-    .where(eq(userSubscriptions.id, sub.id))
-    .run();
+    .where(eq(userSubscriptions.id, sub.id));
 
   // 创建续费成功通知 + 下一周期预告
   try {
@@ -215,21 +208,19 @@ async function handleSubscriptionRenewed(event: StandardWebhookEvent) {
 async function handleSubscriptionCancelled(event: StandardWebhookEvent) {
   if (!event.providerSubscriptionId) return;
 
-  db.update(userSubscriptions)
+  await db.update(userSubscriptions)
     .set({
       status: "cancelled",
       cancelledAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(userSubscriptions.providerSubscriptionId, event.providerSubscriptionId))
-    .run();
+    .where(eq(userSubscriptions.providerSubscriptionId, event.providerSubscriptionId));
 
   // 取消续费预告任务
   try {
     const { cancelRenewalReminders } = await import("@/lib/payment/notification");
-    const sub = db.select().from(userSubscriptions)
-      .where(eq(userSubscriptions.providerSubscriptionId, event.providerSubscriptionId))
-      .get();
+    const [sub] = await db.select().from(userSubscriptions)
+      .where(eq(userSubscriptions.providerSubscriptionId, event.providerSubscriptionId));
     if (sub) {
       await cancelRenewalReminders(sub.id);
     }
@@ -241,7 +232,7 @@ async function handleSubscriptionCancelled(event: StandardWebhookEvent) {
 async function handlePaymentFailed(event: StandardWebhookEvent) {
   // 通知用户支付失败
   if (event.providerCustomerId) {
-    const _user = db.select().from(users).where(eq(users.id, event.providerCustomerId!)).get();
+    const [_user] = await db.select().from(users).where(eq(users.id, event.providerCustomerId!));
     // 如果能找到用户，创建通知
     // （简化：通过 providerCustomerId 查找可能不精确，依赖 metadata 中的 userId）
   }
@@ -253,30 +244,26 @@ async function handleRefundCompleted(event: StandardWebhookEvent) {
 
   // 查找对应 refund 记录
   const { refunds } = await import("@/db/schema");
-  const refund = db.select().from(refunds)
-    .where(eq(refunds.providerRefundId, event.providerRefundId))
-    .get();
+  const [refund] = await db.select().from(refunds)
+    .where(eq(refunds.providerRefundId, event.providerRefundId));
 
   if (refund && refund.status !== "completed") {
     const now = new Date().toISOString();
-    db.update(refunds)
+    await db.update(refunds)
       .set({ status: "completed", updatedAt: now })
-      .where(eq(refunds.id, refund.id))
-      .run();
+      .where(eq(refunds.id, refund.id));
 
     // 更新 order 状态
-    const order = db.select().from(orders).where(eq(orders.id, refund.orderId)).get();
+    const [order] = await db.select().from(orders).where(eq(orders.id, refund.orderId));
     if (order) {
-      const totalRefunded = db.select().from(refunds)
-        .where(and(eq(refunds.orderId, order.id), eq(refunds.status, "completed")))
-        .all()
-        .reduce((sum, r) => sum + r.amount, 0);
+      const allRefunds = await db.select().from(refunds)
+        .where(and(eq(refunds.orderId, order.id), eq(refunds.status, "completed")));
+      const totalRefunded = allRefunds.reduce((sum, r) => sum + r.amount, 0);
 
       const newStatus = totalRefunded >= order.amount ? "refunded" : "partially_refunded";
-      db.update(orders)
+      await db.update(orders)
         .set({ status: newStatus, updatedAt: now })
-        .where(eq(orders.id, order.id))
-        .run();
+        .where(eq(orders.id, order.id));
     }
   }
 }

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
 
-  const subscription = db
+  const [subscription] = await db
     .select({
       id: userSubscriptions.id,
       planId: userSubscriptions.planId,
@@ -36,8 +36,7 @@ export async function GET(req: NextRequest) {
     .where(and(
       eq(userSubscriptions.userId, auth.id),
       eq(userSubscriptions.status, "active"),
-    ))
-    .get();
+    ));
 
   return NextResponse.json({ subscription: subscription ?? null });
 }
@@ -64,8 +63,8 @@ export async function POST(req: NextRequest) {
   const { planId, billingCycle } = parsed.data;
 
   // 验证 Plan 存在且启用
-  const plan = db.select().from(plans).where(eq(plans.id, planId)).get();
-  if (!plan || plan.enabled !== 1) {
+  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+  if (!plan || plan.enabled !== true) {
     return NextResponse.json(
       { error: t('api.subscriptions.planNotFoundOrDisabled') },
       { status: 404 },
@@ -81,14 +80,13 @@ export async function POST(req: NextRequest) {
   }
 
   // 查询当前活跃订阅
-  const current = db
+  const [current] = await db
     .select()
     .from(userSubscriptions)
     .where(and(
       eq(userSubscriptions.userId, auth.id),
       eq(userSubscriptions.status, "active"),
-    ))
-    .get();
+    ));
 
   if (current) {
     if (current.planId === planId && current.billingCycle === billingCycle) {
@@ -98,19 +96,18 @@ export async function POST(req: NextRequest) {
       );
     }
     // 升级/降级：取消旧订阅
-    db.update(userSubscriptions)
+    await db.update(userSubscriptions)
       .set({
         status: "cancelled",
         cancelledAt: now.toISOString(),
         updatedAt: now.toISOString(),
       })
-      .where(eq(userSubscriptions.id, current.id))
-      .run();
+      .where(eq(userSubscriptions.id, current.id));
   }
 
   // 创建新订阅
   const id = crypto.randomUUID();
-  db.insert(userSubscriptions)
+  await db.insert(userSubscriptions)
     .values({
       id,
       userId: auth.id,
@@ -121,8 +118,7 @@ export async function POST(req: NextRequest) {
       expiresAt: expiresAt.toISOString(),
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
-    })
-    .run();
+    });
 
   return NextResponse.json(
     { subscription: { id, planId, billingCycle, status: "active", startedAt: now.toISOString(), expiresAt: expiresAt.toISOString() } },

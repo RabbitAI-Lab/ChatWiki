@@ -29,11 +29,10 @@ export async function POST(req: NextRequest) {
     const { code, code_verifier, redirect_uri } = parsed.data;
 
     // 查找授权码
-    const authCode = db
+    const [authCode] = await db
       .select()
       .from(cliAuthorizationCodes)
-      .where(eq(cliAuthorizationCodes.code, code))
-      .get();
+      .where(eq(cliAuthorizationCodes.code, code));
 
     if (!authCode) {
       return NextResponse.json(
@@ -72,15 +71,14 @@ export async function POST(req: NextRequest) {
     }
 
     // 删除授权码（一次性使用）
-    db.delete(cliAuthorizationCodes)
-      .where(eq(cliAuthorizationCodes.id, authCode.id))
-      .run();
+    await db.delete(cliAuthorizationCodes)
+      .where(eq(cliAuthorizationCodes.id, authCode.id));
 
     // 生成 CLI token
     const tokenValue = `cli_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
 
-    db.insert(cliTokens)
+    await db.insert(cliTokens)
       .values({
         id: crypto.randomUUID(),
         name: "CLI Token",
@@ -88,8 +86,7 @@ export async function POST(req: NextRequest) {
         prefix: tokenValue.slice(0, 8),
         userId: authCode.userId,
         createdAt: now,
-      })
-      .run();
+      });
 
     return NextResponse.json({
       token_type: "Bearer",

@@ -29,11 +29,10 @@ export async function POST(req: NextRequest) {
     const { email, password } = parsed.data;
 
     // 查找用户
-    const user = db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
-      .get();
+      .where(eq(users.email, email));
 
     if (!user) {
       return NextResponse.json(
@@ -52,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 检查账号是否被禁用
-    if (user.disabled === 1) {
+    if (user.disabled === true) {
       return NextResponse.json(
         { error: t('api.auth.accountDisabled') },
         { status: 403 }
@@ -60,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 检查邮箱验证要求
-    if (isEmailVerificationRequired() && user.emailVerified !== 1) {
+    if (await isEmailVerificationRequired() && user.emailVerified !== true) {
       return NextResponse.json(
         {
           error: t('api.auth.emailVerificationRequired'),
@@ -84,9 +83,9 @@ export async function POST(req: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        emailVerified: user.emailVerified === 1,
+        emailVerified: user.emailVerified === true,
         accountType: user.accountType,
-        isAdmin: isAdmin(user.id),
+        isAdmin: await isAdmin(user.id),
       },
     });
 

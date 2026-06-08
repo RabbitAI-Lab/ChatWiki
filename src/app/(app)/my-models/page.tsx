@@ -218,13 +218,17 @@ export default function MyModelsPage() {
             {t("subtitle")}
           </p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
+        <button
           onClick={openCreateModal}
+          className="inline-flex items-center gap-2 shrink-0 text-sm font-medium border rounded-lg px-4 py-1.5 transition-colors cursor-pointer"
+          style={{
+            color: "var(--color-primary, #3B82F6)",
+            borderColor: "var(--color-primary, #3B82F6)",
+          }}
         >
+          <PlusOutlined />
           {t("addModel")}
-        </Button>
+        </button>
       </div>
 
       {/* Model List */}
@@ -232,9 +236,17 @@ export default function MyModelsPage() {
         <Card>
           <Empty description={t("emptyTitle")} className="py-8">
             <p className="text-sm text-gray-400 mb-4">{t("emptyDesc")}</p>
-            <Button type="primary" onClick={openCreateModal}>
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 text-sm font-medium border rounded-lg px-4 py-1.5 transition-colors cursor-pointer"
+              style={{
+                color: "var(--color-primary, #3B82F6)",
+                borderColor: "var(--color-primary, #3B82F6)",
+              }}
+            >
+              <PlusOutlined />
               {t("addModel")}
-            </Button>
+            </button>
           </Empty>
         </Card>
       ) : (

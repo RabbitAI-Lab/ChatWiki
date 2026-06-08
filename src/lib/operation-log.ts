@@ -19,7 +19,7 @@ export function extractProjectId(dirSegments: string[]): string {
 export async function logOperation(params: LogOperationParams): Promise<void> {
   try {
     const { db } = await import("@/db");
-    db.insert(operationLogs).values({
+    await db.insert(operationLogs).values({
       projectId: params.projectId,
       category: params.category,
       action: params.action,
@@ -27,7 +27,7 @@ export async function logOperation(params: LogOperationParams): Promise<void> {
       operator: params.operator || "System",
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
       createdAt: new Date().toISOString(),
-    }).run();
+    });
   } catch (err) {
     console.error("[operation-log] Failed to write log:", err);
   }

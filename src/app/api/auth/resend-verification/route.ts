@@ -29,23 +29,21 @@ export async function POST(req: NextRequest) {
     const { email } = parsed.data;
 
     // 查找用户
-    const user = db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
-      .get();
+      .where(eq(users.email, email));
 
     // 防止枚举：无论用户是否存在，都返回相同消息
-    if (!user || user.emailVerified === 1) {
+    if (!user || user.emailVerified === true) {
       return NextResponse.json({
         message: t('api.auth.resendVerificationMessage'),
       });
     }
 
     // 删除旧的验证令牌
-    db.delete(emailVerifications)
-      .where(eq(emailVerifications.userId, user.id))
-      .run();
+    await db.delete(emailVerifications)
+      .where(eq(emailVerifications.userId, user.id));
 
     // 创建新令牌（含 6 位数字验证码）
     const token = crypto.randomUUID();
@@ -53,7 +51,7 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    db.insert(emailVerifications)
+    await db.insert(emailVerifications)
       .values({
         id: crypto.randomUUID(),
         userId: user.id,
@@ -61,8 +59,7 @@ export async function POST(req: NextRequest) {
         code,
         expiresAt,
         createdAt: now,
-      })
-      .run();
+      });
 
     // 发送邮件（SMTP 未配置时 mail.ts 内部回退到控制台输出）
     try {

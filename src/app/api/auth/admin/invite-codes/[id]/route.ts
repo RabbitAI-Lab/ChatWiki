@@ -15,7 +15,7 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const target = db.select().from(inviteCodes).where(eq(inviteCodes.id, id)).get();
+    const [target] = await db.select().from(inviteCodes).where(eq(inviteCodes.id, id));
     if (!target) {
       return NextResponse.json({ error: t('api.auth.inviteCodes.notFound') }, { status: 404 });
     }
@@ -26,7 +26,7 @@ export async function DELETE(
       );
     }
 
-    db.delete(inviteCodes).where(eq(inviteCodes.id, id)).run();
+    await db.delete(inviteCodes).where(eq(inviteCodes.id, id));
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[auth] Admin delete invite code error:", error);

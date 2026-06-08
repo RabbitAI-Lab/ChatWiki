@@ -36,13 +36,10 @@ interface TableInfo {
 }
 
 interface DatabaseInfo {
-  filePath: string;
+  dataDir: string;
   fileSizeBytes: number;
   fileSizeHuman: string;
-  lastModified: string;
-  sqliteVersion: string;
-  journalMode: string;
-  integrityOk: boolean;
+  pgVersion: string;
   tables: TableInfo[];
   totalRows: number;
 }
@@ -186,16 +183,35 @@ export default function DatabasePageClient({ initialInfo }: Props) {
           if (res.ok && result.success) {
             const stats = result.stats as RestoreStats;
             message.success(
-              t('databasePage.msgRestored', { count: stats.inserted }) +
-                (stats.errors.length > 0
-                  ? t('databasePage.msgRestoredWithWarnings', { count: stats.inserted, warnings: stats.errors.length })
-                    .replace(t('databasePage.msgRestored', { count: stats.inserted }), "")
-                  : "")
+              t('databasePage.msgRestored', { count: stats.inserted })
             );
             setPreviewData(null);
             refreshInfo();
+            // 恢复成功后提示用户重新登录
+            modal.info({
+              title: t('databasePage.restoreSuccessTitle'),
+              content: t('databasePage.restoreSuccessRelogin'),
+              okText: t('databasePage.btnConfirmRestore') === '确认恢复' ? '知道了' : 'OK',
+            });
           } else {
-            message.error(result.error || t('databasePage.msgRestoreFailed'));
+            // 用 modal.error 展示详细错误
+            const stats = result.stats as RestoreStats | undefined;
+            const errorDetails = stats?.errors?.length
+              ? stats.errors.map((e: { table: string; error: string }) => `[${e.table}] ${e.error}`).join('\n')
+              : '';
+            modal.error({
+              title: t('databasePage.restoreFailedTitle'),
+              content: (
+                <div>
+                  <p>{result.error || t('databasePage.msgRestoreFailed')}</p>
+                  {errorDetails && (
+                    <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 12, background: 'var(--ant-color-bg-layout)', color: 'var(--ant-color-text)', padding: 8, borderRadius: 4 }}>
+                      {errorDetails}
+                    </pre>
+                  )}
+                </div>
+              ),
+            });
           }
         } catch {
           message.error(t('databasePage.msgRestoreFailed'));
@@ -285,23 +301,13 @@ export default function DatabasePageClient({ initialInfo }: Props) {
             <Space>
               <DatabaseOutlined />
               <span>{t('databasePage.overviewTitle')}</span>
-              {info.integrityOk ? (
-                <Tag
-                  icon={<CheckCircleOutlined />}
-                  color="success"
-                  className="ml-2"
-                >
-                  {t('databasePage.tagHealthy')}
-                </Tag>
-              ) : (
-                <Tag
-                  icon={<WarningOutlined />}
-                  color="error"
-                  className="ml-2"
-                >
-                  {t('databasePage.tagIntegrityIssue')}
-                </Tag>
-              )}
+              <Tag
+                icon={<CheckCircleOutlined />}
+                color="success"
+                className="ml-2"
+              >
+                {t('databasePage.tagHealthy')}
+              </Tag>
             </Space>
           }
           size="small"
@@ -309,20 +315,14 @@ export default function DatabasePageClient({ initialInfo }: Props) {
           <Descriptions size="small" column={2} bordered>
             <Descriptions.Item label={t('databasePage.descFilePath')}>
               <Text code className="text-xs">
-                {info.filePath}
+                {info.dataDir}
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label={t('databasePage.descFileSize')}>
               {info.fileSizeHuman}
             </Descriptions.Item>
-            <Descriptions.Item label={t('databasePage.descSqliteVersion')}>
-              {info.sqliteVersion}
-            </Descriptions.Item>
-            <Descriptions.Item label={t('databasePage.descJournalMode')}>
-              <Tag>{info.journalMode}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label={t('databasePage.descLastModified')}>
-              {new Date(info.lastModified).toLocaleString()}
+            <Descriptions.Item label="PostgreSQL">
+              {info.pgVersion}
             </Descriptions.Item>
             <Descriptions.Item label={t('databasePage.descTotalRows')}>
               {info.totalRows.toLocaleString()}

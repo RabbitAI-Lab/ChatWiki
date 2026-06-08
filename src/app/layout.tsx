@@ -43,7 +43,7 @@ const geistMono = localFont({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const brandName = getBrandName();
+  const brandName = await getBrandName();
   return {
     metadataBase: new URL(
       process.env.NEXT_PUBLIC_SITE_URL ?? "https://docs.rabbitai-lab.com"
@@ -88,7 +88,7 @@ export default async function RootLayout({
   const msgs = await getMessages();
 
   // Read color scheme for FOUC-free injection via ThemeRoot
-  const colorSchemeRaw = getSetting("color_scheme");
+  const colorSchemeRaw = await getSetting("color_scheme");
   const colorScheme = colorSchemeRaw ? parseColorScheme(colorSchemeRaw) : null;
 
   return (

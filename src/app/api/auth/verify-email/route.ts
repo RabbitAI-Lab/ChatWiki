@@ -16,7 +16,7 @@ const codeSchema = z
  */
 export async function GET(req: NextRequest) {
   const t = await getApiT();
-  return handleVerify(req.nextUrl.searchParams, t);
+  return await handleVerify(req.nextUrl.searchParams, t);
 }
 
 /**
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    return handleVerify({ get: (k: string) => (k === "code" ? parsed.data : null) }, t);
+    return await handleVerify({ get: (k: string) => (k === "code" ? parsed.data : null) }, t);
   } catch (error) {
     console.error("[auth] Verify email error:", error);
     return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function handleVerify(
+async function handleVerify(
   searchParams: URLSearchParams | { get: (k: string) => string | null },
   t: (key: string, params?: Record<string, string | number>) => string
 ) {
@@ -64,11 +64,10 @@ function handleVerify(
       ? eq(emailVerifications.token, token)
       : eq(emailVerifications.code, code!);
 
-    const verification = db
+    const [verification] = await db
       .select()
       .from(emailVerifications)
-      .where(where)
-      .get();
+      .where(where);
 
     if (!verification) {
       return NextResponse.json(
@@ -79,9 +78,8 @@ function handleVerify(
 
     if (new Date(verification.expiresAt) < new Date()) {
       // 清理过期记录
-      db.delete(emailVerifications)
-        .where(eq(emailVerifications.userId, verification.userId))
-        .run();
+      await db.delete(emailVerifications)
+        .where(eq(emailVerifications.userId, verification.userId));
       return NextResponse.json(
         { error: t('api.auth.tokenExpired') },
         { status: 400 }
@@ -89,15 +87,13 @@ function handleVerify(
     }
 
     // 标记邮箱已验证 + 删除该用户的所有验证令牌
-    db.transaction(() => {
-      db.update(users)
-        .set({ emailVerified: 1, updatedAt: new Date().toISOString() })
-        .where(eq(users.id, verification.userId))
-        .run();
+    await db.transaction(async (tx) => {
+      await tx.update(users)
+        .set({ emailVerified: true, updatedAt: new Date().toISOString() })
+        .where(eq(users.id, verification.userId));
 
-      db.delete(emailVerifications)
-        .where(eq(emailVerifications.userId, verification.userId))
-        .run();
+      await tx.delete(emailVerifications)
+        .where(eq(emailVerifications.userId, verification.userId));
     });
 
     return NextResponse.json({

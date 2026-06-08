@@ -12,35 +12,43 @@ const DEFAULT_DATA_ROOT =
   process.env.DATA_ROOT ||
   path.join(os.homedir(), ".rabbitdocs", "data");
 
+/** Cached data root (resolved once on first call) */
+let _cachedDataRoot: string | undefined;
+
 /**
  * Get the data root directory.
  * If a custom storage path is configured in the database, use it;
  * otherwise fall back to the default ./data directory.
  */
 export function getDataRoot(): string {
-  try {
-    // Use require to avoid circular import issues
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { db } = require("@/db") as { db: import("drizzle-orm/better-sqlite3").BetterSQLite3Database };
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { storageConfig } = require("@/db/schema") as { storageConfig: import("drizzle-orm/sqlite-core").SQLiteTableWithColumns<never> };
-    const config = db.select().from(storageConfig).get() as { storagePath: string } | undefined;
-    if (config?.storagePath) return config.storagePath;
-  } catch {
-    // DB not available (e.g. during build), use default
-  }
+  if (_cachedDataRoot) return _cachedDataRoot;
+  // Use default until DB is queried asynchronously
   return DEFAULT_DATA_ROOT;
 }
 
 /**
+ * Initialize data root from database (called during initDb).
+ * Caches the result for subsequent synchronous access.
+ */
+export async function initDataRootFromDb(): Promise<void> {
+  try {
+    const { db } = await import("@/db");
+    const { storageConfig } = await import("@/db/schema");
+    const [config] = await db.select().from(storageConfig).limit(1);
+    if (config?.storagePath) {
+      _cachedDataRoot = config.storagePath;
+    }
+  } catch {
+    // DB not available, use default
+  }
+}
+
+/**
  * Build a full file system path from path segments.
- * Example: buildPath("projects", "my-project", "docs", "doc") => "data/projects/my-project/docs/doc.md"
- * Rejects path segments containing ".." or null bytes to prevent path traversal attacks.
  */
 export function buildPath(...segments: string[]): string {
   assertValidSegments(segments);
   const last = segments[segments.length - 1];
-  // If the last segment doesn't already end with .md, add it
   const withMd =
     segments.length > 0 && !last.endsWith(".md")
       ? [...segments.slice(0, -1), `${last}.md`]
@@ -49,9 +57,7 @@ export function buildPath(...segments: string[]): string {
 }
 
 /**
- * Build a full file system path for an HTML file (e.g. ".html" extension).
- * Mirrors {@link buildPath} but uses ".html" as the default extension.
- * Rejects path segments containing ".." or null bytes.
+ * Build a full file system path for an HTML file.
  */
 export function buildHtmlPath(...segments: string[]): string {
   assertValidSegments(segments);
@@ -63,9 +69,6 @@ export function buildHtmlPath(...segments: string[]): string {
   return path.join(getDataRoot(), ...withHtml);
 }
 
-/**
- * Reject path traversal attempts (e.g. "..") and null bytes inside path segments.
- */
 function assertValidSegments(segments: string[]): void {
   for (const seg of segments) {
     if (seg === ".." || seg.includes("\0")) {
@@ -74,10 +77,6 @@ function assertValidSegments(segments: string[]): void {
   }
 }
 
-/**
- * List organizations for an enterprise.
- * Reads subdirectories under data/enterprise/{enterpriseId}/
- */
 export function listOrgs(enterpriseId: string): string[] {
   const dirPath = path.join(getDataRoot(), "enterprise", enterpriseId);
   if (!fs.existsSync(dirPath)) return [];
@@ -87,14 +86,6 @@ export function listOrgs(enterpriseId: string): string[] {
     .map((d) => d.name);
 }
 
-/**
- * Recursively list a directory tree: directories and files matching the provided extensions.
- * Default behavior (exts = [".md"]) preserves backward compatibility with the original
- * Markdown-only tree.
- *
- * When exts is an empty array, all files are accepted (useful for workspace root view).
- * Hidden directories (starting with ".") and "node_modules" are always excluded.
- */
 const HIDDEN_DIR_PATTERN = /^\./;
 const EXCLUDED_DIRS = new Set(["node_modules"]);
 
@@ -104,17 +95,12 @@ export function listTree(dirSegments: string[], exts: string[] = [".md"]): TreeN
 
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   const result: TreeNode[] = [];
-
-  // Sort alphabetically, mixed order (macOS / Windows / Linux style)
-  // Folders and files are interleaved by name, not grouped.
   const sorted = entries.sort((a, b) => a.name.localeCompare(b.name));
-
   const acceptAll = exts.length === 0;
 
   for (const entry of sorted) {
     const relPath = path.join(...dirSegments, entry.name);
     if (entry.isDirectory()) {
-      // Skip hidden and excluded directories
       if (HIDDEN_DIR_PATTERN.test(entry.name) || EXCLUDED_DIRS.has(entry.name)) continue;
       result.push({
         name: entry.name,
@@ -137,17 +123,11 @@ export function listTree(dirSegments: string[], exts: string[] = [".md"]): TreeN
   return result;
 }
 
-/**
- * Create a directory (with parents).
- */
 export function createDir(dirSegments: string[]): void {
   const dirPath = path.join(getDataRoot(), ...dirSegments);
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-/**
- * Delete a directory (recursively).
- */
 export function deleteDir(dirSegments: string[]): void {
   const dirPath = path.join(getDataRoot(), ...dirSegments);
   if (fs.existsSync(dirPath)) {
@@ -155,9 +135,6 @@ export function deleteDir(dirSegments: string[]): void {
   }
 }
 
-/**
- * Rename a directory.
- */
 export function renameDir(newName: string, ...dirSegments: string[]): void {
   const oldPath = path.join(getDataRoot(), ...dirSegments);
   const newPath = path.join(getDataRoot(), ...dirSegments.slice(0, -1), newName);

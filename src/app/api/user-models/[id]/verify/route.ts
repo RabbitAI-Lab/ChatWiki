@@ -18,13 +18,12 @@ export async function POST(
   const { id } = await params;
 
   // 查询模型配置（需属于当前用户）
-  const row = db
+  const [row] = await db
     .select()
     .from(userModelConfigs)
     .where(
       and(eq(userModelConfigs.id, parseInt(id)), eq(userModelConfigs.userId, auth.id))
-    )
-    .get();
+    );
 
   if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

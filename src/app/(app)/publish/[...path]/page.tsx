@@ -21,7 +21,7 @@ export default async function PublishPage({
       content={content}
       publishPath={path.join("/")}
       segments={path}
-      brandName={getBrandName()}
+      brandName={await getBrandName()}
     />
   );
 }

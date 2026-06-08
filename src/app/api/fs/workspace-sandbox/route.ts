@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   const dirSegments = ["workspace", workspaceId];
-  const meta = readWorkspaceMeta(dirSegments);
+  const meta = await readWorkspaceMeta(dirSegments);
 
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   const dirSegments = ["workspace", workspaceId];
-  const meta = readWorkspaceMeta(dirSegments);
+  const meta = await readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
   }
@@ -76,7 +76,7 @@ export async function PUT(req: NextRequest) {
 
   const dirSegments = ["workspace", workspaceId];
 
-  const meta = readWorkspaceMeta(dirSegments);
+  const meta = await readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
   }

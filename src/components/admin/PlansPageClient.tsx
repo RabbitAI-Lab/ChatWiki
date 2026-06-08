@@ -70,7 +70,7 @@ interface Plan {
   discountType: "none" | "percentage" | "fixed";
   discountValue: number;
   features: string;
-  enabled: number;
+  enabled: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -186,7 +186,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
 
   const handleToggleEnabled = useCallback(
     (record: Plan) => {
-      const newEnabled = record.enabled ? 0 : 1;
+      const newEnabled = !record.enabled;
       authFetch(`/api/plans/${record.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -299,9 +299,9 @@ export default function PlansPageClient({ initialPlans }: Props) {
       title: t('plansPage.columnEnabled'),
       dataIndex: "enabled",
       width: 80,
-      render: (enabled: number, record: Plan) => (
+      render: (enabled: boolean, record: Plan) => (
         <Switch
-          checked={enabled === 1}
+          checked={enabled === true}
           onChange={() => handleToggleEnabled(record)}
           size="small"
         />
@@ -381,7 +381,7 @@ export default function PlansPageClient({ initialPlans }: Props) {
           form={form}
           layout="vertical"
           initialValues={{
-            enabled: 1,
+            enabled: true,
             sortOrder: 0,
             defaultCurrency: "CNY",
             discountType: "none",
@@ -559,8 +559,8 @@ export default function PlansPageClient({ initialPlans }: Props) {
             <Form.Item label={t('plansPage.formStatus')} name="enabled">
               <Select
                 options={[
-                  { value: 1, label: t('plansPage.formStatusEnabled') },
-                  { value: 0, label: t('plansPage.formStatusDisabled') },
+                  { value: true, label: t('plansPage.formStatusEnabled') },
+                  { value: false, label: t('plansPage.formStatusDisabled') },
                 ]}
               />
             </Form.Item>

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/useAuth";
-import { Button } from "antd";
 import type {
   Repository,
   SandboxStatus,
@@ -205,16 +204,19 @@ export default function ProjectInfoTab({
               {projectMeta?.description || t('noDescription')}
             </p>
           </div>
-          <Button
-            type="primary"
+          <button
             onClick={onNewChat}
-            className="inline-flex items-center gap-2 shrink-0"
+            className="inline-flex items-center gap-2 shrink-0 text-sm font-medium border rounded-lg px-4 py-1.5 transition-colors"
+            style={{
+              color: "var(--color-primary, #3B82F6)",
+              borderColor: "var(--color-primary, #3B82F6)",
+            }}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
             {t('startChat')}
-          </Button>
+          </button>
         </div>
         {projectMeta?.createdAt && (
           <div className="text-xs text-gray-400 dark:text-gray-500 ml-12">

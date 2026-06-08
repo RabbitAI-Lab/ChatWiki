@@ -15,11 +15,10 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const rows = db
+  const rows = await db
     .select()
     .from(userModelConfigs)
-    .where(eq(userModelConfigs.userId, auth.id))
-    .all();
+    .where(eq(userModelConfigs.userId, auth.id));
 
   // 遮掩 apiKey
   const safe = rows.map((row) => ({
@@ -89,7 +88,7 @@ export async function POST(req: NextRequest) {
   console.log("[BYOK] API Key 验证通过");
 
   const now = new Date().toISOString();
-  const result = db
+  const [inserted] = await db
     .insert(userModelConfigs)
     .values({
       userId: auth.id,
@@ -102,10 +101,10 @@ export async function POST(req: NextRequest) {
       createdAt: now,
       updatedAt: now,
     })
-    .run();
+    .returning();
 
   return NextResponse.json({
-    id: result.lastInsertRowid,
+    id: inserted.id,
     name: name || `${provider}-${modelName}`,
   });
 }

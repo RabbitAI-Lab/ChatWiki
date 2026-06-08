@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
   const dirSegments = ["projects", projectId];
-  const meta = readProjectMeta(dirSegments);
+  const meta = await readProjectMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
   }
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const dirSegments = ["projects", projectId];
   try {
     // Owner 校验：只有 owner 才能添加成员
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }
@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
 
     // 根据 accountName 查询用户表自动关联 userId
     if (!member.userId && member.accountName) {
-      const userRow = db.select().from(users).where(eq(users.email, member.accountName)).get()
-        ?? db.select().from(users).where(eq(users.name, member.accountName)).get();
+      const [userRow] = await db.select().from(users).where(eq(users.email, member.accountName))
+        ?? (await db.select().from(users).where(eq(users.name, member.accountName)));
       if (userRow) {
         member.userId = userRow.id;
       } else {
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         );
       }
     }
-    const members = addMember(dirSegments, member);
+    const members = await addMember(dirSegments, member);
     logOperation({
       projectId: extractProjectId(dirSegments),
       category: "member",
@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest) {
   const dirSegments = ["projects", projectId];
   try {
     // Owner 校验
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: t('api.members.onlyOwnerCanUpdate') }, { status: 403 });
     }
 
-    const updated = updateMember(dirSegments, memberId, updates);
+    const updated = await updateMember(dirSegments, memberId, updates);
     if (!updated) {
       return NextResponse.json({ error: t('api.memberNotFound') }, { status: 404 });
     }
@@ -124,7 +124,7 @@ export async function DELETE(req: NextRequest) {
   }
   const dirSegments = ["projects", projectId];
   try {
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }
@@ -158,7 +158,7 @@ export async function PUT(req: NextRequest) {
   }
   const dirSegments = ["projects", projectId];
   try {
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
     }
@@ -181,7 +181,7 @@ export async function PUT(req: NextRequest) {
 
     // 查询旧 Owner 的显示名称
     let oldOwnerName = oldOwnerId;
-    const oldOwnerRow = db.select().from(users).where(eq(users.id, oldOwnerId)).get();
+    const [oldOwnerRow] = await db.select().from(users).where(eq(users.id, oldOwnerId));
     if (oldOwnerRow) {
       oldOwnerName = oldOwnerRow.email || oldOwnerRow.name || oldOwnerId;
     }

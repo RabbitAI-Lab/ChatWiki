@@ -7,7 +7,7 @@ import { getSetting } from "@/lib/auth/settings";
  * Cached for 60s at CDN/browser level.
  */
 export async function GET() {
-  const raw = getSetting("color_scheme");
+  const raw = await getSetting("color_scheme");
   if (!raw) {
     return NextResponse.json(null, {
       headers: {

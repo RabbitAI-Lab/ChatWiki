@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const authResult = await requireAdmin(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  const key = getGeneralRegistrationKey();
+  const key = await getGeneralRegistrationKey();
   const enabled = !!key && key.length > 0;
 
   return NextResponse.json({
@@ -57,12 +57,12 @@ export async function POST(req: NextRequest) {
     const { key, enabled } = parsed.data;
 
     if (enabled === false) {
-      setGeneralRegistrationKey(null);
+      await setGeneralRegistrationKey(null);
       return NextResponse.json({ enabled: false, key: null });
     }
 
     const newKey = key && key.length >= 4 ? key : generateKey();
-    setGeneralRegistrationKey(newKey);
+    await setGeneralRegistrationKey(newKey);
     // Only return the full key once (right after generation/rotation).
     return NextResponse.json({ enabled: true, key: newKey });
   } catch (error) {

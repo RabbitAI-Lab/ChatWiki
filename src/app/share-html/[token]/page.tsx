@@ -16,11 +16,10 @@ export default async function SharedHtmlPage({
 }) {
   const { token } = await params;
 
-  const share = db
+  const [share] = await db
     .select()
     .from(sharedHtmlFiles)
-    .where(eq(sharedHtmlFiles.token, token))
-    .get();
+    .where(eq(sharedHtmlFiles.token, token));
   if (!share) notFound();
 
   // htmlPath 是相对项目根的路径，例如 "docs/index.html"

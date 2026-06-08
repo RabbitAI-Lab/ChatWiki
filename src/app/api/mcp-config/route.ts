@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/mcp-config
 export async function GET() {
-  const config = db.select().from(mcpConfig).get();
+  const [config] = await db.select().from(mcpConfig);
   return NextResponse.json({
     configJson: config?.configJson ?? "{}",
     updatedAt: config?.updatedAt ?? null,
@@ -50,17 +50,15 @@ export async function PUT(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const existing = db.select().from(mcpConfig).get();
+  const [existing] = await db.select().from(mcpConfig);
 
   if (existing) {
-    db.update(mcpConfig)
+    await db.update(mcpConfig)
       .set({ configJson, updatedAt: now })
-      .where(eq(mcpConfig.id, existing.id))
-      .run();
+      .where(eq(mcpConfig.id, existing.id));
   } else {
-    db.insert(mcpConfig)
-      .values({ configJson, createdAt: now, updatedAt: now })
-      .run();
+    await db.insert(mcpConfig)
+      .values({ configJson, createdAt: now, updatedAt: now });
   }
 
   return NextResponse.json({ success: true, updatedAt: now });

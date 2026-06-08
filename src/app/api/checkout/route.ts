@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. 验证渠道已启用
-    const providerConfig = getProviderConfig(provider);
+    const providerConfig = await getProviderConfig(provider);
     if (!providerConfig) {
       return NextResponse.json({ error: `Payment provider "${provider}" is not enabled` }, { status: 400 });
     }
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. 查 plan
-    const plan = db.select().from(plans).where(eq(plans.id, planId)).get();
+    const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
     if (!plan || !plan.enabled) {
       return NextResponse.json({ error: "Plan not found or disabled" }, { status: 404 });
     }
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const appUrl = getAppUrl();
     const billingMode = (plan.billingMode as "subscription" | "one_time") || "subscription";
 
-    db.insert(orders).values({
+    await db.insert(orders).values({
       id: orderId,
       userId: user.id,
       planId: plan.id,
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       status: "pending",
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
 
     // 6. 调用 Provider 创建 Checkout Session
     const paymentProvider = getProvider(provider);

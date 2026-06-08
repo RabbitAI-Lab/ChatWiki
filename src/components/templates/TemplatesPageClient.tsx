@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/ui/Spinner";
-import { Button } from "antd";
 
 interface Template {
   id: number;
@@ -14,7 +13,7 @@ interface Template {
   content: string;
   icon: string | null;
   agentPrompt: string | null;
-  isSystem: number;  // 0=用户创建, 1=系统模板
+  isSystem: boolean;  // false=用户创建, true=系统模板
   createdAt: string;
   updatedAt: string;
 }
@@ -108,17 +107,16 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('title')}</h2>
-        <Button
-          type="primary"
+        <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           {t('newTemplate')}
-        </Button>
+        </button>
       </div>
 
       {/* Content */}
@@ -175,7 +173,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
         {/* 模板列表分组 */}
         {/* 我创建的 */}
         {(() => {
-          const userTemplates = templates.filter(t => t.isSystem === 0);
+          const userTemplates = templates.filter(t => !t.isSystem);
           if (userTemplates.length === 0) return null;
           return (
             <div className="mb-8">
@@ -185,7 +183,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
                   <div
                     key={tpl.id}
                     onClick={() => router.push(`/templates/${tpl.id}`)}
-                    className="bg-white dark:bg-[var(--popup-bg)] rounded-xl border border-gray-200 dark:border-[var(--popup-border)] shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
+                    className="rounded-xl border border-gray-200 dark:border-[var(--popup-border)] shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
                   >
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -245,7 +243,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
 
         {/* 系统模板 */}
         {(() => {
-          const systemTemplates = templates.filter(t => t.isSystem === 1);
+          const systemTemplates = templates.filter(t => t.isSystem);
           if (systemTemplates.length === 0) return null;
           return (
             <div>
@@ -255,7 +253,7 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
                   <div
                     key={tpl.id}
                     onClick={() => router.push(`/templates/${tpl.id}`)}
-                    className="bg-white dark:bg-[var(--popup-bg)] rounded-xl border border-gray-200 dark:border-[var(--popup-border)] shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
+                    className="rounded-xl border border-gray-200 dark:border-[var(--popup-border)] shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all cursor-pointer"
                   >
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">

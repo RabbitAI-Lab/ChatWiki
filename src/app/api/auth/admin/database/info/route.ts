@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const t = await getApiT();
 
   try {
-    const info = getDatabaseInfo();
+    const info = await getDatabaseInfo();
     return NextResponse.json(info);
   } catch (error) {
     console.error("[database] info error:", error);

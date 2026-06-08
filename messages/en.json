@@ -60,7 +60,7 @@
     "systemAdmin": "System Admin",
     "myAccount": "My Account",
     "profile": "Profile",
-    "myModels": "My Models",
+    "myModels": "My Models (BYOK)",
     "billing": "Billing",
     "docs": "Documents",
     "account": "Account Settings",
@@ -494,7 +494,10 @@
       "btnConfirmRestore": "Confirm Restore",
       "msgRestored": "Restored {count} rows",
       "msgRestoredWithWarnings": "Restored {count} rows ({warnings} warnings)",
-      "msgRestoreFailed": "Restore failed"
+      "msgRestoreFailed": "Restore failed",
+      "restoreSuccessTitle": "Restore Successful",
+      "restoreSuccessRelogin": "Database restored successfully. Since user data has been replaced, it is recommended to log in again to ensure your session is valid.",
+      "restoreFailedTitle": "Restore Failed"
     },
     "inviteCodesPage": {
       "title": "Invite Code Management",
@@ -706,7 +709,7 @@
       "clearSelection": "✕ Clear Selection",
       "model": "Model",
       "adminModels": "System Models",
-      "myModels": "My Models",
+      "myModels": "My Models (BYOK)",
       "projectWorkspace": "Project/Workspace",
       "template": "Template",
       "project": "Project",
@@ -1688,7 +1691,9 @@
         "dataFieldRequired": "Invalid request: 'data' field is required",
         "invalidDumpFormat": "Invalid dump format: missing 'version' or 'tables' field",
         "unsupportedVersion": "Unsupported dump version",
-        "restoreFailed": "Restore failed"
+        "restoreFailed": "Restore failed",
+        "invalidResetParams": "Invalid parameters: userId and newPassword are required, password must be at least 6 characters",
+        "userNotFound": "User not found"
       },
       "cli": {
         "missingRequiredParams": "Missing required parameters: code_challenge, redirect_uri, state",

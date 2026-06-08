@@ -277,10 +277,10 @@ interface ContextChipProps {
 function ContextChip({ tone, icon: Icon, label }: ContextChipProps) {
   const toneClass =
     tone === "active"
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20"
+      ? "bg-transparent text-emerald-700 ring-emerald-200/70 dark:bg-transparent dark:text-emerald-300 dark:ring-emerald-500/20"
       : tone === "info"
-        ? "bg-blue-50 text-blue-700 ring-blue-200/70 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/20"
-        : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-400 dark:ring-zinc-700";
+        ? "bg-transparent text-blue-700 ring-blue-200/70 dark:bg-transparent dark:text-blue-300 dark:ring-blue-500/20"
+        : "bg-transparent text-zinc-500 ring-zinc-200 dark:bg-transparent dark:text-zinc-400 dark:ring-zinc-700";
 
   return (
     <span
@@ -365,12 +365,12 @@ function SuggestionCard({
         }}
         className={[
           "chat-welcome__card group relative flex h-full w-full flex-col items-start overflow-hidden rounded-2xl appearance-none",
-          "border border-zinc-200/80 bg-white p-4 text-left",
+          "border border-zinc-200/80 bg-transparent p-4 text-left",
           "shadow-[0_1px_0_rgba(0,0,0,0.02)] ring-1 ring-inset ring-zinc-200/60",
           "transition-all duration-200 ease-out",
           "hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)] hover:ring-2",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60",
-          "dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800/80",
+          "dark:border-zinc-800 dark:bg-transparent dark:ring-zinc-800/80",
           "dark:hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]",
           a.ring,
         ].join(" ")}
@@ -388,7 +388,7 @@ function SuggestionCard({
           <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
         </span>
         <span
-          className={`flex h-6 w-6 items-center justify-center rounded-full transition-all duration-200 group-hover:translate-x-0.5 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 ${a.iconText}`}
+          className={`flex h-6 w-6 items-center justify-center rounded-full transition-all duration-200 group-hover:translate-x-0.5 group-hover:bg-transparent dark:group-hover:bg-transparent ${a.iconText}`}
           aria-hidden
         >
           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
@@ -433,7 +433,7 @@ function SuggestionCard({
 function KbdHint({ label, kbd }: { label: string; kbd: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 px-1.5 font-mono text-[10.5px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-300">
+      <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-zinc-200 bg-transparent px-1.5 font-mono text-[10.5px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-transparent dark:text-zinc-300">
         {kbd}
       </kbd>
       <span>{label}</span>

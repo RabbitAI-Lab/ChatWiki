@@ -19,11 +19,10 @@ export default async function Root() {
   if (token) {
     const payload = await verifyToken(token);
     if (payload && payload.type === "access") {
-      const user = db
+      const [user] = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.id, payload.sub))
-        .get();
+        .where(eq(users.id, payload.sub));
       if (user) {
         redirect("/chat/new");
       }

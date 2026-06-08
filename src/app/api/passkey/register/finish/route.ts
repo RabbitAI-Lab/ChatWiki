@@ -30,12 +30,12 @@ export async function POST(req: NextRequest) {
       ? JSON.parse(body.credential)
       : body.credential;
 
-    const challengeStr = getSetting(`passkey_challenge_${user.id}`);
+    const challengeStr = await getSetting(`passkey_challenge_${user.id}`);
     if (!challengeStr) {
       return NextResponse.json({ error: t('api.passkey.noPendingRegistration') }, { status: 400 });
     }
 
-    const rpID = getSetting("passkey_rp_id") || req.headers.get("host")?.split(":")[0] || "localhost";
+    const rpID = (await getSetting("passkey_rp_id")) || req.headers.get("host")?.split(":")[0] || "localhost";
     const origin = req.headers.get("origin") || `https://${rpID}`;
 
     const verification = await verifyRegistrationResponse({
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const cred = info.credential;
     const now = new Date().toISOString();
 
-    db.insert(passkeys)
+    await db.insert(passkeys)
       .values({
         id: crypto.randomUUID(),
         userId: user.id,
@@ -65,11 +65,10 @@ export async function POST(req: NextRequest) {
         aaguid: info.aaguid,
         createdAt: now,
         lastUsedAt: now,
-      })
-      .run();
+      });
 
     // 清理 challenge
-    setSetting(`passkey_challenge_${user.id}`, "");
+    await setSetting(`passkey_challenge_${user.id}`, "");
 
     return NextResponse.json({ success: true });
   } catch (error) {

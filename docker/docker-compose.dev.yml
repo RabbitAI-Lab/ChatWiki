@@ -28,8 +28,7 @@ services:
       - ../scripts:/app/scripts
       # 业务数据持久化（绑定挂载，宿主机可访问）
       - ../data:/app/data
-      - ../data.db:/app/data.db
-      - ../data.db-shm:/app/data.db-shm
-      - ../data.db-wal:/app/data.db-wal
+      # PGlite 数据目录
+      - ../pgdata:/app/pgdata
     stdin_open: true
     tty: true

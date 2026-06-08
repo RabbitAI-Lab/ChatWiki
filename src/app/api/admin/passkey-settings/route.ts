@@ -8,10 +8,10 @@ export async function GET(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   return NextResponse.json({
-    enabled: getSetting("passkey_enabled") === "true",
-    rpId: getSetting("passkey_rp_id") || "",
-    rpName: getSetting("passkey_rp_name") || "RabbitDocs",
-    userVerification: getSetting("passkey_user_verification") || "preferred",
+    enabled: (await getSetting("passkey_enabled")) === "true",
+    rpId: (await getSetting("passkey_rp_id")) || "",
+    rpName: (await getSetting("passkey_rp_name")) || "RabbitDocs",
+    userVerification: (await getSetting("passkey_user_verification")) || "preferred",
   });
 }
 
@@ -37,16 +37,16 @@ export async function PUT(req: NextRequest) {
   }
 
   if (parsed.data.enabled !== undefined) {
-    setSetting("passkey_enabled", parsed.data.enabled ? "true" : "false");
+    await setSetting("passkey_enabled", parsed.data.enabled ? "true" : "false");
   }
   if (parsed.data.rpId !== undefined) {
-    setSetting("passkey_rp_id", parsed.data.rpId);
+    await setSetting("passkey_rp_id", parsed.data.rpId);
   }
   if (parsed.data.rpName !== undefined) {
-    setSetting("passkey_rp_name", parsed.data.rpName);
+    await setSetting("passkey_rp_name", parsed.data.rpName);
   }
   if (parsed.data.userVerification !== undefined) {
-    setSetting("passkey_user_verification", parsed.data.userVerification);
+    await setSetting("passkey_user_verification", parsed.data.userVerification);
   }
 
   return NextResponse.json({ success: true });

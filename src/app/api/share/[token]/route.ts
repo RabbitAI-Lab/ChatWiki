@@ -12,21 +12,19 @@ export async function GET(
   const { token } = await params;
   const t = await getApiT();
 
-  const share = db
+  const [share] = await db
     .select()
     .from(sharedChats)
-    .where(eq(sharedChats.token, token))
-    .get();
+    .where(eq(sharedChats.token, token));
   if (!share) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
 
-  const chat = db.select().from(chats).where(eq(chats.id, share.chatId)).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, share.chatId));
   if (!chat) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
 
-  const messages = db
+  const messages = await db
     .select()
     .from(chatMessages)
-    .where(eq(chatMessages.chatId, chat.id))
-    .all();
+    .where(eq(chatMessages.chatId, chat.id));
 
   return NextResponse.json({
     title: chat.title,

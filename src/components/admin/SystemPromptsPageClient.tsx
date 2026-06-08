@@ -29,9 +29,9 @@ interface SystemPrompt {
   id: number;
   name: string;
   content: string;
-  enabled: number;
+  enabled: boolean;
   sortOrder: number;
-  isSystem: number;
+  isSystem: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,7 +104,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
 
   const handleToggleEnabled = useCallback(
     (record: SystemPrompt) => {
-      const newEnabled = record.enabled ? 0 : 1;
+      const newEnabled = !record.enabled;
       authFetch(`/api/system-prompts/${record.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -146,9 +146,9 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
       title: t('systemPromptsPage.columnStatus'),
       dataIndex: "enabled",
       width: 80,
-      render: (enabled: number, record: SystemPrompt) => (
+      render: (enabled: boolean, record: SystemPrompt) => (
         <Switch
-          checked={enabled === 1}
+          checked={enabled === true}
           onChange={() => handleToggleEnabled(record)}
           size="small"
         />
@@ -176,7 +176,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           />
-          {record.isSystem !== 1 && (
+          {record.isSystem !== true && (
             <Button
               type="text"
               size="small"
@@ -233,7 +233,7 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ enabled: 1, sortOrder: 0 }}
+          initialValues={{ enabled: true, sortOrder: 0 }}
           className="mt-4"
         >
           <Form.Item
@@ -254,8 +254,8 @@ export default function SystemPromptsPageClient({ initialPrompts }: Props) {
             <Form.Item label={t('systemPromptsPage.formStatus')} name="enabled">
               <Select
                 options={[
-                  { value: 1, label: t('systemPromptsPage.formStatusEnabled') },
-                  { value: 0, label: t('systemPromptsPage.formStatusDisabled') },
+                  { value: true, label: t('systemPromptsPage.formStatusEnabled') },
+                  { value: false, label: t('systemPromptsPage.formStatusDisabled') },
                 ]}
               />
             </Form.Item>

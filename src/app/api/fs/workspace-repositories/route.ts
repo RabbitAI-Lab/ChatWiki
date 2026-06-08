@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
   const dirSegments = ["workspace", workspaceId];
-  const meta = readWorkspaceMeta(dirSegments);
+  const meta = await readWorkspaceMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
   }
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
   const dirSegments = ["workspace", workspaceId];
   try {
-    const repositories = addWorkspaceRepository(dirSegments, repository);
+    const repositories = await addWorkspaceRepository(dirSegments, repository);
     logOperation({
       projectId: extractProjectId(dirSegments),
       category: "repository",
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest) {
   }
   const dirSegments = ["workspace", workspaceId];
   try {
-    const updated = updateWorkspaceRepository(dirSegments, repoId, updates);
+    const updated = await updateWorkspaceRepository(dirSegments, repoId, updates);
     if (!updated) {
       return NextResponse.json({ error: t('api.repositoryNotFound') }, { status: 404 });
     }
@@ -88,7 +88,7 @@ export async function DELETE(req: NextRequest) {
   }
   const dirSegments = ["workspace", workspaceId];
   try {
-    const meta = readWorkspaceMeta(dirSegments);
+    const meta = await readWorkspaceMeta(dirSegments);
     const repoName = meta?.repositories?.find((r) => r.id === repoId)?.name || repoId;
     removeWorkspaceRepository(dirSegments, repoId);
     logOperation({

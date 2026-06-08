@@ -21,11 +21,11 @@ const GENERAL_CONFIG_FIELDS = [
 
 // GET: 返回所有渠道配置状态
 export async function GET() {
-  const providers = KNOWN_PROVIDERS.map((p) => {
-    const enabled = getSetting(`payment_provider_${p.name}_enabled`) === "true";
+  const providers = await Promise.all(KNOWN_PROVIDERS.map(async (p) => {
+    const enabled = (await getSetting(`payment_provider_${p.name}_enabled`)) === "true";
     const configValues: Record<string, unknown> = {};
     for (const field of p.fields) {
-      const val = getSetting(`payment_provider_${p.name}_${field.key}`);
+      const val = await getSetting(`payment_provider_${p.name}_${field.key}`);
       if (SENSITIVE_FIELDS.has(field.key)) {
         configValues[field.key] = val ? "••••••••" : "";
         (configValues as Record<string, unknown>)[`${field.key}HasValue`] = !!val;
@@ -41,14 +41,14 @@ export async function GET() {
       fields: p.fields,
       values: configValues,
       webhookUrl: p.name === "stripe"
-        ? `${getSetting("site_url") || process.env.NEXT_PUBLIC_APP_URL || ""}/api/webhooks/stripe`
+        ? `${(await getSetting("site_url")) || process.env.NEXT_PUBLIC_APP_URL || ""}/api/webhooks/stripe`
         : undefined,
     };
-  });
+  }));
 
   const generalConfig: Record<string, string> = {};
   for (const field of GENERAL_CONFIG_FIELDS) {
-    generalConfig[field.key] = getSetting(`payment_${field.key}`) || field.defaultValue;
+    generalConfig[field.key] = (await getSetting(`payment_${field.key}`)) || field.defaultValue;
   }
 
   return NextResponse.json({ providers, generalConfig, generalFields: GENERAL_CONFIG_FIELDS });
@@ -74,7 +74,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // 启用/禁用
-    setSetting(`payment_provider_${provider}_enabled`, config.enabled ? "true" : "false");
+    await setSetting(`payment_provider_${provider}_enabled`, config.enabled ? "true" : "false");
 
     // 保存各字段
     for (const field of knownProvider.fields) {
@@ -85,7 +85,7 @@ export async function PATCH(req: NextRequest) {
       if (SENSITIVE_FIELDS.has(field.key) && val === "") continue;
 
       const strVal = field.type === "switch" ? (val ? "true" : "false") : String(val);
-      setSetting(`payment_provider_${provider}_${field.key}`, strVal);
+      await setSetting(`payment_provider_${provider}_${field.key}`, strVal);
     }
 
     // 重新注册 provider
@@ -100,7 +100,7 @@ export async function PATCH(req: NextRequest) {
   if (general) {
     // 保存通用配置
     for (const [key, value] of Object.entries(general)) {
-      setSetting(`payment_${key}`, value);
+      await setSetting(`payment_${key}`, value);
     }
   }
 
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
   if (provider === "stripe") {
     try {
       const Stripe = (await import("stripe")).default;
-      const secretKey = getSetting("payment_provider_stripe_secretKey") || process.env.STRIPE_SECRET_KEY || "";
+      const secretKey = (await getSetting("payment_provider_stripe_secretKey")) || process.env.STRIPE_SECRET_KEY || "";
       if (!secretKey) {
         return NextResponse.json({ success: false, message: "Stripe Secret Key not configured" });
       }

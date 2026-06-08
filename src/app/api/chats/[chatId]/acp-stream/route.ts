@@ -26,7 +26,7 @@ export async function GET(
   const chatIdNum = parseInt(chatId);
 
   // 校验 chat 访问权限
-  const chat = db.select().from(chats).where(eq(chats.id, chatIdNum)).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, chatIdNum));
   if (!chat) {
     return NextResponse.json({ error: "Chat not found" }, { status: 404 });
   }

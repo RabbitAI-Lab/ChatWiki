@@ -12,7 +12,7 @@ export function registerTemplateTools(server: McpServer) {
       inputSchema: z.object({}),
     },
     async () => {
-      const all = db.select().from(templates).all();
+      const all = await db.select().from(templates);
       return {
         content: [{ type: "text", text: JSON.stringify(all, null, 2) }],
       };
@@ -29,11 +29,10 @@ export function registerTemplateTools(server: McpServer) {
       }),
     },
     async ({ id }) => {
-      const t = db
+      const [t] = await db
         .select()
         .from(templates)
-        .where(eq(templates.id, id))
-        .get();
+        .where(eq(templates.id, id));
       if (!t) {
         return {
           content: [{ type: "text", text: "Template not found" }],

@@ -13,11 +13,10 @@ export async function GET(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   // 从 DB 获取最新数据（authResult 中的数据来自 JWT 时间点）
-  const row = db
+  const [row] = await db
     .select()
     .from(users)
-    .where(eq(users.id, authResult.id))
-    .get();
+    .where(eq(users.id, authResult.id));
 
   if (!row) {
     return NextResponse.json({ error: t('api.auth.userNotFound') }, { status: 404 });
@@ -27,7 +26,7 @@ export async function GET(req: NextRequest) {
     id: row.id,
     email: row.email,
     name: row.name,
-    emailVerified: row.emailVerified === 1,
+    emailVerified: row.emailVerified === true,
     accountType: row.accountType,
     enterpriseId: row.enterpriseId,
     positions: row.positions ? JSON.parse(row.positions) : null,
@@ -76,10 +75,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: t('api.auth.noFieldsToUpdate') }, { status: 400 });
     }
 
-    db.update(users)
+    await db.update(users)
       .set({ ...updates, updatedAt: now })
-      .where(eq(users.id, authResult.id))
-      .run();
+      .where(eq(users.id, authResult.id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -5,7 +5,7 @@ import { bulkSetSettings, getSetting, setSetting } from "@/lib/auth/settings";
 import { getApiT } from "@/lib/i18n-api";
 import { parseColorScheme, mergeColorScheme, type ColorScheme } from "@/lib/color-scheme";
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/).or(z.literal("transparent"));
 const colorModeSchema = z.object({
   primaryBtn: hexColor.optional(),
   primaryBtnHover: hexColor.optional(),
@@ -65,18 +65,18 @@ interface SmtpConfig {
   hasPassword: boolean;
 }
 
-function readSmtpConfig(): SmtpConfig | null {
-  const host = getSetting("smtp_host");
-  const user = getSetting("smtp_user");
-  const pass = getSetting("smtp_pass");
+async function readSmtpConfig(): Promise<SmtpConfig | null> {
+  const host = await getSetting("smtp_host");
+  const user = await getSetting("smtp_user");
+  const pass = await getSetting("smtp_pass");
   // 至少 host+user+pass 三个都存在才算"已配置"
   if (!host || !user || !pass) return null;
   return {
     host,
-    port: parseInt(getSetting("smtp_port") || "465", 10),
+    port: parseInt((await getSetting("smtp_port")) || "465", 10),
     user,
-    fromEmail: getSetting("smtp_from_email") || `noreply@${host}`,
-    secure: getSetting("smtp_secure") !== "false",
+    fromEmail: (await getSetting("smtp_from_email")) || `noreply@${host}`,
+    secure: (await getSetting("smtp_secure")) !== "false",
     hasPassword: pass.length > 0,
   };
 }
@@ -86,21 +86,21 @@ export async function GET(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   return NextResponse.json({
-    openRegistration: getSetting("open_registration") !== "false",
-    requireInviteCode: getSetting("require_invite_code") === "true",
-    requireEmailVerification: getSetting("require_email_verification") === "true",
-    passkeyEnabled: getSetting("passkey_enabled") === "true",
-    passkeyRpId: getSetting("passkey_rp_id") ?? "",
-    passkeyRpName: getSetting("passkey_rp_name") ?? "",
-    siteUrl: getSetting("site_url") ?? "",
-    adminEmail: getSetting("admin_email") ?? "",
-    brandName: getSetting("brand_name") || "RabbitDocs",
+    openRegistration: (await getSetting("open_registration")) !== "false",
+    requireInviteCode: (await getSetting("require_invite_code")) === "true",
+    requireEmailVerification: (await getSetting("require_email_verification")) === "true",
+    passkeyEnabled: (await getSetting("passkey_enabled")) === "true",
+    passkeyRpId: (await getSetting("passkey_rp_id")) ?? "",
+    passkeyRpName: (await getSetting("passkey_rp_name")) ?? "",
+    siteUrl: (await getSetting("site_url")) ?? "",
+    adminEmail: (await getSetting("admin_email")) ?? "",
+    brandName: (await getSetting("brand_name")) || "RabbitDocs",
     emailTemplates: {
-      verifySubject: getSetting("email_verify_subject") || "",
-      verifyHtml: getSetting("email_verify_html") || "",
+      verifySubject: (await getSetting("email_verify_subject")) || "",
+      verifyHtml: (await getSetting("email_verify_html")) || "",
     },
-    smtp: readSmtpConfig(),
-    colorScheme: parseColorScheme(getSetting("color_scheme")),
+    smtp: await readSmtpConfig(),
+    colorScheme: parseColorScheme(await getSetting("color_scheme")),
   });
 }
 
@@ -214,14 +214,14 @@ export async function PATCH(req: NextRequest) {
 
     // Color scheme
     if (parsed.data.colorScheme) {
-      const existingRaw = getSetting("color_scheme");
+      const existingRaw = await getSetting("color_scheme");
       const existing = existingRaw ? parseColorScheme(existingRaw) : null;
       const merged = mergeColorScheme(existing, parsed.data.colorScheme as Partial<ColorScheme>);
-      setSetting("color_scheme", JSON.stringify(merged));
+      await setSetting("color_scheme", JSON.stringify(merged));
     }
 
     if (updates.length > 0) {
-      bulkSetSettings(updates);
+      await bulkSetSettings(updates);
     }
 
     return NextResponse.json({ success: true, updated: updates.length + (parsed.data.colorScheme ? 1 : 0) });

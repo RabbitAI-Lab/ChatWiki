@@ -7,20 +7,20 @@ export async function seed() {
   console.log("[seed] Seeding database...");
 
   // 插入默认账号
-  const existingAccount = db.select().from(accounts).get();
+  const existingAccount = (await db.select().from(accounts).limit(1))[0];
   if (!existingAccount) {
-    db.insert(accounts).values({
+    await db.insert(accounts).values({
       name: "Default",
       type: "personal",
       createdAt: new Date().toISOString(),
-    }).run();
+    });
     console.log("[seed] Default account created.");
   } else {
     console.log("[seed] Default account already exists.");
   }
 
   // 插入预制模板
-  const existingTemplates = db.select().from(templates).all();
+  const existingTemplates = await db.select().from(templates);
   if (existingTemplates.length === 0) {
     const templateData = [
       {
@@ -180,7 +180,7 @@ export async function seed() {
 
     for (const t of templateData) {
       const now = new Date().toISOString();
-      db.insert(templates).values({ ...t, isSystem: 1, createdAt: now, updatedAt: now }).run();
+      await db.insert(templates).values({ ...t, isSystem: true, createdAt: now, updatedAt: now });
     }
     console.log(`[seed] ${templateData.length} templates created.`);
   } else {
@@ -188,10 +188,10 @@ export async function seed() {
   }
 
   // 插入内置系统提示词
-  const existingSystemPrompts = db.select().from(systemPrompts).all();
+  const existingSystemPrompts = await db.select().from(systemPrompts);
   if (existingSystemPrompts.length === 0) {
     const now = new Date().toISOString();
-    db.insert(systemPrompts).values({
+    await db.insert(systemPrompts).values({
       name: "Wiki",
       content: `For Wiki CRUD operations, use the RabbitDocs MCP.
 Before using the RabbitDocs MCP, check if it is already installed.
@@ -204,22 +204,21 @@ MCP configuration:
   }
 }`,
       description: null,
-      enabled: 1,
+      enabled: true,
       sortOrder: 0,
-      isSystem: 1,
+      isSystem: true,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
     console.log("[seed] Built-in Wiki system prompt created.");
   } else {
     console.log(`[seed] ${existingSystemPrompts.length} system prompts already exist.`);
   }
 
-  // 迁移元数据到 DB（在 backfill 之前，因为 migrateMetaToDb 已包含 member 回填）
-  migrateMetaToDb();
+  await migrateMetaToDb();
 
   // 回填成员索引（兜底：如果 migrateMetaToDb 未覆盖的场景）
-  backfillEntityMembers();
+  await backfillEntityMembers();
 
   console.log("[seed] Done.");
 }

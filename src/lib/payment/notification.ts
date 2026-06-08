@@ -15,7 +15,7 @@ import { getAppUrl } from "@/lib/auth/env";
 
 // ── 创建通知任务 ──
 
-function createNotificationJob(params: {
+async function createNotificationJob(params: {
   type: string;
   orderId?: string;
   subscriptionId?: string;
@@ -25,7 +25,7 @@ function createNotificationJob(params: {
   scheduledAt: string;
 }) {
   const now = new Date().toISOString();
-  db.insert(notificationJobs).values({
+  await db.insert(notificationJobs).values({
     type: params.type as "order_pending",
     orderId: params.orderId || null,
     subscriptionId: params.subscriptionId || null,
@@ -35,7 +35,7 @@ function createNotificationJob(params: {
     status: "pending",
     scheduledAt: params.scheduledAt,
     createdAt: now,
-  }).run();
+  });
 }
 
 // ── 订单待支付通知 (1条即时 + N条催付) ──
@@ -47,13 +47,13 @@ export async function createOrderPendingNotifications(
   data: { planTitle: string; amount: string; currency: string; billingCycle: string; checkoutUrl: string }
 ) {
   const now = new Date();
-  const intervalHours = getPendingReminderIntervalHours();
-  const maxCount = getPendingReminderMaxCount();
-  const brandName = getBrandName();
-  const appUrl = getAppUrl();
+  const intervalHours = await getPendingReminderIntervalHours();
+  const maxCount = await getPendingReminderMaxCount();
+  const brandName = await getBrandName();
+  const appUrl = await getAppUrl();
 
   // 1. 即时通知
-  createNotificationJob({
+  await createNotificationJob({
     type: "order_pending",
     orderId,
     userId,
@@ -65,7 +65,7 @@ export async function createOrderPendingNotifications(
   // 2. 催付通知（间隔 N 小时，最多 maxCount 条）
   for (let i = 1; i <= maxCount; i++) {
     const scheduledAt = new Date(now.getTime() + i * intervalHours * 3600 * 1000);
-    createNotificationJob({
+    await createNotificationJob({
       type: "order_pending_reminder",
       orderId,
       userId,
@@ -91,14 +91,14 @@ export async function createOrderPaidNotifications(
   providerSubscriptionId?: string,
   expiresAt?: string
 ) {
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user) return;
 
-  const brandName = getBrandName();
-  const appUrl = getAppUrl();
+  const brandName = await getBrandName();
+  const appUrl = await getAppUrl();
 
   // 1. 支付成功通知
-  createNotificationJob({
+  await createNotificationJob({
     type: "order_paid",
     orderId,
     userId,
@@ -109,13 +109,13 @@ export async function createOrderPaidNotifications(
 
   // 2. 如果是订阅制，创建续费预告任务
   if (data.paymentMode === "subscription" && expiresAt) {
-    const reminderDays = getRenewalReminderDays();
+    const reminderDays = await getRenewalReminderDays();
     const expiresDate = new Date(expiresAt);
     const reminderDate = new Date(expiresDate.getTime() - reminderDays * 24 * 3600 * 1000);
 
     // 只有预告时间在未来才创建
     if (reminderDate > new Date()) {
-      createNotificationJob({
+      await createNotificationJob({
         type: "subscription_renewal_upcoming",
         subscriptionId: providerSubscriptionId,
         orderId,
@@ -143,15 +143,15 @@ export async function createOrderFailedNotification(
   userId: string,
   data: { planTitle: string; amount: string; currency: string }
 ) {
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user) return;
 
-  createNotificationJob({
+  await createNotificationJob({
     type: "order_failed",
     orderId,
     userId,
     email: user.email,
-    data: { ...data, brandName: getBrandName() },
+    data: { ...data, brandName: await getBrandName() },
     scheduledAt: new Date().toISOString(),
   });
 }
@@ -164,14 +164,14 @@ export async function createSubscriptionRenewedNotifications(
   data: { planTitle: string; newExpiresAt: string },
   nextExpiresAt: string
 ) {
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user) return;
 
-  const brandName = getBrandName();
-  const appUrl = getAppUrl();
+  const brandName = await getBrandName();
+  const appUrl = await getAppUrl();
 
   // 1. 续费成功通知
-  createNotificationJob({
+  await createNotificationJob({
     type: "subscription_renewed",
     subscriptionId,
     userId,
@@ -181,12 +181,12 @@ export async function createSubscriptionRenewedNotifications(
   });
 
   // 2. 为下一周期创建续费预告
-  const reminderDays = getRenewalReminderDays();
+  const reminderDays = await getRenewalReminderDays();
   const nextExpires = new Date(nextExpiresAt);
   const reminderDate = new Date(nextExpires.getTime() - reminderDays * 24 * 3600 * 1000);
 
   if (reminderDate > new Date()) {
-    createNotificationJob({
+    await createNotificationJob({
       type: "subscription_renewal_upcoming",
       subscriptionId,
       userId,
@@ -210,13 +210,13 @@ export async function createRefundRequestedNotifications(
   userId: string,
   data: { userName: string; userEmail: string; amount: string; currency: string; reason: string }
 ) {
-  const adminEmails = getRefundAdminEmails();
-  const brandName = getBrandName();
-  const appUrl = getAppUrl();
+  const adminEmails = await getRefundAdminEmails();
+  const brandName = await getBrandName();
+  const appUrl = await getAppUrl();
   const now = new Date().toISOString();
 
   for (const email of adminEmails) {
-    createNotificationJob({
+    await createNotificationJob({
       type: "refund_requested_admin",
       orderId,
       userId,
@@ -239,15 +239,15 @@ export async function createRefundStatusNotification(
   type: "refund_approved" | "refund_completed" | "refund_rejected",
   data: { amount: string; currency: string; reason?: string }
 ) {
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user) return;
 
-  createNotificationJob({
+  await createNotificationJob({
     type,
     orderId,
     userId,
     email: user.email,
-    data: { ...data, brandName: getBrandName() },
+    data: { ...data, brandName: await getBrandName() },
     scheduledAt: new Date().toISOString(),
   });
 }
@@ -256,26 +256,24 @@ export async function createRefundStatusNotification(
 
 export async function cancelPendingReminders(orderId: string) {
   const { eq: eqOp } = await import("drizzle-orm");
-  db.update(notificationJobs)
+  await db.update(notificationJobs)
     .set({ status: "skipped" as const })
     .where(and(
       eqOp(notificationJobs.orderId, orderId),
       eqOp(notificationJobs.type, "order_pending_reminder"),
       eqOp(notificationJobs.status, "pending"),
-    ))
-    .run();
+    ));
 }
 
 // ── 取消续费预告 ──
 
 export async function cancelRenewalReminders(subscriptionId: string) {
   const { eq: eqOp } = await import("drizzle-orm");
-  db.update(notificationJobs)
+  await db.update(notificationJobs)
     .set({ status: "skipped" as const })
     .where(and(
       eqOp(notificationJobs.subscriptionId, subscriptionId),
       eqOp(notificationJobs.type, "subscription_renewal_upcoming"),
       eqOp(notificationJobs.status, "pending"),
-    ))
-    .run();
+    ));
 }

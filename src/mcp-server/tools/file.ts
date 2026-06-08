@@ -59,14 +59,14 @@ function parseHtmlMeta(segments: string[]): { projectId: string; htmlPath: strin
 /**
  * 记录 HTML 文档活动（create/update/delete）。
  */
-function recordHtmlActivity(
+async function recordHtmlActivity(
   projectId: string,
   htmlPath: string,
   title: string,
   action: "create" | "update" | "delete"
-): void {
+): Promise<void> {
   const userId = getMcpUserId();
-  db.insert(documentActivities)
+  await db.insert(documentActivities)
     .values({
       projectId,
       documentPath: htmlPath,
@@ -74,22 +74,20 @@ function recordHtmlActivity(
       action,
       userId,
       createdAt: new Date().toISOString(),
-    })
-    .run();
+    });
 }
 
 /**
  * 删除与某个 HTML 文件关联的分享记录（级联清理）。
  */
-function deleteSharedHtmlFiles(projectId: string, htmlPath: string): void {
-  db.delete(sharedHtmlFiles)
+async function deleteSharedHtmlFiles(projectId: string, htmlPath: string): Promise<void> {
+  await db.delete(sharedHtmlFiles)
     .where(
       and(
         eq(sharedHtmlFiles.projectId, projectId),
         eq(sharedHtmlFiles.htmlPath, htmlPath)
       )
-    )
-    .run();
+    );
 }
 
 export function registerFileTools(server: McpServer) {
@@ -282,7 +280,7 @@ export function registerFileTools(server: McpServer) {
       const meta = parseHtmlMeta(segments);
       writeHtmlDocument(content, ...segments);
       if (meta) {
-        recordHtmlActivity(meta.projectId, meta.htmlPath, meta.title, "create");
+        await recordHtmlActivity(meta.projectId, meta.htmlPath, meta.title, "create");
       }
       return {
         content: [{ type: "text", text: `HTML file created: ${path}` }],
@@ -324,7 +322,7 @@ export function registerFileTools(server: McpServer) {
       const meta = parseHtmlMeta(segments);
       writeHtmlDocument(content, ...segments);
       if (meta) {
-        recordHtmlActivity(meta.projectId, meta.htmlPath, meta.title, "update");
+        await recordHtmlActivity(meta.projectId, meta.htmlPath, meta.title, "update");
       }
       return {
         content: [{ type: "text", text: `HTML file updated: ${path}` }],
@@ -359,8 +357,8 @@ export function registerFileTools(server: McpServer) {
       deleteHtmlDocument(...segments);
       if (meta) {
         // 级联清理分享记录
-        deleteSharedHtmlFiles(meta.projectId, meta.htmlPath);
-        recordHtmlActivity(meta.projectId, meta.htmlPath, meta.title, "delete");
+        await deleteSharedHtmlFiles(meta.projectId, meta.htmlPath);
+        await recordHtmlActivity(meta.projectId, meta.htmlPath, meta.title, "delete");
       }
       return {
         content: [{ type: "text", text: `HTML file deleted: ${path}` }],
@@ -382,7 +380,7 @@ export function registerFileTools(server: McpServer) {
       }),
     },
     async ({ projectId, limit = 10, offset = 0 }) => {
-      const rows = db
+      const rows = await db
         .select({
           id: documentActivities.id,
           projectId: documentActivities.projectId,
@@ -398,8 +396,7 @@ export function registerFileTools(server: McpServer) {
         .where(projectId ? eq(documentActivities.projectId, projectId) : undefined)
         .orderBy(desc(documentActivities.createdAt))
         .limit(limit)
-        .offset(offset)
-        .all();
+        .offset(offset);
       return {
         content: [{ type: "text", text: JSON.stringify(rows, null, 2) }],
       };

@@ -121,14 +121,14 @@ export async function POST(req: NextRequest) {
   if (meta) {
     const existing = readAnyDocument(...segments);
     writeAnyDocument(content, ...segments);
-    db.insert(documentActivities).values({
+    await db.insert(documentActivities).values({
       projectId: meta.projectId,
       documentPath: meta.documentPath,
       documentTitle: meta.documentTitle,
       action: existing !== null ? "update" : "create",
       userId: auth.id,
       createdAt: new Date().toISOString(),
-    }).run();
+    });
   } else {
     writeAnyDocument(content, ...segments);
   }
@@ -153,25 +153,24 @@ export async function DELETE(req: NextRequest) {
   deleteAnyDocument(...segments);
 
   if (meta) {
-    db.insert(documentActivities).values({
+    await db.insert(documentActivities).values({
       projectId: meta.projectId,
       documentPath: meta.documentPath,
       documentTitle: meta.documentTitle,
       action: "delete",
       userId: auth.id,
       createdAt: new Date().toISOString(),
-    }).run();
+    });
 
     // HTML 文件额外清理分享记录
     if (getFileKind(segments) === "html") {
-      db.delete(sharedHtmlFiles)
+      await db.delete(sharedHtmlFiles)
         .where(
           and(
             eq(sharedHtmlFiles.projectId, meta.projectId),
             eq(sharedHtmlFiles.htmlPath, meta.documentPath)
           )
-        )
-        .run();
+        );
     }
   }
 
@@ -206,7 +205,7 @@ export async function PATCH(req: NextRequest) {
     } else {
       renameDocument(newTitle, ...segments);
     }
-    db.insert(documentActivities).values({
+    await db.insert(documentActivities).values({
       projectId: meta.projectId,
       documentPath: meta.documentPath.replace(/\/[^/]*$/, "/" + (newTitle.replace(/\.(md|html)$/, ""))),
       documentTitle: newTitle.replace(/\.(md|html)$/, ""),
@@ -214,22 +213,21 @@ export async function PATCH(req: NextRequest) {
       oldTitle,
       userId: auth.id,
       createdAt: new Date().toISOString(),
-    }).run();
+    });
 
     // HTML 文件额外同步分享记录的 htmlPath
     if (isHtml) {
       const dirParts = meta.documentPath.split("/").slice(0, -1);
       const newHtmlPath = [...dirParts, `${newTitle.replace(/\.html$/, "")}.html`].join("/");
       const now = new Date().toISOString();
-      db.update(sharedHtmlFiles)
+      await db.update(sharedHtmlFiles)
         .set({ htmlPath: newHtmlPath, updatedAt: now })
         .where(
           and(
             eq(sharedHtmlFiles.projectId, meta.projectId),
             eq(sharedHtmlFiles.htmlPath, meta.documentPath)
           )
-        )
-        .run();
+        );
     }
   } else {
     if (isHtml) {

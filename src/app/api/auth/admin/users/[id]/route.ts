@@ -35,13 +35,13 @@ export async function PATCH(
       );
     }
 
-    const target = db.select().from(users).where(eq(users.id, userId)).get();
+    const [target] = await db.select().from(users).where(eq(users.id, userId));
     if (!target) {
       return NextResponse.json({ error: t('api.auth.userNotFound') }, { status: 404 });
     }
 
     // 禁止禁用系统超级管理员
-    const adminId = getAdminUserId();
+    const adminId = await getAdminUserId();
     if (adminId && adminId === userId && parsed.data.disabled === true) {
       return NextResponse.json(
         { error: t('api.auth.admin.cannotDisableSystemAdmin') },
@@ -60,16 +60,16 @@ export async function PATCH(
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (parsed.data.name !== undefined) updates.name = parsed.data.name;
     if (parsed.data.emailVerified !== undefined) {
-      updates.emailVerified = parsed.data.emailVerified ? 1 : 0;
+      updates.emailVerified = parsed.data.emailVerified ? true : false;
     }
     if (parsed.data.disabled !== undefined) {
-      updates.disabled = parsed.data.disabled ? 1 : 0;
+      updates.disabled = parsed.data.disabled ? true : false;
     }
     if (parsed.data.role !== undefined) {
       updates.role = parsed.data.role;
     }
 
-    db.update(users).set(updates).where(eq(users.id, userId)).run();
+    await db.update(users).set(updates).where(eq(users.id, userId));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -89,12 +89,12 @@ export async function DELETE(
   try {
     const { id: userId } = await params;
 
-    const target = db.select().from(users).where(eq(users.id, userId)).get();
+    const [target] = await db.select().from(users).where(eq(users.id, userId));
     if (!target) {
       return NextResponse.json({ error: t('api.auth.userNotFound') }, { status: 404 });
     }
 
-    const adminId = getAdminUserId();
+    const adminId = await getAdminUserId();
     if (adminId && adminId === userId) {
       return NextResponse.json(
         { error: t('api.auth.admin.cannotDisableSystemAdmin') },
@@ -102,10 +102,9 @@ export async function DELETE(
       );
     }
 
-    db.update(users)
-      .set({ disabled: 1, updatedAt: new Date().toISOString() })
-      .where(eq(users.id, userId))
-      .run();
+    await db.update(users)
+      .set({ disabled: true, updatedAt: new Date().toISOString() })
+      .where(eq(users.id, userId));
 
     return NextResponse.json({ success: true, message: t('api.auth.admin.userDisabled') });
   } catch (error) {

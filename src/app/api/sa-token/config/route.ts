@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const authResult = await requireAdmin(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  const config = getSaTokenConfig();
+  const config = await getSaTokenConfig();
   return NextResponse.json({
     enabled: config.enabled,
     endpoint: config.endpoint,
@@ -39,16 +39,16 @@ export async function PUT(req: NextRequest) {
   }
 
   if (parsed.data.enabled !== undefined) {
-    setSetting("satoken_enabled", parsed.data.enabled ? "true" : "false");
+    await setSetting("satoken_enabled", parsed.data.enabled ? "true" : "false");
   }
   if (parsed.data.endpoint !== undefined) {
-    setSetting("satoken_endpoint", parsed.data.endpoint);
+    await setSetting("satoken_endpoint", parsed.data.endpoint);
   }
   if (parsed.data.secretkey !== undefined) {
-    setSetting("satoken_secretkey", parsed.data.secretkey);
+    await setSetting("satoken_secretkey", parsed.data.secretkey);
   }
   if (parsed.data.timeout !== undefined) {
-    setSetting("satoken_timeout", String(parsed.data.timeout));
+    await setSetting("satoken_timeout", String(parsed.data.timeout));
   }
 
   return NextResponse.json({ success: true });

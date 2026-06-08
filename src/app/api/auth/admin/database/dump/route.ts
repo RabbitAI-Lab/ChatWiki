@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const timestamp = new Date().toISOString().slice(0, 10);
 
     if (format === "json") {
-      const dump = generateJsonDump();
+      const dump = await generateJsonDump();
       const filename = `rabbitdocs-dump-${timestamp}.json`;
       return new Response(JSON.stringify(dump, null, 2), {
         headers: {
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
         },
       });
     } else {
-      const sql = generateSqlDump();
+      const sql = await generateSqlDump();
       const filename = `rabbitdocs-dump-${timestamp}.sql`;
       return new Response(sql, {
         headers: {

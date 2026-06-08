@@ -32,8 +32,8 @@ const ENTITY_DIR_TO_TYPE: Record<string, string> = {
 
 /** Strategy for reading/writing entity metadata. */
 export interface MetaStrategy {
-  readMeta(dirSegments: string[]): ProjectMeta | null;
-  writeMeta(meta: ProjectMeta, dirSegments: string[]): void;
+  readMeta(dirSegments: string[]): Promise<ProjectMeta | null>;
+  writeMeta(meta: ProjectMeta, dirSegments: string[]): Promise<void>;
   entityName: string; // "Project" | "Workspace" — used in error messages
 }
 
@@ -52,21 +52,19 @@ export interface EntityStrategy extends MetaStrategy {
 // ────────────────────────────────────────────────────────────
 
 /** Read entity metadata from DB, assembling repositories and members from sub-tables. */
-export function readMetaFromDb(entityId: string, entityType: string): ProjectMeta | null {
-  const row = db.select().from(entities)
+export async function readMetaFromDb(entityId: string, entityType: string): Promise<ProjectMeta | null> {
+  const [row] = await db.select().from(entities)
     .where(and(eq(entities.id, entityId), eq(entities.type, entityType as "project" | "workspace")))
-    .get();
+    .limit(1);
   if (!row) return null;
 
   // 查询关联的 repositories
-  const repoRows = db.select().from(entityRepositories)
-    .where(and(eq(entityRepositories.entityId, entityId), eq(entityRepositories.entityType, entityType)))
-    .all();
+  const repoRows = await db.select().from(entityRepositories)
+    .where(and(eq(entityRepositories.entityId, entityId), eq(entityRepositories.entityType, entityType)));
 
   // 查询关联的 members
-  const memberRows = db.select().from(entityMembers)
-    .where(and(eq(entityMembers.entityId, entityId), eq(entityMembers.entityType, entityType)))
-    .all();
+  const memberRows = await db.select().from(entityMembers)
+    .where(and(eq(entityMembers.entityId, entityId), eq(entityMembers.entityType, entityType)));
 
   return {
     id: row.id,
@@ -86,10 +84,10 @@ export function readMetaFromDb(entityId: string, entityType: string): ProjectMet
 }
 
 /** Write entity metadata to DB (upsert), syncing repositories and members sub-tables. */
-export function writeMetaToDb(meta: ProjectMeta, entityType: string): void {
+export async function writeMetaToDb(meta: ProjectMeta, entityType: string): Promise<void> {
   const now = new Date().toISOString();
 
-  db.insert(entities)
+  await db.insert(entities)
     .values({
       id: meta.id,
       type: entityType as "project" | "workspace",
@@ -119,16 +117,14 @@ export function writeMetaToDb(meta: ProjectMeta, entityType: string): void {
         skillsStatus: meta.skills ? JSON.stringify(meta.skills) : null,
         updatedAt: now,
       },
-    })
-    .run();
+    });
 
   // Sync repositories sub-table: full replace strategy
   if (meta.repositories !== undefined) {
-    db.delete(entityRepositories)
-      .where(and(eq(entityRepositories.entityId, meta.id), eq(entityRepositories.entityType, entityType)))
-      .run();
+    await db.delete(entityRepositories)
+      .where(and(eq(entityRepositories.entityId, meta.id), eq(entityRepositories.entityType, entityType)));
     for (const repo of meta.repositories) {
-      db.insert(entityRepositories)
+      await db.insert(entityRepositories)
         .values({
           id: repo.id,
           entityId: meta.id,
@@ -146,18 +142,16 @@ export function writeMetaToDb(meta: ProjectMeta, entityType: string): void {
           createdAt: now,
           updatedAt: now,
         })
-        .onConflictDoNothing()
-        .run();
+        .onConflictDoNothing();
     }
   }
 
   // Sync members sub-table: full replace strategy
   if (meta.members !== undefined) {
-    db.delete(entityMembers)
-      .where(and(eq(entityMembers.entityId, meta.id), eq(entityMembers.entityType, entityType)))
-      .run();
+    await db.delete(entityMembers)
+      .where(and(eq(entityMembers.entityId, meta.id), eq(entityMembers.entityType, entityType)));
     for (const member of meta.members) {
-      db.insert(entityMembers)
+      await db.insert(entityMembers)
         .values({
           entityId: meta.id,
           entityType,
@@ -168,8 +162,7 @@ export function writeMetaToDb(meta: ProjectMeta, entityType: string): void {
           addedAt: member.addedAt,
           createdAt: now,
         })
-        .onConflictDoNothing()
-        .run();
+        .onConflictDoNothing();
     }
   }
 }
@@ -212,30 +205,29 @@ function memberRowToProjectMember(row: typeof entityMembers.$inferSelect): Proje
 // ────────────────────────────────────────────────────────────
 
 export interface EntityCrud {
-  list(accountId: string): ProjectMeta[];
-  create(accountId: string, name: string): ProjectMeta;
-  remove(id: string): void;
+  list(accountId: string): Promise<ProjectMeta[]>;
+  create(accountId: string, name: string): Promise<ProjectMeta>;
+  remove(id: string): Promise<void>;
 }
 
 export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
   const { entityDir, entityType, createDocsDir } = strategy;
 
-  function list(accountId: string): ProjectMeta[] {
-    const rows = db.select().from(entities)
+  async function list(accountId: string): Promise<ProjectMeta[]> {
+    const rows = await db.select().from(entities)
       .where(and(
         eq(entities.accountId, accountId),
         eq(entities.type, entityType as "project" | "workspace")
       ))
-      .orderBy(asc(entities.sortOrder))
-      .all();
+      .orderBy(asc(entities.sortOrder));
 
-    return rows.map((row) => {
-      const repoRows = db.select().from(entityRepositories)
-        .where(and(eq(entityRepositories.entityId, row.id), eq(entityRepositories.entityType, entityType)))
-        .all();
-      const memberRows = db.select().from(entityMembers)
-        .where(and(eq(entityMembers.entityId, row.id), eq(entityMembers.entityType, entityType)))
-        .all();
+    const results = await Promise.all(rows.map(async (row) => {
+      const [repoRows, memberRows] = await Promise.all([
+        db.select().from(entityRepositories)
+          .where(and(eq(entityRepositories.entityId, row.id), eq(entityRepositories.entityType, entityType))),
+        db.select().from(entityMembers)
+          .where(and(eq(entityMembers.entityId, row.id), eq(entityMembers.entityType, entityType))),
+      ]);
       return {
         id: row.id,
         name: row.name,
@@ -251,15 +243,16 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
         members: memberRows.length > 0 ? memberRows.map(memberRowToProjectMember) : undefined,
         gitnexusStatus: row.gitnexusStatus ? JSON.parse(row.gitnexusStatus) : undefined,
       } as ProjectMeta;
-    });
+    }));
+    return results;
   }
 
-  function create(accountId: string, name: string): ProjectMeta {
+  async function create(accountId: string, name: string): Promise<ProjectMeta> {
     // Shift all existing entities' sortOrder by 1 so new one goes first
-    const existing = list(accountId);
+    const existing = await list(accountId);
     for (const p of existing) {
       p.sortOrder += 1;
-      strategy.writeMeta(p, [entityDir, p.id]);
+      await strategy.writeMeta(p, [entityDir, p.id]);
     }
 
     const id = randomUUID();
@@ -279,22 +272,20 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
       ownerId: accountId,
       sortOrder: 0,
     };
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
     return meta;
   }
 
-  function remove(id: string): void {
+  async function remove(id: string): Promise<void> {
     const dirPath = path.join(getDataRoot(), entityDir, id);
 
     // 删除 DB 记录: entities + entity_repositories + entity_members
     try {
-      db.delete(entityRepositories)
-        .where(and(eq(entityRepositories.entityId, id), eq(entityRepositories.entityType, entityType)))
-        .run();
-      db.delete(entityMembers)
-        .where(and(eq(entityMembers.entityId, id), eq(entityMembers.entityType, entityType)))
-        .run();
-      db.delete(entities).where(eq(entities.id, id)).run();
+      await db.delete(entityRepositories)
+        .where(and(eq(entityRepositories.entityId, id), eq(entityRepositories.entityType, entityType)));
+      await db.delete(entityMembers)
+        .where(and(eq(entityMembers.entityId, id), eq(entityMembers.entityType, entityType)));
+      await db.delete(entities).where(eq(entities.id, id));
     } catch (e) {
       console.warn(`[EntityCRUD] Failed to clean up DB for ${id}:`, e);
     }
@@ -312,35 +303,35 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
 // ────────────────────────────────────────────────────────────
 
 export interface RepositoryCrud {
-  add(dirSegments: string[], repository: Repository): Repository[];
-  remove(dirSegments: string[], repoId: string): void;
-  update(dirSegments: string[], repoId: string, updates: Partial<Omit<Repository, "id">>): Repository | null;
+  add(dirSegments: string[], repository: Repository): Promise<Repository[]>;
+  remove(dirSegments: string[], repoId: string): Promise<void>;
+  update(dirSegments: string[], repoId: string, updates: Partial<Omit<Repository, "id">>): Promise<Repository | null>;
 }
 
 export function createRepositoryCrud(strategy: MetaStrategy): RepositoryCrud {
-  function add(dirSegments: string[], repository: Repository): Repository[] {
-    const meta = strategy.readMeta(dirSegments);
+  async function add(dirSegments: string[], repository: Repository): Promise<Repository[]> {
+    const meta = await strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
     if (!meta.repositories) meta.repositories = [];
     meta.repositories.push(repository);
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
     return meta.repositories;
   }
 
-  function remove(dirSegments: string[], repoId: string): void {
-    const meta = strategy.readMeta(dirSegments);
+  async function remove(dirSegments: string[], repoId: string): Promise<void> {
+    const meta = await strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
     meta.repositories = (meta.repositories || []).filter((r) => r.id !== repoId);
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
   }
 
-  function update(dirSegments: string[], repoId: string, updates: Partial<Omit<Repository, "id">>): Repository | null {
-    const meta = strategy.readMeta(dirSegments);
+  async function update(dirSegments: string[], repoId: string, updates: Partial<Omit<Repository, "id">>): Promise<Repository | null> {
+    const meta = await strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
     const repo = (meta.repositories || []).find((r) => r.id === repoId);
     if (!repo) return null;
     Object.assign(repo, updates);
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
     return repo;
   }
 
@@ -352,46 +343,46 @@ export function createRepositoryCrud(strategy: MetaStrategy): RepositoryCrud {
 // ────────────────────────────────────────────────────────────
 
 export interface MemberCrud {
-  add(dirSegments: string[], member: ProjectMember): ProjectMember[];
-  remove(dirSegments: string[], memberId: string): void;
-  update(dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>): ProjectMember | null;
+  add(dirSegments: string[], member: ProjectMember): Promise<ProjectMember[]>;
+  remove(dirSegments: string[], memberId: string): Promise<void>;
+  update(dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>): Promise<ProjectMember | null>;
 }
 
 export function createMemberCrud(strategy: MetaStrategy): MemberCrud {
-  function add(dirSegments: string[], member: ProjectMember): ProjectMember[] {
-    const meta = strategy.readMeta(dirSegments);
+  async function add(dirSegments: string[], member: ProjectMember): Promise<ProjectMember[]> {
+    const meta = await strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
     if (!meta.members) meta.members = [];
     meta.members.push(member);
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
 
     // 同步写 DB 索引
-    syncMemberToDb(dirSegments, member);
+    await syncMemberToDb(dirSegments, member);
 
     return meta.members;
   }
 
-  function remove(dirSegments: string[], memberId: string): void {
-    const meta = strategy.readMeta(dirSegments);
+  async function remove(dirSegments: string[], memberId: string): Promise<void> {
+    const meta = await strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
     const removed = (meta.members || []).find((m) => m.id === memberId);
     meta.members = (meta.members || []).filter((m) => m.id !== memberId);
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
 
     // 同步从 DB 索引删除
-    removeMemberFromDb(dirSegments, memberId, removed?.userId);
+    await removeMemberFromDb(dirSegments, memberId, removed?.userId);
   }
 
-  function update(dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>): ProjectMember | null {
-    const meta = strategy.readMeta(dirSegments);
+  async function update(dirSegments: string[], memberId: string, updates: Partial<Omit<ProjectMember, "id">>): Promise<ProjectMember | null> {
+    const meta = await strategy.readMeta(dirSegments);
     if (!meta) throw new Error(`${strategy.entityName} not found`);
     const member = (meta.members || []).find((m) => m.id === memberId);
     if (!member) return null;
     Object.assign(member, updates);
-    strategy.writeMeta(meta, dirSegments);
+    await strategy.writeMeta(meta, dirSegments);
 
     // 同步更新 DB 索引
-    updateMemberInDb(dirSegments, memberId, updates);
+    await updateMemberInDb(dirSegments, memberId, updates);
 
     return member;
   }
@@ -407,12 +398,12 @@ export function createMemberCrud(strategy: MetaStrategy): MemberCrud {
  * 查找指定用户作为成员的所有实体（项目/工作空间）ID。
  * DB 为 source of truth，纯 DB 查询。
  */
-export function findMemberEntityIds(userId: string, entityDir: string, _metaFileName?: string): string[] {
+export async function findMemberEntityIds(userId: string, entityDir: string, _metaFileName?: string): Promise<string[]> {
   const entityType = ENTITY_DIR_TO_TYPE[entityDir];
   if (!entityType) return [];
 
   try {
-    const rows = db
+    const rows = await db
       .select({ entityId: entityMembers.entityId })
       .from(entityMembers)
       .where(
@@ -420,8 +411,7 @@ export function findMemberEntityIds(userId: string, entityDir: string, _metaFile
           eq(entityMembers.userId, userId),
           eq(entityMembers.entityType, entityType)
         )
-      )
-      .all();
+      );
     return rows.map((r) => r.entityId);
   } catch (e) {
     console.warn("[MemberDB] DB query failed:", e);
@@ -538,26 +528,26 @@ export function createMcpConfigCrud(): McpConfigCrud {
 // DB 索引辅助函数
 // ────────────────────────────────────────────────────────────
 
-function extractEntityInfo(dirSegments: string[]): {
+async function extractEntityInfo(dirSegments: string[]): Promise<{
   entityId: string;
   entityType: string;
   ownerId: string;
-} | null {
+} | null> {
   // dirSegments 格式: [entityDir, entityId] (如 ["projects", "{projectId}"])
   if (dirSegments.length < 2) return null;
   const [entityDir, entityId] = dirSegments;
   const entityType = ENTITY_DIR_TO_TYPE[entityDir];
   if (!entityType) return null;
-  // ownerId 从 DB 元数据获取，此处用 entityId 占位
-  const meta = readMetaFromDb(entityId, entityType);
+  // ownerId 从 DB 元数据获取
+  const meta = await readMetaFromDb(entityId, entityType);
   return { entityId, entityType, ownerId: meta?.ownerId || "" };
 }
 
-function syncMemberToDb(dirSegments: string[], member: ProjectMember): void {
-  const info = extractEntityInfo(dirSegments);
+async function syncMemberToDb(dirSegments: string[], member: ProjectMember): Promise<void> {
+  const info = await extractEntityInfo(dirSegments);
   if (!info) return;
   try {
-    db.insert(entityMembers)
+    await db.insert(entityMembers)
       .values({
         entityId: info.entityId,
         entityType: info.entityType,
@@ -568,50 +558,49 @@ function syncMemberToDb(dirSegments: string[], member: ProjectMember): void {
         addedAt: member.addedAt,
         createdAt: new Date().toISOString(),
       })
-      .onConflictDoNothing()
-      .run();
+      .onConflictDoNothing();
   } catch (e) {
     console.warn("[MemberDB] Failed to sync member to DB:", e);
   }
 }
 
-function removeMemberFromDb(dirSegments: string[], memberId: string, userId?: string): void {
-  const info = extractEntityInfo(dirSegments);
+async function removeMemberFromDb(dirSegments: string[], memberId: string, userId?: string): Promise<void> {
+  const info = await extractEntityInfo(dirSegments);
   if (!info) return;
   try {
     // 优先按 memberId 精确删除
-    const result = db.delete(entityMembers)
+    const result = await db.delete(entityMembers)
       .where(
         and(
           eq(entityMembers.entityId, info.entityId),
           eq(entityMembers.entityType, info.entityType),
           eq(entityMembers.memberId, memberId)
         )
-      )
-      .run();
-    // 兆底：如果 memberId 不匹配（如 repaired- 前缀），按 userId + entityId 删除
-    if (result.changes === 0 && userId) {
-      db.delete(entityMembers)
+      );
+    // 兜底：如果 memberId 不匹配（如 repaired- 前缀），按 userId + entityId 删除
+    // PG delete returns count via rowCount
+    const count = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+    if (count === 0 && userId) {
+      await db.delete(entityMembers)
         .where(
           and(
             eq(entityMembers.entityId, info.entityId),
             eq(entityMembers.entityType, info.entityType),
             eq(entityMembers.userId, userId)
           )
-        )
-        .run();
+        );
     }
   } catch (e) {
     console.warn("[MemberDB] Failed to remove member from DB:", e);
   }
 }
 
-function updateMemberInDb(
+async function updateMemberInDb(
   dirSegments: string[],
   memberId: string,
   updates: Partial<Omit<ProjectMember, "id">>
-): void {
-  const info = extractEntityInfo(dirSegments);
+): Promise<void> {
+  const info = await extractEntityInfo(dirSegments);
   if (!info) return;
   try {
     const setFields: Record<string, string> = {};
@@ -619,7 +608,7 @@ function updateMemberInDb(
     if (updates.userId !== undefined) setFields.userId = updates.userId;
     if (updates.addedAt !== undefined) setFields.addedAt = updates.addedAt;
     if (Object.keys(setFields).length > 0) {
-      db.update(entityMembers)
+      await db.update(entityMembers)
         .set(setFields)
         .where(
           and(
@@ -627,8 +616,7 @@ function updateMemberInDb(
             eq(entityMembers.entityType, info.entityType),
             eq(entityMembers.memberId, memberId)
           )
-        )
-        .run();
+        );
     }
   } catch (e) {
     console.warn("[MemberDB] Failed to update member in DB:", e);

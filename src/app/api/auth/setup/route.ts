@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const t = await getApiT();
   try {
     // 检查是否已初始化
-    if (isInitialized()) {
+    if (await isInitialized()) {
       return NextResponse.json(
         { error: t('api.auth.systemAlreadyInitialized') },
         { status: 400 }
@@ -41,52 +41,49 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const passwordHash = await hashPassword(password);
 
-    db.insert(users)
+    await db.insert(users)
       .values({
         id: userId,
         email,
         passwordHash,
         name: "Admin",
-        emailVerified: 1, // 管理员无需验证
+        emailVerified: true, // 管理员无需验证
         accountType: "personal",
         role: "admin",
         createdAt: now,
         updatedAt: now,
-      })
-      .run();
+      });
 
     // 设置管理员 ID
-    setSetting("admin_user_id", userId);
+    await setSetting("admin_user_id", userId);
 
     // 设置默认系统设置
-    setSetting("open_registration", "true");
-    setSetting("require_invite_code", "false");
-    setSetting("require_email_verification", "false");
+    await setSetting("open_registration", "true");
+    await setSetting("require_invite_code", "false");
+    await setSetting("require_email_verification", "false");
 
     // 生成初始邀请码
     const initialCode = crypto.randomBytes(4).toString("hex");
-    db.insert(inviteCodes)
+    await db.insert(inviteCodes)
       .values({
         id: crypto.randomUUID(),
         code: initialCode,
         createdById: userId,
         createdAt: now,
-      })
-      .run();
+      });
 
     // 创建系统 API Key（用于 MCP）
     const apiKeyValue = `atm_${crypto.randomUUID().replace(/-/g, "")}`;
-    db.insert(apiKeys)
+    await db.insert(apiKeys)
       .values({
         id: crypto.randomUUID(),
         name: "System Key (MCP)",
         keyField: apiKeyValue,
         prefix: apiKeyValue.slice(0, 8),
         userId,
-        isSystem: 1,
+        isSystem: true,
         createdAt: now,
-      })
-      .run();
+      });
 
     // 签发 token
     const tokens = await generateTokenPair(userId, email);

@@ -27,7 +27,7 @@ interface TemplateData {
   content: string;
   icon: string | null;
   agentPrompt: string | null;
-  isSystem: number;  // 0=用户创建, 1=系统模板
+  isSystem: boolean;  // false=用户创建, true=系统模板
   createdAt: string;
   updatedAt: string;
 }
@@ -46,7 +46,7 @@ const promptToolbar = [
 export default function TemplateEditor({ template }: TemplateEditorProps) {
   const router = useRouter();
   const t = useTranslations('templates');
-  const isSystem = template.isSystem === 1;  // 系统模板只读
+  const isSystem = template.isSystem;  // 系统模板只读
   const [name, setName] = useState(template.name);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(template.name);

@@ -144,7 +144,7 @@ body {
 
 /* ChatWelcome scoped Safari fallbacks */
 .chat-welcome {
-  --chat-welcome-card-bg: #ffffff;
+  --chat-welcome-card-bg: transparent;
   --chat-welcome-card-border: rgba(228, 228, 231, 0.8);
   --chat-welcome-card-ring: rgba(228, 228, 231, 0.6);
   --chat-welcome-emph-from: #18181b;
@@ -152,7 +152,7 @@ body {
 }
 
 .dark .chat-welcome {
-  --chat-welcome-card-bg: rgba(24, 24, 27, 0.6);
+  --chat-welcome-card-bg: transparent;
   --chat-welcome-card-border: #27272a;
   --chat-welcome-card-ring: rgba(39, 39, 42, 0.8);
   --chat-welcome-emph-from: #fafafa;
@@ -191,9 +191,9 @@ body {
    确保 background-color / color / ring-color 三组属性在 Safari 中正确切换 */
 
 /* ── 亮色 ── */
-.chat-welcome__strip .bg-emerald-50 { background-color: #ecfdf5 !important; }
-.chat-welcome__strip .bg-blue-50    { background-color: #eff6ff !important; }
-.chat-welcome__strip .bg-zinc-100   { background-color: #f4f4f5 !important; }
+.chat-welcome__strip .bg-emerald-50 { background-color: transparent !important; }
+.chat-welcome__strip .bg-blue-50    { background-color: transparent !important; }
+.chat-welcome__strip .bg-zinc-100   { background-color: transparent !important; }
 
 .chat-welcome__strip .text-emerald-700 { color: #047857 !important; }
 .chat-welcome__strip .text-blue-700    { color: #1d4ed8 !important; }
@@ -206,15 +206,15 @@ body {
 /* ── 暗色 ── */
 .dark .chat-welcome__strip .bg-emerald-500\/10,
 .chat-welcome__strip .dark\:bg-emerald-500\/10 {
-  background-color: rgba(16, 185, 129, 0.1) !important;
+  background-color: transparent !important;
 }
 .dark .chat-welcome__strip .bg-blue-500\/10,
 .chat-welcome__strip .dark\:bg-blue-500\/10 {
-  background-color: rgba(59, 130, 246, 0.1) !important;
+  background-color: transparent !important;
 }
 .dark .chat-welcome__strip .bg-zinc-800\/60,
 .chat-welcome__strip .dark\:bg-zinc-800\/60 {
-  background-color: rgba(39, 39, 42, 0.6) !important;
+  background-color: transparent !important;
 }
 
 .dark .chat-welcome__strip .text-emerald-300,
@@ -303,6 +303,14 @@ body {
   background-color: var(--color-primary-hover, #4096ff) !important;
 }
 
+/* antd Table header — 透明背景 + 跟随Appearance主题 */
+.ant-table-thead > tr > th {
+  background-color: transparent !important;
+  color: var(--foreground) !important;
+  font-weight: 600;
+  border-bottom: 2px solid color-mix(in srgb, var(--color-primary) 25%, transparent) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-welcome[data-mounted="true"] .chat-welcome__strip,
   .chat-welcome[data-mounted="true"] .chat-welcome__greeting,
@@ -334,7 +342,7 @@ body {
   border-radius: 8px;
 }
 
-/* 覆盖浏览器自动填充的蓝色背景 */
+/* 覆盖浏览器自动填充的背景色 */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -348,6 +356,23 @@ input:-webkit-autofill:active {
 .dark input:-webkit-autofill:focus,
 .dark input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #18181b inset;
+}
+
+/* Auth 页面：autofill 也保持透明 */
+.auth-page input:-webkit-autofill,
+.auth-page input:-webkit-autofill:hover,
+.auth-page input:-webkit-autofill:focus,
+.auth-page input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Firefox autofill 覆盖 */
+.auth-page input:-moz-autofill-preview,
+.auth-page input:-moz-autofill,
+.auth-page input:-moz-autofill-preview:focus,
+.auth-page input:-moz-autofill:focus {
+  filter: opacity(0);
 }
 
 /* CherryMarkdown dark mode overrides */
@@ -446,4 +471,61 @@ input:-webkit-autofill:active {
 }
 .dark .cherry-editor-container .cherry-previewer .cherry-detail__label {
   color: #a1a1aa;
+}
+
+/* ── Auth pages: Card 融入页面背景 + Input 透明背景 ── */
+
+/* Card 背景：融入页面背景 */
+.auth-page .ant-card {
+  background-color: transparent !important;
+}
+
+/* Card header 背景也透明 */
+.auth-page .ant-card-head {
+  background-color: transparent !important;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+}
+
+/* Card body 去除多余背景 */
+.auth-page .ant-card-body {
+  background-color: transparent !important;
+}
+
+/* Input 输入框：透明背景
+   antd CSS-in-JS 用 background 简写注入 colorBgContainer 值，
+   需用重复类名提高特异性 + background 简写属性覆盖 */
+.auth-page .ant-input.ant-input,
+.auth-page .ant-input.ant-input-outlined,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper-outlined,
+.auth-page .ant-input-password {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* affix-wrapper 内部 input 元素也需要透明 */
+.auth-page .ant-input-affix-wrapper input.ant-input {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Input hover/focus/active 时也保持透明 */
+.auth-page .ant-input.ant-input:hover,
+.auth-page .ant-input.ant-input-outlined:hover,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper:hover,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper-outlined:hover,
+.auth-page .ant-input.ant-input:focus,
+.auth-page .ant-input.ant-input-outlined:focus,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper:focus,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper:focus-within,
+.auth-page .ant-input-affix-wrapper.ant-input-affix-wrapper-focused,
+.auth-page .ant-input-password:hover,
+.auth-page .ant-input-password:focus-within {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Divider 透明背景 */
+.auth-page .ant-divider {
+  background-color: transparent !important;
 }

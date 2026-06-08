@@ -18,17 +18,16 @@ export async function DELETE(
   const t = await getApiT();
 
   // 校验 chat 访问权限
-  const chat = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [chat] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   if (!chat) return NextResponse.json({ error: t('api.chat.chatNotFound') }, { status: 404 });
   if (!canAccessChat(auth, chat)) return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
 
   // 删除消息（验证消息属于该 chat）
-  db.delete(chatMessages)
+  await db.delete(chatMessages)
     .where(and(
       eq(chatMessages.id, parseInt(messageId)),
       eq(chatMessages.chatId, parseInt(chatId))
-    ))
-    .run();
+    ));
 
   return NextResponse.json({ success: true });
 }

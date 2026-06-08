@@ -36,11 +36,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 确认用户仍存在
-    const user = db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, payload.sub))
-      .get();
+      .where(eq(users.id, payload.sub));
 
     if (!user) {
       return NextResponse.json(
@@ -59,9 +58,9 @@ export async function POST(req: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        emailVerified: user.emailVerified === 1,
+        emailVerified: user.emailVerified === true,
         accountType: user.accountType,
-        isAdmin: isAdmin(user.id),
+        isAdmin: await isAdmin(user.id),
       },
     });
 

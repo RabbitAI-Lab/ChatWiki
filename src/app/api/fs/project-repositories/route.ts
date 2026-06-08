@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: t('api.dirSegmentsRequired') }, { status: 400 });
   }
   const dirSegments = ["projects", projectId];
-  const meta = readProjectMeta(dirSegments);
+  const meta = await readProjectMeta(dirSegments);
   if (!meta) {
     return NextResponse.json({ error: t('api.projectNotFound') }, { status: 404 });
   }
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
   const dirSegments = ["projects", projectId];
   try {
-    const repositories = addRepository(dirSegments, repository);
+    const repositories = await addRepository(dirSegments, repository);
     logOperation({
       projectId: extractProjectId(dirSegments),
       category: "repository",
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest) {
   }
   const dirSegments = ["projects", projectId];
   try {
-    const updated = updateRepository(dirSegments, repoId, updates);
+    const updated = await updateRepository(dirSegments, repoId, updates);
     if (!updated) {
       return NextResponse.json({ error: t('api.repositoryNotFound') }, { status: 404 });
     }
@@ -88,7 +88,7 @@ export async function DELETE(req: NextRequest) {
   }
   const dirSegments = ["projects", projectId];
   try {
-    const meta = readProjectMeta(dirSegments);
+    const meta = await readProjectMeta(dirSegments);
     const repoName = meta?.repositories?.find((r) => r.id === repoId)?.name || repoId;
     removeRepository(dirSegments, repoId);
     logOperation({

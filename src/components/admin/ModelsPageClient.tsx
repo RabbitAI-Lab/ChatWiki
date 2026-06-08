@@ -82,7 +82,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
 
   const handleSetDefault = useCallback(
     (model: ModelConfig) => {
-      const newDefault = model.isDefault ? 0 : 1;
+      const newDefault = !model.isDefault;
       authFetch(`/api/models/${model.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -100,7 +100,7 @@ export default function ModelsPageClient({ initialModels }: Props) {
   );
 
   const handleDelete = useCallback(
-    (id: number, name: string, isDefault?: number) => {
+    (id: number, name: string, isDefault?: boolean) => {
       let content = t('modelsPage.confirmDeleteContent', { name });
       if (isDefault) {
         content += "\n\n" + t('modelsPage.confirmDeleteDefaultNote');

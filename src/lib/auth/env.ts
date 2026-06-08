@@ -35,6 +35,6 @@ export function getSmtpConfig(): {
   };
 }
 
-export function getAppUrl(): string {
-  return getSetting("site_url") || process.env.NEXT_PUBLIC_APP_URL || "https://docs.rabbitai-lab.com";
+export async function getAppUrl(): Promise<string> {
+  return (await getSetting("site_url")) || process.env.NEXT_PUBLIC_APP_URL || "https://docs.rabbitai-lab.com";
 }

@@ -17,7 +17,7 @@ export interface ModelConfig {
   backend?: string;
   createdAt: string;
   updatedAt: string;
-  isDefault: number;
+  isDefault: boolean;
 }
 
 export interface ModelConfigSubmitData {

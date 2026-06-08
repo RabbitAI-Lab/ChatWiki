@@ -1,7 +1,7 @@
 import { getDatabaseInfo } from "@/lib/db-dump";
 import DatabasePageClient from "@/components/admin/DatabasePageClient";
 
-export default function DatabasePage() {
-  const info = getDatabaseInfo();
+export default async function DatabasePage() {
+  const info = await getDatabaseInfo();
   return <DatabasePageClient initialInfo={info} />;
 }

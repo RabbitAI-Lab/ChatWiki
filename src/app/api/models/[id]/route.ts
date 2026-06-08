@@ -13,11 +13,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const model = db
+  const [model] = await db
     .select()
     .from(modelConfigs)
-    .where(eq(modelConfigs.id, parseInt(id)))
-    .get();
+    .where(eq(modelConfigs.id, parseInt(id)));
   if (!model)
     return NextResponse.json({ error: "Not found" }, { status: 404 }); // keep English for non-authed GET
   return NextResponse.json(model);
@@ -65,16 +64,15 @@ export async function PATCH(
   }
 
   if (isDefault !== undefined) {
-    if (isDefault === 1) {
-      db.update(modelConfigs).set({ isDefault: 0 }).run();
+    if (isDefault === true) {
+      await db.update(modelConfigs).set({ isDefault: false });
     }
     updateData.isDefault = isDefault;
   }
 
-  db.update(modelConfigs)
+  await db.update(modelConfigs)
     .set(updateData)
-    .where(eq(modelConfigs.id, parseInt(id)))
-    .run();
+    .where(eq(modelConfigs.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }
 
@@ -84,8 +82,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  db.delete(modelConfigs)
-    .where(eq(modelConfigs.id, parseInt(id)))
-    .run();
+  await db.delete(modelConfigs)
+    .where(eq(modelConfigs.id, parseInt(id)));
   return NextResponse.json({ success: true });
 }

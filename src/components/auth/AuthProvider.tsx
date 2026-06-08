@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : { features: [] }))
-      .then((data) => setFeatures(data.features || []))
+      .then((data) => setFeatures(Array.isArray(data.features) ? data.features : []))
       .catch(() => setFeatures([]));
   }, []);
 
@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const hasFeature = useCallback(
-    (key: string) => features.includes(key) || features.some(f => f.toLowerCase().includes(key.toLowerCase())),
+    (key: string) => Array.isArray(features) && (features.includes(key) || features.some(f => f.toLowerCase().includes(key.toLowerCase()))),
     [features]
   );
 

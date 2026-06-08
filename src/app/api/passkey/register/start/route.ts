@@ -13,21 +13,20 @@ export async function POST(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
   const user = authResult as AuthUser;
 
-  const enabled = getSetting("passkey_enabled") === "true";
+  const enabled = (await getSetting("passkey_enabled")) === "true";
   if (!enabled) {
     const t = await getApiT();
     return NextResponse.json({ error: t('api.passkey.registrationDisabled') }, { status: 400 });
   }
 
-  const rpID = getSetting("passkey_rp_id") || req.headers.get("host")?.split(":")[0] || "localhost";
-  const rpName = getSetting("passkey_rp_name") || "RabbitDocs";
+  const rpID = (await getSetting("passkey_rp_id")) || req.headers.get("host")?.split(":")[0] || "localhost";
+  const rpName = (await getSetting("passkey_rp_name")) || "RabbitDocs";
 
   // 获取已有凭证（用于排除）
-  const existingPasskeys = db
+  const existingPasskeys = await db
     .select()
     .from(passkeys)
-    .where(eq(passkeys.userId, user.id))
-    .all();
+    .where(eq(passkeys.userId, user.id));
 
   const excludeCredentials = existingPasskeys.map((p) => ({
     id: p.credentialId as `${string}${string}`,
@@ -49,7 +48,7 @@ export async function POST(req: NextRequest) {
   });
 
   // 存储 challenge（直接存 base64url 字符串）
-  setSetting(`passkey_challenge_${user.id}`, options.challenge as unknown as string);
+  await setSetting(`passkey_challenge_${user.id}`, options.challenge as unknown as string);
 
   return NextResponse.json(options);
 }

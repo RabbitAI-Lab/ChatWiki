@@ -13,7 +13,7 @@ export async function GET(
 ) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const { chatId } = await params;
-  const c = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [c] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   const t = await getApiT();
   if (!c) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
   if (!canAccessChat(auth, c)) return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
@@ -29,7 +29,7 @@ export async function PATCH(
   const { chatId } = await params;
 
   // 校验访问权限（所有者或项目/工作空间成员可编辑）
-  const existing = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [existing] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   const t = await getApiT();
   if (!existing) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
   if (!canAccessChat(auth, existing)) return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
@@ -48,7 +48,7 @@ export async function PATCH(
   if (workspaceId !== undefined) updates.workspaceId = workspaceId;
   if (userModelId !== undefined) updates.userModelId = userModelId;
 
-  db.update(chats).set(updates).where(eq(chats.id, parseInt(chatId))).run();
+  await db.update(chats).set(updates).where(eq(chats.id, parseInt(chatId)));
 
   return NextResponse.json({ success: true });
 }
@@ -62,13 +62,13 @@ export async function DELETE(
   const { chatId } = await params;
 
   // 校验访问权限（仅所有者或 admin 可删除）
-  const existing = db.select().from(chats).where(eq(chats.id, parseInt(chatId))).get();
+  const [existing] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
   const t = await getApiT();
   if (!existing) return NextResponse.json({ error: t('api.notFound') }, { status: 404 });
   if (existing.userId && existing.userId !== auth.id && !auth.isAdmin) {
     return NextResponse.json({ error: t('api.forbidden') }, { status: 403 });
   }
 
-  db.delete(chats).where(eq(chats.id, parseInt(chatId))).run();
+  await db.delete(chats).where(eq(chats.id, parseInt(chatId)));
   return NextResponse.json({ success: true });
 }

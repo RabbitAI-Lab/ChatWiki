@@ -29,25 +29,24 @@ export async function GET(req: NextRequest) {
     filters.push(or(like(users.email, term), like(users.name, term)));
   }
   if (status === "active") {
-    filters.push(eq(users.disabled, 0));
+    filters.push(eq(users.disabled, false));
   } else if (status === "disabled") {
-    filters.push(eq(users.disabled, 1));
+    filters.push(eq(users.disabled, true));
   } else if (status === "verified") {
-    filters.push(eq(users.emailVerified, 1));
+    filters.push(eq(users.emailVerified, true));
   } else if (status === "unverified") {
-    filters.push(eq(users.emailVerified, 0));
+    filters.push(eq(users.emailVerified, false));
   }
 
   const where = filters.length === 0 ? undefined : filters.length === 1 ? filters[0] : and(...filters);
 
-  const totalRow = db
+  const [totalRow] = await db
     .select({ count: sql<number>`count(*)` })
     .from(users)
-    .where(where)
-    .get();
+    .where(where);
   const total = totalRow?.count ?? 0;
 
-  const rows = db
+  const rows = await db
     .select({
       id: users.id,
       email: users.email,
@@ -62,14 +61,13 @@ export async function GET(req: NextRequest) {
     .where(where)
     .orderBy(sql`${users.createdAt} DESC`)
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
   return NextResponse.json({
     users: rows.map((r) => ({
       ...r,
-      emailVerified: r.emailVerified === 1,
-      disabled: r.disabled === 1,
+      emailVerified: r.emailVerified === true,
+      disabled: r.disabled === true,
     })),
     pagination: {
       page,

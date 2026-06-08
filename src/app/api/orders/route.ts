@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const offset = (page - 1) * pageSize;
 
-  const orderList = db
+  const orderList = await db
     .select({
       id: orders.id,
       planId: orders.planId,
@@ -42,25 +42,22 @@ export async function GET(req: NextRequest) {
     .where(and(...conditions))
     .orderBy(desc(orders.createdAt))
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
   // 获取每个订单的退款记录
-  const ordersWithRefunds = orderList.map((order) => {
-    const refundList = db
+  const ordersWithRefunds = await Promise.all(orderList.map(async (order) => {
+    const refundList = await db
       .select()
       .from(refunds)
-      .where(eq(refunds.orderId, order.id))
-      .all();
+      .where(eq(refunds.orderId, order.id));
     return { ...order, refunds: refundList };
-  });
+  }));
 
   // 总数
-  const countResult = db
+  const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(orders)
-    .where(and(...conditions))
-    .get();
+    .where(and(...conditions));
 
   return NextResponse.json({
     orders: ordersWithRefunds,

@@ -99,7 +99,7 @@ export default function AppearanceSettingsPageClient({
             {value}
           </code>
           <ColorPicker
-            value={value}
+            value={value === "transparent" ? "#000000" : value}
             onChange={(color) => updateColor(mode, key, color.toHexString())}
             size="small"
           />

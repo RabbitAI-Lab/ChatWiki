@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const meta = readWorkspaceMeta(dirSegments);
+    const meta = await readWorkspaceMeta(dirSegments);
     if (!meta) {
       return NextResponse.json({ error: t('api.workspaceNotFound') }, { status: 404 });
     }
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ cancelled: true });
     }
 
-    const result = runGitNexus({
+    const result = await runGitNexus({
       scope: "workspace",
       dirSegments,
       command: "clean",

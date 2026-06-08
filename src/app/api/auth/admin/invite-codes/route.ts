@@ -29,14 +29,13 @@ export async function GET(req: NextRequest) {
   }
   const where = filters.length === 0 ? undefined : filters.length === 1 ? filters[0] : sql.join(filters, sql` AND `);
 
-  const totalRow = db
+  const [totalRow] = await db
     .select({ count: sql<number>`count(*)` })
     .from(inviteCodes)
-    .where(where as unknown as undefined)
-    .get();
+    .where(where as unknown as undefined);
   const total = totalRow?.count ?? 0;
 
-  const rows = db
+  const rows = await db
     .select({
       id: inviteCodes.id,
       code: inviteCodes.code,
@@ -52,8 +51,7 @@ export async function GET(req: NextRequest) {
     .where(where as unknown as undefined)
     .orderBy(desc(inviteCodes.createdAt))
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
   return NextResponse.json({
     codes: rows.map((r) => ({

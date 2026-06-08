@@ -56,7 +56,7 @@ export async function POST(
   }
 
   // 查找是否已存在分享
-  const existing = db
+  const [existing] = await db
     .select()
     .from(sharedHtmlFiles)
     .where(
@@ -64,8 +64,7 @@ export async function POST(
         eq(sharedHtmlFiles.projectId, projectId),
         eq(sharedHtmlFiles.htmlPath, htmlPath)
       )
-    )
-    .get();
+    );
 
   const now = new Date().toISOString();
   let token: string;
@@ -73,21 +72,19 @@ export async function POST(
   if (existing) {
     // 重新生成 token，覆盖旧 token（旧的会立即失效）
     token = randomUUID();
-    db.update(sharedHtmlFiles)
+    await db.update(sharedHtmlFiles)
       .set({ token, updatedAt: now })
-      .where(eq(sharedHtmlFiles.id, existing.id))
-      .run();
+      .where(eq(sharedHtmlFiles.id, existing.id));
   } else {
     token = randomUUID();
-    db.insert(sharedHtmlFiles)
+    await db.insert(sharedHtmlFiles)
       .values({
         projectId,
         htmlPath,
         token,
         createdAt: now,
         updatedAt: now,
-      })
-      .run();
+      });
   }
 
   const shareUrl = buildShareUrl(req.nextUrl.origin, token);
@@ -111,7 +108,7 @@ export async function GET(
   }
   const { projectId, htmlPath } = resolved;
 
-  const record = db
+  const [record] = await db
     .select()
     .from(sharedHtmlFiles)
     .where(
@@ -119,8 +116,7 @@ export async function GET(
         eq(sharedHtmlFiles.projectId, projectId),
         eq(sharedHtmlFiles.htmlPath, htmlPath)
       )
-    )
-    .get();
+    );
 
   if (!record) {
     return NextResponse.json({
@@ -148,7 +144,7 @@ export async function DELETE(
   }
   const { projectId, htmlPath } = resolved;
 
-  const result = db
+  const deleted = await db
     .delete(sharedHtmlFiles)
     .where(
       and(
@@ -156,10 +152,10 @@ export async function DELETE(
         eq(sharedHtmlFiles.htmlPath, htmlPath)
       )
     )
-    .run();
+    .returning();
 
   return NextResponse.json({
     isShared: false,
-    deleted: result.changes ?? 0,
+    deleted: deleted.length ?? 0,
   });
 }

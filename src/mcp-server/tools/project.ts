@@ -52,7 +52,7 @@ export function registerProjectTools(server: McpServer) {
     },
     async ({ projectId }) => {
       const dirSegments = ["projects", projectId];
-      const meta = readProjectMeta(dirSegments);
+      const meta = await readProjectMeta(dirSegments);
       if (!meta) {
         return {
           content: [{ type: "text", text: "Project not found" }],
@@ -78,7 +78,7 @@ export function registerProjectTools(server: McpServer) {
     },
     async ({ projectId, name, description, sortOrder }) => {
       const dirSegments = ["projects", projectId];
-      const meta = readProjectMeta(dirSegments);
+      const meta = await readProjectMeta(dirSegments);
       if (!meta) {
         return {
           content: [{ type: "text", text: "Project not found" }],
