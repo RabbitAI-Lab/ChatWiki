@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req); if (auth instanceof NextResponse) return auth;
   const t = await getApiT();
   const body = await req.json();
-  const { title, description, defaultCurrency, prices, discountType, discountValue, features, enabled, sortOrder, tokenLimitMonthly, tokenLimitYearly } = body;
+  const { title, description, defaultCurrency, prices, discountType, discountValue, features, enabled, sortOrder, tokenLimitMonthly, tokenLimitYearly, providerPrices, billingMode } = body;
 
   if (!title) {
     return NextResponse.json(
@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
       sortOrder: sortOrder ?? 0,
       tokenLimitMonthly: tokenLimitMonthly ?? 0,
       tokenLimitYearly: tokenLimitYearly ?? 0,
+      providerPrices: typeof providerPrices === "string" ? providerPrices : JSON.stringify(providerPrices ?? "{}"),
+      billingMode: billingMode ?? "subscription",
       createdAt: now,
       updatedAt: now,
     })
