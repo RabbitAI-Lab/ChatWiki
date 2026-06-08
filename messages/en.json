@@ -769,7 +769,11 @@
       "noProjectHint": "No projects yet, create one to get started",
       "createFirstProject": "Create Project",
       "documentDeleted": "This document has been deleted",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "pickToStart": "Pick a space to start chatting",
+      "projects": "Projects",
+      "workspaces": "Workspaces",
+      "createNew": "Create New"
     },
     "welcome": {
       "greeting": {

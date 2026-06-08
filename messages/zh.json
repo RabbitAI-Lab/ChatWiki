@@ -769,7 +769,11 @@
       "noProjectHint": "还没有项目，创建一个开始吧",
       "createFirstProject": "新建项目",
       "documentDeleted": "该文档已被删除",
-      "loading": "加载中..."
+      "loading": "加载中...",
+      "pickToStart": "选择一个位置，开始对话",
+      "projects": "项目",
+      "workspaces": "工作空间",
+      "createNew": "新建"
     },
     "welcome": {
       "greeting": {
