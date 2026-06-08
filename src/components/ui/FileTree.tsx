@@ -93,7 +93,7 @@ function FileTreeNode({
         <div
           className={`flex items-center gap-1.5 w-full px-2 py-1 text-sm transition-colors select-none ${
             isEditable
-              ? "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer group"
+              ? "text-gray-500 dark:text-gray-400 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 cursor-pointer group"
               : "text-gray-500 dark:text-gray-400 cursor-pointer"
           }`}
           onClick={() => {
@@ -296,7 +296,7 @@ function FileTreeNode({
           isSelected
             ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
             : isEditable
-              ? "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-zinc-700/50 cursor-default"
+              ? "text-gray-600 dark:text-gray-400 hover:bg-blue-50/40 dark:hover:bg-blue-900/15 cursor-default"
               : "text-gray-600 dark:text-gray-400 cursor-default"
         }`}
         onDoubleClick={() => {
@@ -324,7 +324,7 @@ function FileTreeNode({
           </svg>
         ) : (
           <svg
-            className="w-3.5 h-3.5 shrink-0 text-blue-400"
+            className="w-3.5 h-3.5 shrink-0 text-blue-500"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
