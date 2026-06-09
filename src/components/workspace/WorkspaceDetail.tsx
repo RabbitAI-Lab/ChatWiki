@@ -50,7 +50,7 @@ export default function WorkspaceDetail({
   tree: initialTree,
   rootTree: initialRootTree,
   docsPath,
-  rootPath: _rootPath,
+  rootPath,
   selectedFile,
   initialContent,
 }: WorkspaceDetailProps) {
@@ -101,6 +101,8 @@ export default function WorkspaceDetail({
 
   // workspacePath: "workspace/{workspaceId}"
   const workspacePath = `workspace/${workspaceMeta.id}`;
+  
+    const activePathPrefix = treeView === "docs" ? docsPath : workspacePath;
 
   // 清理 URL 中的 ?openChat=true 参数，避免刷新时重复打开 Chat tab
   useEffect(() => {
@@ -298,7 +300,7 @@ export default function WorkspaceDetail({
     await authFetch("/api/fs/directory", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${docsPath}/${dirPath}` }),
+      body: JSON.stringify({ path: `${activePathPrefix}/${dirPath}` }),
     });
     router.refresh();
   };
@@ -307,7 +309,7 @@ export default function WorkspaceDetail({
     await authFetch("/api/fs/document", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${docsPath}/${filePath}` }),
+      body: JSON.stringify({ path: `${activePathPrefix}/${filePath}` }),
     });
     if (tabs.some((t) => t.filePath === filePath)) {
       handleTabClose(filePath);

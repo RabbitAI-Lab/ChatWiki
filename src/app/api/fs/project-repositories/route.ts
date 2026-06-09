@@ -6,6 +6,7 @@ import {
   removeRepository,
   updateRepository,
 } from "@/lib/fs";
+import { getRepoLocalPath, deleteLocalRepo } from "@/lib/git-service";
 import { logOperation, extractProjectId } from "@/lib/operation-log";
 import { getApiT } from "@/lib/i18n-api";
 
@@ -90,6 +91,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const meta = await readProjectMeta(dirSegments);
     const repoName = meta?.repositories?.find((r) => r.id === repoId)?.name || repoId;
+    const localPath = getRepoLocalPath(dirSegments, repoId, repoName);
+    deleteLocalRepo(localPath);
     removeRepository(dirSegments, repoId);
     logOperation({
       projectId: extractProjectId(dirSegments),

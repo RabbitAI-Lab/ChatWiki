@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: t('api.repositoryNotFound') }, { status: 404 });
     }
 
-    const localPath = getRepoLocalPath(dirSegments, repoId);
+    const localPath = getRepoLocalPath(dirSegments, repoId, repo.name);
     const result = await checkSyncStatus(localPath, repo.credentials);
 
     return NextResponse.json(result);
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     }
 
     const repo = repos[repoIndex];
-    const localPath = getRepoLocalPath(dirSegments, repoId);
+    const localPath = getRepoLocalPath(dirSegments, repoId, repo.name);
 
     let result;
     if (action === "clone") {

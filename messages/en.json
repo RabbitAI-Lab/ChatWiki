@@ -1809,6 +1809,7 @@
       "pricing": "Pricing",
       "useCases": "Use cases",
       "about": "About",
+      "guide": "Guide",
       "signIn": "Sign in",
       "openApp": "Open app",
       "loginNow": "Log in",
@@ -1826,6 +1827,7 @@
       "productUseCases": "Use cases",
       "resources": "Resources",
       "resourcesApp": "Open app",
+      "resourcesGuide": "User Guide",
       "resourcesGithub": "GitHub",
       "resourcesContact": "Contact",
       "rights": "All rights reserved.",
@@ -2176,6 +2178,97 @@
       "cta": {
         "title": "Find the workflow that fits you.",
         "subtitle": "30 seconds to onboard. Every role benefits immediately.",
+        "primary": "Start free",
+        "secondary": "Open app"
+      }
+    },
+    "guide": {
+      "meta": {
+        "title": "User Guide",
+        "description": "Learn how to use RabbitDocs — from AI chat to document management, projects, and team collaboration."
+      },
+      "hero": {
+        "eyebrow": "Getting Started",
+        "title": "User Guide",
+        "subtitle": "Everything you need to know to get the most out of RabbitDocs."
+      },
+      "toc": "Table of Contents",
+      "sections": {
+        "signup": {
+          "title": "Sign Up & Log In",
+          "steps": {
+            "step1": "Click \"Sign up\" on the top right corner.",
+            "step2": "Enter your email and password. If an invite code is required, enter the one provided by your admin.",
+            "step3": "If email verification is enabled, click the link in your inbox.",
+            "step4": "You're in! Start a new chat or explore the app."
+          },
+          "passkey": "Passkey login (if enabled) lets you sign in with fingerprint or face recognition — no password needed. Set it up in Settings after your first login."
+        },
+        "chat": {
+          "title": "AI Chat",
+          "subtitle": "AI chat is the core of RabbitDocs. Open a project, and AI automatically sees all your files as context.",
+          "start": {
+            "title": "Start a conversation",
+            "desc": "Click \"New Chat\" in the left sidebar, pick an AI model at the top, type your question, and press Enter. Responses stream in real time."
+          },
+          "thinking": {
+            "title": "Extended Thinking",
+            "desc": "AI's reasoning process is visible by default. You'll see which files it read, which options it weighed, and how it reached the conclusion — not just the final answer."
+          },
+          "actions": {
+            "title": "Continue & regenerate",
+            "desc": "Ask follow-up questions to go deeper. Click regenerate if a response isn't satisfactory. Edit previous messages to refine your query."
+          }
+        },
+        "projects": {
+          "title": "Projects & Files",
+          "subtitle": "A project is a folder of Markdown files — and the AI's context.",
+          "create": "Create a project from the sidebar, give it a name, and start adding files.",
+          "files": "Use the file tree to create files, folders, edit Markdown, or delete and rename items. All files are real filesystem files — editable with VS Code, tracked by Git.",
+          "save": "In any chat, click \"Save to Document\" to persist AI output as a file in your project. Saved files become context for future chats.",
+          "templates": {
+            "title": "Templates",
+            "desc": "Choose from 6 built-in templates (Meeting Notes, Project Proposal, PRD, Tech Design, Blog Post, Release Notes) to kickstart your document with AI assistance."
+          }
+        },
+        "workspaces": {
+          "title": "Workspaces",
+          "desc": "Workspaces group related projects for team collaboration. Create a workspace, add projects, invite members — new hires get full project context on day one."
+        },
+        "sharing": {
+          "title": "Share & Publish",
+          "docs": "Share any document via a unique link. Recipients view it in their browser — no login needed.",
+          "chat": "Share a conversation to let others see the full AI collaboration process and results.",
+          "revoke": "Revoke sharing links at any time."
+        },
+        "account": {
+          "title": "Account Settings",
+          "profile": "Update your display name and avatar from the top-right menu.",
+          "models": {
+            "title": "My Models (BYOK)",
+            "desc": "Add your own API key and model endpoint under \"My Models\". Your key is private — only you can use it."
+          },
+          "billing": {
+            "title": "Subscription & Usage",
+            "desc": "View your plan, token usage trends (1h to 30d), and order history under \"Billing\". Quota resets on the 1st of each month. Chat pauses when quota runs out, but document editing keeps working."
+          }
+        }
+      },
+      "faq": {
+        "title": "FAQ",
+        "items": [
+          { "q": "How does AI know my document content?", "a": "When you open a project and start chatting, AI reads all files in that project as context. No copy-paste needed." },
+          { "q": "Where are my files stored?", "a": "All documents are real Markdown files on the server filesystem. You can export them, manage with Git, or edit with any external tool." },
+          { "q": "Does AI modify my files automatically?", "a": "No. AI responses live in the chat. Files are only written when you explicitly click \"Save to Document\"." },
+          { "q": "What models are supported?", "a": "Available models depend on admin configuration. You can also add your own API key under \"My Models\"." },
+          { "q": "How to invite teammates?", "a": "Ask your admin for an invite code. Teammates register with the code, then you add them to your workspace." },
+          { "q": "What happens when token quota runs out?", "a": "You'll get an email at 10% remaining. Once depleted, chat pauses but document editing continues. Quota resets monthly." },
+          { "q": "Can I edit files outside RabbitDocs?", "a": "Yes. All files are standard Markdown. If your project has Git enabled, clone the repo, edit with VS Code, and sync back." }
+        ]
+      },
+      "cta": {
+        "title": "Ready to get started?",
+        "subtitle": "Start free, no credit card required. Turn your project into an AI workspace in 30 seconds.",
         "primary": "Start free",
         "secondary": "Open app"
       }

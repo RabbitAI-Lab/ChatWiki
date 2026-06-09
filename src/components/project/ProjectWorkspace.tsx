@@ -20,7 +20,7 @@ export default function ProjectWorkspace({
   docsPath,
   tree: initialTree,
   rootTree: initialRootTree,
-  rootPath: _rootPath,
+  rootPath,
   selectedFile,
   initialContent,
   projectMeta,
@@ -91,6 +91,7 @@ export default function ProjectWorkspace({
   const projectId = projectPath.split("/")[1] || "";
 
   // --- File tree functions ---
+  const activePathPrefix = treeView === "docs" ? docsPath : projectPath;
 
   const handleCreateFile = useCallback(async (parentPath: string) => {
     const children = parentPath ? findChildren(tree, parentPath) : tree;
@@ -262,7 +263,7 @@ export default function ProjectWorkspace({
     await authFetch("/api/fs/directory", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${docsPath}/${dirPath}` }),
+      body: JSON.stringify({ path: `${activePathPrefix}/${dirPath}` }),
     });
     router.refresh();
   };
@@ -271,7 +272,7 @@ export default function ProjectWorkspace({
     await authFetch("/api/fs/document", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: `${docsPath}/${filePath}` }),
+      body: JSON.stringify({ path: `${activePathPrefix}/${filePath}` }),
     });
     if (tabs.some((t) => t.filePath === filePath)) {
       handleTabClose(filePath);

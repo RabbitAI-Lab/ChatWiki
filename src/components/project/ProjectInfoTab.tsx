@@ -170,7 +170,7 @@ export default function ProjectInfoTab({
     };
 
     checkStatus();
-  }, [repositories.length, authFetch, dirSegments, repositories]);
+  }, [repositories.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 切换到 Integration tab 时隐藏小红点
   const handleTabChange = (tab: SubTab) => {

@@ -44,7 +44,7 @@ ENV HOSTNAME=0.0.0.0
 
 # 非 root 用户
 RUN groupadd --system --gid 1001 nodejs \
- && useradd --system --uid 1001 --gid nodejs nextjs
+ && useradd --system --uid 1001 --gid nodejs --create-home nextjs
 
 # 复制构建产物与精简依赖
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules

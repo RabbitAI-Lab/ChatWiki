@@ -28,6 +28,7 @@ export default function MarketingFooter({ locale }: MarketingFooterProps) {
       title: t("resources"),
       links: [
         { href: "/docs", label: t("resourcesApp") },
+        { href: "/guide", label: t("resourcesGuide") },
         { href: "https://github.com/rabbitai-lab", label: t("resourcesGithub"), external: true },
         { href: "mailto:mail@xujialiang.net", label: t("resourcesContact"), external: true },
       ],

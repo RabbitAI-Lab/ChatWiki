@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     // 并行检查所有仓库状态
     const results = await Promise.all(
       repos.map(async (repo) => {
-        const localPath = getRepoLocalPath(dirSegments, repo.id);
+        const localPath = getRepoLocalPath(dirSegments, repo.id, repo.name);
         const statusResult = await checkSyncStatus(localPath, repo.credentials);
 
         return {

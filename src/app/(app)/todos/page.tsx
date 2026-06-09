@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Modal, Input, Form, App } from "antd";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/components/auth/useAuth";
 
 interface Todo {
@@ -17,6 +18,7 @@ interface Todo {
 export default function TodosPage() {
   const { message } = App.useApp();
   const { user, isLoading: authLoading, authFetch } = useAuth();
+  const { resolvedTheme } = useTheme();
   const t = useTranslations('todosPage');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,30 @@ export default function TodosPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+
+  const isDark = resolvedTheme === "dark";
+
+  const modalStyles = useMemo(() => ({
+    mask: {
+      background: isDark ? "rgba(0, 0, 0, 0.5)" : "rgba(0, 0, 0, 0.15)",
+      backdropFilter: "blur(6px) saturate(1.4)",
+      WebkitBackdropFilter: "blur(6px) saturate(1.4)",
+    },
+    container: {
+      border: '1px solid var(--popup-border)',
+      boxShadow: isDark
+        ? "0 8px 32px -4px rgba(0, 0, 0, 0.4), 0 2px 8px -2px rgba(0, 0, 0, 0.3)"
+        : "0 8px 32px -4px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04)",
+    },
+    header: {
+      borderBottom: "none",
+    },
+    footer: {
+      borderTop: "none",
+    },
+  }), [isDark]);
+
+  const modalRootClass = "todo-modal";
 
   const fetchTodos = useCallback(() => {
     if (!user) return;
@@ -171,6 +197,8 @@ export default function TodosPage() {
         destroyOnHidden
         centered
         mask={{ closable: false }}
+        styles={modalStyles}
+        rootClassName={modalRootClass}
       >
         <Form
           form={form}
@@ -213,6 +241,8 @@ export default function TodosPage() {
         destroyOnHidden
         centered
         mask={{ closable: false }}
+        styles={modalStyles}
+        rootClassName={modalRootClass}
       >
         <Form
           form={form}

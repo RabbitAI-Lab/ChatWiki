@@ -23,6 +23,7 @@ export default function MarketingNav() {
     { href: "/features", label: t("features") },
     { href: "/pricing", label: t("pricing") },
     { href: "/use-cases", label: t("useCases") },
+    { href: "/guide", label: t("guide") },
     { href: "/about", label: t("about") },
   ];
 

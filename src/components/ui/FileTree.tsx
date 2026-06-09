@@ -86,6 +86,7 @@ function FileTreeNode({
   const isEditable = props.mode === "editable";
   const isSelected = props.selectedPath === node.path;
   const isRenaming = props.renamingPath === node.path;
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (node.type === "directory") {
     return (
@@ -97,10 +98,23 @@ function FileTreeNode({
               : "text-gray-500 dark:text-gray-400 cursor-pointer"
           }`}
           onClick={() => {
-            if (!isRenaming) onToggleExpand(node.path);
+            if (isRenaming) return;
+            if (clickTimerRef.current) {
+              clearTimeout(clickTimerRef.current);
+              clickTimerRef.current = null;
+              return;
+            }
+            clickTimerRef.current = setTimeout(() => {
+              clickTimerRef.current = null;
+              onToggleExpand(node.path);
+            }, 250);
           }}
           onDoubleClick={() => {
             if (isEditable && !isRenaming && props.onStartRename) {
+              if (clickTimerRef.current) {
+                clearTimeout(clickTimerRef.current);
+                clickTimerRef.current = null;
+              }
               props.onStartRename(node.path);
             }
           }}

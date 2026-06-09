@@ -4,6 +4,7 @@ import * as path from "path";
 import http from "isomorphic-git/http/node";
 import type { RepositoryCredentials } from "./fs";
 import { getDataRoot } from "./fs/core";
+import { getBrandName } from "./auth/settings";
 
 /**
  * 获取认证回调函数
@@ -125,6 +126,7 @@ export async function pullRepository(
       onAuth: getAuthCallback(credentials),
       singleBranch: true,
       fastForward: true,
+      author: { name: await getBrandName(), email: "docs@rabbitai-lab.com" },
     });
 
     // 获取 pull 后的 commit hash
@@ -253,12 +255,54 @@ export function deleteLocalRepo(localPath: string): boolean {
 }
 
 /**
+ * 将仓库名称转换为文件系统安全的目录名
+ */
+function sanitizeRepoName(name: string): string {
+  return name
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, "-") // 替换文件系统不安全字符
+    .replace(/\s+/g, "-")            // 空格替换为连字符
+    .replace(/-+/g, "-")             // 合并连续连字符
+    .replace(/^-|-$/g, "")          // 去掉首尾连字符
+    || "repo";                        // 空 fallback
+}
+
+/**
  * 获取仓库的本地存储路径
+ * 优先使用 repoName 作为目录名（可读性好），
+ * 若新路径不存在但旧路径（repoId）存在则自动重命名。
  */
 export function getRepoLocalPath(
   projectDirSegments: string[],
-  repoId: string
+  repoId: string,
+  repoName?: string
 ): string {
-  // data/personal/{accountId}/projects/{projectId}/repos/{repoId}
-  return path.join(getDataRoot(), ...projectDirSegments, "repos", repoId);
+  const reposDir = path.join(getDataRoot(), ...projectDirSegments, "repos");
+
+  // 如果提供了 repoName，优先使用它作为目录名
+  if (repoName) {
+    const safeName = sanitizeRepoName(repoName);
+    const nameBasedPath = path.join(reposDir, safeName);
+
+    // 新路径已存在，直接返回
+    if (fs.existsSync(nameBasedPath)) {
+      return nameBasedPath;
+    }
+
+    // 检查旧路径（以 repoId 命名）是否存在，若存在则重命名
+    const idBasedPath = path.join(reposDir, repoId);
+    if (fs.existsSync(idBasedPath)) {
+      try {
+        fs.renameSync(idBasedPath, nameBasedPath);
+      } catch {
+        // 重命名失败（如目标名已被占用），回退到旧路径
+        return idBasedPath;
+      }
+    }
+
+    return nameBasedPath;
+  }
+
+  // 未提供 repoName，回退使用 repoId
+  return path.join(reposDir, repoId);
 }

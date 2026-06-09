@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
-import { Input, Select, Button } from "antd";
+import { Input, Select, Button, Modal } from "antd";
 import type { Repository, RepositoryCredentials } from "@/lib/fs";
 import RepositorySyncStatus from "./RepositorySyncStatus";
 
@@ -30,7 +30,7 @@ export default function RepositoryManager({
   onRepositoriesChange,
 }: RepositoryManagerProps) {
   const t = useTranslations('project');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const { authFetch } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [syncingRepos, setSyncingRepos] = useState<SyncingState>({});
@@ -104,7 +104,7 @@ export default function RepositoryManager({
         const updatedRepos = await res.json();
         onRepositoriesChange(updatedRepos);
         resetForm();
-        setShowAddForm(false);
+        setShowAddModal(false);
       }
     } finally {
       setSubmitting(false);
@@ -167,18 +167,16 @@ export default function RepositoryManager({
         <p className="text-sm text-gray-500">
           {t('repository.repoCount', { count: repositories.length })}
         </p>
-        {!showAddForm && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            {t('repository.addRepository')}
-          </button>
-        )}
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          {t('repository.addRepository')}
+        </button>
       </div>
 
       {/* Repository list */}
@@ -242,27 +240,25 @@ export default function RepositoryManager({
         </div>
       )}
 
-      {/* Add form */}
-      {showAddForm && (
-        <div className="p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-200 space-y-3">
-          <div className="flex items-center justify-between mb-1">
-            <h4 className="text-sm font-medium text-gray-700">{t('repository.addRepoTitle')}</h4>
-            <button
-              onClick={() => { setShowAddForm(false); resetForm(); }}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
+      {/* Add Repository Modal */}
+      <Modal
+        title={t('repository.addRepoTitle')}
+        open={showAddModal}
+        onCancel={() => { setShowAddModal(false); resetForm(); }}
+        onOk={handleAdd}
+        okText={t('repository.add')}
+        cancelText={t('mcp.cancel')}
+        confirmLoading={submitting}
+        okButtonProps={{ disabled: !formName.trim() || !formUrl.trim() }}
+        destroyOnHidden
+        width={520}
+        styles={{ body: { paddingTop: 16 }, container: { border: '1px solid var(--popup-border)' } }}
+      >
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t('repository.name')}</label>
               <Input
-                size="small"
                 placeholder={t('repository.namePlaceholder')}
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
@@ -271,7 +267,6 @@ export default function RepositoryManager({
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t('repository.type')}</label>
               <Select
-                size="small"
                 className="w-full"
                 options={REPO_TYPE_OPTIONS}
                 value={formType}
@@ -283,7 +278,6 @@ export default function RepositoryManager({
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('repository.url')}</label>
             <Input
-              size="small"
               placeholder={t('repository.urlPlaceholder')}
               value={formUrl}
               onChange={(e) => setFormUrl(e.target.value)}
@@ -293,7 +287,6 @@ export default function RepositoryManager({
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('repository.authentication')}</label>
             <Select
-              size="small"
               className="w-full"
               options={CRED_TYPE_OPTIONS}
               value={formCredType}
@@ -302,14 +295,13 @@ export default function RepositoryManager({
           </div>
 
           {formCredType === "none" ? (
-            <div className="text-xs text-gray-400 py-2">
+            <div className="text-xs text-gray-400 py-1">
               {t('repository.publicRepoHint')}
             </div>
           ) : formCredType === "token" ? (
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t('repository.token')}</label>
               <Input.Password
-                size="small"
                 placeholder={t('repository.tokenPlaceholder')}
                 value={formToken}
                 onChange={(e) => setFormToken(e.target.value)}
@@ -320,7 +312,6 @@ export default function RepositoryManager({
               <div>
                 <label className="block text-xs text-gray-500 mb-1">{t('repository.username')}</label>
                 <Input
-                  size="small"
                   placeholder="username"
                   value={formUsername}
                   onChange={(e) => setFormUsername(e.target.value)}
@@ -329,7 +320,6 @@ export default function RepositoryManager({
               <div>
                 <label className="block text-xs text-gray-500 mb-1">{t('repository.password')}</label>
                 <Input.Password
-                  size="small"
                   placeholder="password"
                   value={formPassword}
                   onChange={(e) => setFormPassword(e.target.value)}
@@ -337,24 +327,10 @@ export default function RepositoryManager({
               </div>
             </div>
           )}
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button size="small" onClick={() => { setShowAddForm(false); resetForm(); }}>
-              {t('mcp.cancel')}
-            </Button>
-            <Button
-              size="small"
-              loading={submitting}
-              disabled={!formName.trim() || !formUrl.trim()}
-              onClick={handleAdd}
-            >
-              {t('repository.add')}
-            </Button>
-          </div>
         </div>
-      )}
+      </Modal>
 
-      {repositories.length === 0 && !showAddForm && (
+      {repositories.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 text-gray-400">
           <svg className="w-10 h-10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
