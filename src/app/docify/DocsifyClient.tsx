@@ -9,7 +9,10 @@ interface DocsifyClientProps {
 
 export default function DocsifyClient({ projectName, projectId }: DocsifyClientProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
 
   useEffect(() => {
     // Set docsify config on window before loading script
@@ -29,9 +32,8 @@ export default function DocsifyClient({ projectName, projectId }: DocsifyClientP
       },
     };
 
-    // Detect dark mode
+    // Detect dark mode changes
     const dark = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDark(dark.matches);
     const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
     dark.addEventListener("change", handler);
 
@@ -74,11 +76,13 @@ export default function DocsifyClient({ projectName, projectId }: DocsifyClientP
   }, [isDark]);
 
   return (
-    <>
-      <link rel="stylesheet" href="/docsify/themes/vue.css" />
-      <div ref={containerRef} id="app">
-        Loading...
-      </div>
-    </>
+    <div
+      ref={containerRef}
+      id="app"
+      // Suppress hydration mismatch: docsify replaces inner content at runtime
+      suppressHydrationWarning
+    >
+      Loading...
+    </div>
   );
 }

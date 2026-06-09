@@ -3,7 +3,7 @@ import { useAuth } from "@/components/auth/useAuth";
 import { useTranslations } from "next-intl";
 
 import { useState } from "react";
-import { Input, Select, Button, Modal } from "antd";
+import { Input, Select, Modal } from "antd";
 import type { Repository, RepositoryCredentials } from "@/lib/fs";
 import WorkspaceRepositorySyncStatus from "./WorkspaceRepositorySyncStatus";
 

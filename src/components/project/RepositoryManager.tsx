@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
-import { Input, Select, Button, Modal } from "antd";
+import { Input, Select, Modal } from "antd";
 import type { Repository, RepositoryCredentials } from "@/lib/fs";
 import RepositorySyncStatus from "./RepositorySyncStatus";
 

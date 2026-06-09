@@ -15,7 +15,7 @@ interface PublishPanelProps {
 
 export default function PublishPanel({
   projectId,
-  projectName,
+  projectName: _projectName,
   projectMeta,
 }: PublishPanelProps) {
   const t = useTranslations("project");
