@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Actions } from "@ant-design/x";
 import { Typography } from "antd";
-import { SaveOutlined, RedoOutlined, ThunderboltOutlined, DownOutlined } from "@ant-design/icons";
+import { SaveOutlined, RedoOutlined, ThunderboltOutlined, DownOutlined, WarningOutlined } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
 import type { BubbleItemType } from "@ant-design/x";
+import { useRouter } from "next/navigation";
 import type { Message } from "./chat-workspace-ref";
 
 /**
@@ -48,6 +49,37 @@ function renderMarkdown(content: string) {
   );
 }
 
+/**
+ * Token 配额超限提示卡片。显示错误信息并提供跳转到计费页面的按钮。
+ */
+function QuotaExceededCard() {
+  const router = useRouter();
+  return (
+    <div
+      className="rounded-lg border border-amber-300 dark:border-amber-600 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/20 px-4 py-3"
+    >
+      <div className="flex items-start gap-2.5">
+        <WarningOutlined className="mt-0.5 text-amber-500 text-base" />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            Token 已用完，记得充值订阅哦~
+          </div>
+          <div className="mt-1 text-xs text-amber-600/70 dark:text-amber-300/60">
+            当前计费周期内的 Token 额度已耗尽，升级套餐或充值后即可继续使用。
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/billing")}
+            className="mt-2.5 inline-flex items-center gap-1 rounded-md bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-medium px-3 py-1.5 transition-colors"
+          >
+            前往充值订阅
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface MapMessagesToBubbleItemsOptions {
   messages: Message[];
   loading: boolean;
@@ -77,7 +109,9 @@ export function mapMessagesToBubbleItems({
     const contentNode = isAssistant ? (
       <div>
         <ThinkingBlock text={thinkingText} />
-        {msg.isError ? (
+        {msg.isQuotaExceeded ? (
+          <QuotaExceededCard />
+        ) : msg.isError ? (
           <div className="rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm text-red-600 dark:text-red-400">
             {msg.content}
           </div>
@@ -94,10 +128,10 @@ export function mapMessagesToBubbleItems({
       contentRender: isAssistant ? undefined : renderMarkdown,
       loading: isAiLoading || undefined,
       typing:
-        isAssistant && msg.content && !isAiLoading && !msg.isError
+        isAssistant && msg.content && !isAiLoading && !msg.isError && !msg.isQuotaExceeded
           ? { effect: "typing" as const, step: 5, interval: 50 }
           : undefined,
-      footer: hasContent
+      footer: hasContent && !msg.isQuotaExceeded
         ? isAssistant
           ? () => (
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>

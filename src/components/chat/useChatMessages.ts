@@ -37,7 +37,7 @@ async function streamAiResponse(params: {
   chatId?: number | null;
   onToolCall?: (toolCall: { toolName: string; args: Record<string, unknown> }) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
-}): Promise<{ aiContent: string; aiThinking: string; aiSignature: string | undefined; hasError: boolean }> {
+}): Promise<{ aiContent: string; aiThinking: string; aiSignature: string | undefined; hasError: boolean; quotaExceeded?: boolean }> {
   const {
     authFetch,
     tempAiMsgId,
@@ -77,6 +77,17 @@ async function streamAiResponse(params: {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ error: t('errors.requestFailed') }));
+      // Token 配额超限 → 标记为 quotaExceeded，前端展示充值提示
+      if (res.status === 429 && errData.quotaExceeded) {
+        aiContent = errData.error || "Token 已用完，记得充值订阅哦~";
+        hasError = true;
+        setMessages((prev) => updateMessageById(prev, tempAiMsgId, {
+          content: aiContent,
+          isError: true,
+          isQuotaExceeded: true,
+        }));
+        return { aiContent, aiThinking, aiSignature, hasError, quotaExceeded: true };
+      }
       aiContent = errData.error || t('errors.modelCallFailed');
       setMessages((prev) => updateMessageById(prev, tempAiMsgId, { content: aiContent }));
     } else {

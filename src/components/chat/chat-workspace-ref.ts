@@ -10,6 +10,8 @@ export interface Message {
   streamingThinking?: string;
   // 标记该消息是否为错误消息（如 529 模型过载等），错误消息不参与后续模型调用
   isError?: boolean;
+  // 标记该消息是否为 Token 配额超限提示
+  isQuotaExceeded?: boolean;
 }
 
 export interface ChatWorkspaceProps {

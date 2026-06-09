@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
+import { checkTokenQuota } from "@/lib/auth/token-quota";
 import { streamModelResponse, streamUserModelResponse } from "@/lib/model-service";
 import type { ChatCompletionRequest } from "@/lib/types";
 import { ModelError } from "@/lib/types";
@@ -29,6 +30,23 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ error: t('api.chat.modelAndMessagesRequired') }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
+  }
+
+  // ── Token 配额检查（BYOK 模型跳过，用户自带 key 不消耗平台额度）──
+  const isByok = typeof modelId === 'string' && modelId.startsWith('byok_');
+  if (!isByok && !userModelId) {
+    const quota = await checkTokenQuota(auth);
+    if (!quota.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "Token 已用完，记得充值订阅哦~",
+          code: "QUOTA_EXCEEDED",
+          quotaExceeded: true,
+          quota: { used: quota.used, limit: quota.limit, remaining: quota.remaining },
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
   }
 
   let cwd: string | undefined;

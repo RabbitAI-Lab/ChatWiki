@@ -19,7 +19,7 @@ export default function TodoNavLink() {
       })
       .then((todos: Array<{ completed: number }> | undefined) => {
         if (!Array.isArray(todos)) return;
-        setPendingCount(todos.filter((t) => t.completed === 0).length);
+        setPendingCount(todos.filter((t) => !t.completed).length);
       })
       .catch(() => {});
   }, [user, authFetch]);

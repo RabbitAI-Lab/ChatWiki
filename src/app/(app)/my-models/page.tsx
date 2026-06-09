@@ -233,7 +233,7 @@ export default function MyModelsPage() {
 
       {/* Model List */}
       {models.length === 0 && !loading ? (
-        <Card>
+        <Card style={{ background: 'transparent' }}>
           <Empty description={t("emptyTitle")} className="py-8">
             <p className="text-sm text-gray-400 mb-4">{t("emptyDesc")}</p>
             <button
@@ -252,7 +252,7 @@ export default function MyModelsPage() {
       ) : (
         <div className="space-y-4">
           {models.map((model) => (
-            <Card key={model.id} className="shadow-sm" hoverable>
+            <Card key={model.id} className="shadow-sm" hoverable style={{ background: 'transparent' }}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -319,6 +319,7 @@ export default function MyModelsPage() {
         footer={null}
         width={640}
         centered
+        styles={{ container: { background: 'var(--main-bg)', border: '1px solid white' } }}
       >
         {!testResult.ok && testResult.error && (
           <div className="mb-4 p-3 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">

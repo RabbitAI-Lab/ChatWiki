@@ -45,20 +45,18 @@ function loadSavedCollapsed(): boolean {
 export default function ResizableChatsHistory() {
   const { authFetch } = useAuth();
   const [chats, setChats] = useState<ChatItem[]>([]);
-  const [height, setHeight] = useState(DEFAULT_HEIGHT);
-  const [collapsed, setCollapsed] = useState(false);
+  // Initialize from localStorage directly — safe because the mounted guard below
+  // always returns the same placeholder, so no hydration mismatch
+  const [height, setHeight] = useState(() => loadSavedHeight());
+  const [collapsed, setCollapsed] = useState(() => loadSavedCollapsed());
   const [mounted, setMounted] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const startYRef = useRef(0);
   const startHeightRef = useRef(height);
 
-  // Load saved state after mount (localStorage not available during SSR)
+  // Mark as mounted (placeholder guard uses this)
   useEffect(() => {
-    Promise.resolve().then(() => {
-      setHeight(loadSavedHeight());
-      setCollapsed(loadSavedCollapsed());
-      setMounted(true);
-    });
+    setMounted(true);
   }, []);
 
   // Fetch chats from API (user-isolated)

@@ -105,6 +105,7 @@ export default function UserModelConfigModal({
       width={520}
       centered
       destroyOnHidden
+      styles={{ container: { background: 'var(--main-bg)', border: '1px solid white' } }}
     >
       <Form form={form} layout="vertical" className="mt-4">
         <Form.Item
@@ -112,7 +113,7 @@ export default function UserModelConfigModal({
           name="provider"
           rules={[{ required: true }]}
         >
-          <Select onChange={handleProviderChange}>
+          <Select onChange={handleProviderChange} variant="outlined" style={{ background: 'transparent' }}>
             {PROVIDERS.map((p) => (
               <Select.Option key={p} value={p}>
                 {p}
@@ -121,14 +122,14 @@ export default function UserModelConfigModal({
           </Select>
         </Form.Item>
         <Form.Item label={t("name")} name="name">
-          <Input placeholder={t("namePlaceholder")} />
+          <Input placeholder={t("namePlaceholder")} variant="outlined" style={{ background: 'transparent' }} />
         </Form.Item>
         <Form.Item
           label={t("modelName")}
           name="modelName"
           rules={[{ required: true }]}
         >
-          <Input placeholder={t("modelNamePlaceholder")} />
+          <Input placeholder={t("modelNamePlaceholder")} variant="outlined" style={{ background: 'transparent' }} />
         </Form.Item>
         <Form.Item
           label={t("apiKey")}
@@ -140,13 +141,13 @@ export default function UserModelConfigModal({
             },
           ]}
         >
-          <Input.Password placeholder={t("apiKeyPlaceholder")} />
+          <Input.Password placeholder={t("apiKeyPlaceholder")} variant="outlined" style={{ background: 'transparent' }} />
         </Form.Item>
         <Form.Item label={t("protocol")}>
-          <Input value={t("protocolFixed")} disabled />
+          <Input value={t("protocolFixed")} disabled variant="outlined" style={{ background: 'transparent' }} />
         </Form.Item>
         <Form.Item label={t("baseUrl")}>
-          <Input value={defaults?.baseUrl || ""} disabled />
+          <Input value={defaults?.baseUrl || ""} disabled variant="outlined" style={{ background: 'transparent' }} />
         </Form.Item>
       </Form>
     </Modal>
