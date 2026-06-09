@@ -1367,6 +1367,7 @@
     "cancel": "取消",
     "creating": "创建中...",
     "createAndEdit": "创建并编辑",
+    "createFailed": "创建失败",
     "myTemplates": "我创建的",
     "systemTemplates": "系统模板",
     "copy": "复制",

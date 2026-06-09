@@ -151,6 +151,7 @@ export default function ProjectSettingsPanel({
             {t("settings.title")}
           </label>
           <Input
+            styles={{ input: { background: 'transparent' } }}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("settings.titlePlaceholder")}
@@ -161,6 +162,7 @@ export default function ProjectSettingsPanel({
             {t("settings.description")}
           </label>
           <Input.TextArea
+            styles={{ textarea: { background: 'transparent' } }}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("settings.descriptionPlaceholder")}

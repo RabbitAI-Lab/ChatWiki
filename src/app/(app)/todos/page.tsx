@@ -37,6 +37,7 @@ export default function TodosPage() {
       WebkitBackdropFilter: "blur(6px) saturate(1.4)",
     },
     container: {
+      background: 'var(--main-bg)',
       border: '1px solid var(--popup-border)',
       boxShadow: isDark
         ? "0 8px 32px -4px rgba(0, 0, 0, 0.4), 0 2px 8px -2px rgba(0, 0, 0, 0.3)"
@@ -236,7 +237,7 @@ export default function TodosPage() {
               { max: 100, message: t('titleMaxLength') },
             ]}
           >
-            <Input placeholder={t('titlePlaceholder')} maxLength={100} autoFocus />
+            <Input placeholder={t('titlePlaceholder')} maxLength={100} autoFocus style={{ background: 'transparent' }} />
           </Form.Item>
           <Form.Item
             label={t('descriptionLabel')}
@@ -245,7 +246,7 @@ export default function TodosPage() {
               { max: 100, message: t('descriptionMaxLength') },
             ]}
           >
-            <Input placeholder={t('descriptionPlaceholder')} maxLength={100} />
+            <Input placeholder={t('descriptionPlaceholder')} maxLength={100} style={{ background: 'transparent' }} />
           </Form.Item>
         </Form>
       </Modal>
@@ -282,7 +283,7 @@ export default function TodosPage() {
               { max: 100, message: t('titleMaxLength') },
             ]}
           >
-            <Input placeholder={t('titlePlaceholder')} maxLength={100} autoFocus />
+            <Input placeholder={t('titlePlaceholder')} maxLength={100} autoFocus style={{ background: 'transparent' }} />
           </Form.Item>
           <Form.Item
             label={t('descriptionLabel')}
@@ -291,7 +292,7 @@ export default function TodosPage() {
               { max: 100, message: t('descriptionMaxLength') },
             ]}
           >
-            <Input placeholder={t('descriptionPlaceholder')} maxLength={100} />
+            <Input placeholder={t('descriptionPlaceholder')} maxLength={100} style={{ background: 'transparent' }} />
           </Form.Item>
         </Form>
       </Modal>

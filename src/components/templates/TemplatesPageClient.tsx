@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { Modal, Input, Form, App } from "antd";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/components/auth/useAuth";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/ui/Spinner";
@@ -23,16 +25,20 @@ interface TemplatesPageClientProps {
 }
 
 export default function TemplatesPageClient({ initialTemplates }: TemplatesPageClientProps) {
+  const { message } = App.useApp();
   const router = useRouter();
   const t = useTranslations('templates');
+  const { resolvedTheme } = useTheme();
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
   const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
+  const isDark = resolvedTheme === "dark";
 
   // New Template
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", description: "", icon: "" });
   const [creating, setCreating] = useState(false);
+  const [createFormInstance] = Form.useForm();
 
   // Copy Template
   const [copyingTemplate, setCopyingTemplate] = useState<Template | null>(null);
@@ -47,21 +53,75 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
     setLoading(false);
   };
 
+  const modalStyles = useMemo(() => ({
+    mask: {
+      background: isDark ? "rgba(0, 0, 0, 0.5)" : "rgba(0, 0, 0, 0.15)",
+      backdropFilter: "blur(6px) saturate(1.4)",
+      WebkitBackdropFilter: "blur(6px) saturate(1.4)",
+    },
+    container: {
+      background: 'var(--main-bg)',
+      border: '1px solid var(--popup-border)',
+      boxShadow: isDark
+        ? "0 8px 32px -4px rgba(0, 0, 0, 0.4), 0 2px 8px -2px rgba(0, 0, 0, 0.3)"
+        : "0 8px 32px -4px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04)",
+    },
+    header: {
+      borderBottom: "none",
+    },
+    footer: {
+      borderTop: "none",
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+  }), [isDark]);
+
+  const okBtnProps = useMemo(() => ({
+    style: {
+      borderRadius: 8,
+      height: 36,
+      paddingInline: 20,
+      fontWeight: 500,
+      boxShadow: isDark
+        ? "0 2px 8px rgba(59, 130, 246, 0.25)"
+        : "0 1px 4px rgba(59, 130, 246, 0.2)",
+    } as React.CSSProperties,
+  }), [isDark]);
+
+  const cancelBtnProps = useMemo(() => ({
+    style: {
+      borderRadius: 8,
+      height: 36,
+    } as React.CSSProperties,
+  }), []);
+
   const handleCreate = async () => {
-    if (!createForm.name.trim() || creating) return;
-    setCreating(true);
+    if (creating) return;
     try {
+      const values = await createFormInstance.validateFields();
+      const name = (values.name || "").trim();
+      if (!name) return;
+      setCreating(true);
       const res = await authFetch("/api/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify({
+          name,
+          description: (values.description || "").trim(),
+          icon: (values.icon || "").trim(),
+        }),
       });
       const newTemplate = await res.json();
       if (newTemplate?.id) {
+        createFormInstance.resetFields();
+        setShowCreate(false);
         router.push(`/templates/${newTemplate.id}`);
       } else {
+        message.error(t('createFailed'));
         refreshList();
       }
+    } catch {
+      // validation failed
     } finally {
       setCreating(false);
     }
@@ -122,53 +182,6 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {loading && <Spinner />}
-
-        {/* New Template表单 */}
-        {showCreate && (
-          <div className="bg-white dark:bg-[var(--popup-bg)] rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('newTemplate')}</h3>
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <input
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder={t('namePlaceholder')}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-zinc-600 dark:bg-zinc-700 dark:text-gray-100 rounded-lg focus:outline-none focus:border-blue-400"
-                  autoFocus
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-                />
-                <input
-                  value={createForm.icon}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, icon: e.target.value }))}
-                  placeholder="Icon (emoji)"
-                  className="w-24 px-3 py-2 text-sm border border-gray-200 dark:border-zinc-600 dark:bg-zinc-700 dark:text-gray-100 rounded-lg focus:outline-none focus:border-blue-400"
-                />
-              </div>
-              <input
-                value={createForm.description}
-                onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder={t('descriptionPlaceholder')}
-                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-zinc-600 dark:bg-zinc-700 dark:text-gray-100 rounded-lg focus:outline-none focus:border-blue-400"
-                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => { setShowCreate(false); setCreateForm({ name: "", description: "", icon: "" }); }}
-                  className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                >
-                  {t('cancel')}
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={creating}
-                  className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
-                >
-                  {creating ? t('creating') : t('createAndEdit')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* 模板列表分组 */}
         {/* 我创建的 */}
@@ -311,40 +324,77 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
         )}
       </div>
 
-      {/* 复制弹窗 */}
-      {copyingTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCopyingTemplate(null)}>
-          <div
-            className="bg-white dark:bg-[var(--popup-bg)] rounded-xl shadow-xl border border-gray-200 dark:border-[var(--popup-border)] w-full max-w-md mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
+      {/* 新建模版弹窗 */}
+      <Modal
+        title={t('newTemplate')}
+        open={showCreate}
+        onOk={handleCreate}
+        okText={t('createAndEdit')}
+        confirmLoading={creating}
+        onCancel={() => {
+          setShowCreate(false);
+          createFormInstance.resetFields();
+        }}
+        destroyOnHidden
+        centered
+        mask={{ closable: false }}
+        styles={modalStyles}
+        okButtonProps={okBtnProps}
+        cancelButtonProps={cancelBtnProps}
+      >
+        <Form
+          form={createFormInstance}
+          layout="vertical"
+          className="mt-4"
+        >
+          <Form.Item
+            label={t('namePlaceholder')}
+            name="name"
+            rules={[{ required: true, message: t('namePlaceholder') }]}
           >
-            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">{t('copyTemplate')}</h3>
-            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1.5">{t('newTemplateName')}</label>
-            <input
-              value={copyName}
-              onChange={(e) => setCopyName(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") handleCopy(); if (e.key === "Escape") setCopyingTemplate(null); }}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-zinc-600 dark:bg-zinc-700 dark:text-gray-100 rounded-lg focus:outline-none focus:border-blue-400"
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setCopyingTemplate(null)}
-                className="px-4 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-              >
-                {t('cancel')}
-              </button>
-              <button
-                onClick={handleCopy}
-                disabled={copying || !copyName.trim()}
-                className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
-              >
-                {copying ? t('copying') : t('confirmCopy')}
-              </button>
-            </div>
-          </div>
+            <Input placeholder={t('namePlaceholder')} maxLength={100} autoFocus style={{ background: 'transparent' }} />
+          </Form.Item>
+          <Form.Item
+            label="Icon"
+            name="icon"
+          >
+            <Input placeholder="Emoji" maxLength={4} style={{ background: 'transparent' }} />
+          </Form.Item>
+          <Form.Item
+            label={t('descriptionPlaceholder')}
+            name="description"
+          >
+            <Input placeholder={t('descriptionPlaceholder')} maxLength={200} style={{ background: 'transparent' }} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 复制模版弹窗 */}
+      <Modal
+        title={t('copyTemplate')}
+        open={!!copyingTemplate}
+        onOk={handleCopy}
+        okText={t('confirmCopy')}
+        confirmLoading={copying}
+        onCancel={() => setCopyingTemplate(null)}
+        destroyOnHidden
+        centered
+        mask={{ closable: false }}
+        styles={modalStyles}
+        okButtonProps={okBtnProps}
+        cancelButtonProps={cancelBtnProps}
+      >
+        <div className="mt-4">
+          <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1.5">{t('newTemplateName')}</label>
+          <input
+            value={copyName}
+            onChange={(e) => setCopyName(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleCopy(); }}
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-lg focus:outline-none focus:border-blue-400"
+          />
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

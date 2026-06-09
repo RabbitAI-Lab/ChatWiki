@@ -1367,6 +1367,7 @@
     "cancel": "Cancel",
     "creating": "Creating...",
     "createAndEdit": "Create & Edit",
+    "createFailed": "Failed to create",
     "myTemplates": "My Templates",
     "systemTemplates": "System Templates",
     "copy": "Copy",
