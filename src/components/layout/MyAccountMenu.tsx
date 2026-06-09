@@ -50,6 +50,7 @@ export default function MyAccountMenu() {
     { label: t('myModels'), href: "/my-models" },
     { label: t('billing'), href: "/billing" },
     { label: t('docs'), href: "/docs" },
+    { label: t('guide'), href: "/guide", external: true },
     { label: t('account'), href: "/settings" },
   ];
 
@@ -123,11 +124,22 @@ export default function MyAccountMenu() {
                 key={item.href}
                 onClick={() => {
                   setOpen(false);
-                  router.push(item.href);
+                  if (item.external) {
+                    window.open(item.href, '_blank');
+                  } else {
+                    router.push(item.href);
+                  }
                 }}
-                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors"
+                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors flex items-center justify-between"
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.external && (
+                  <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                )}
               </div>
             ))}
           </div>

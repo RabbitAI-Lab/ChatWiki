@@ -18,8 +18,7 @@
     "docker:prod:down": "docker compose -f docker/docker-compose.prod.yml down",
     "docker:prod:logs": "docker compose -f docker/docker-compose.prod.yml logs -f",
     "prepare": "husky",
-    "download:docsify": "tsx scripts/download-docsify.ts",
-    "postinstall": "tsx scripts/download-docsify.ts"
+    "download:docsify": "tsx scripts/download-docsify.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.25.0",
