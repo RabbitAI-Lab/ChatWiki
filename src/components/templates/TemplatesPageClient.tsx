@@ -36,7 +36,6 @@ export default function TemplatesPageClient({ initialTemplates }: TemplatesPageC
 
   // New Template
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", description: "", icon: "" });
   const [creating, setCreating] = useState(false);
   const [createFormInstance] = Form.useForm();
 
