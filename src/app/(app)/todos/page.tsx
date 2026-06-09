@@ -47,10 +47,31 @@ export default function TodosPage() {
     },
     footer: {
       borderTop: "none",
+      paddingTop: 8,
+      paddingBottom: 4,
     },
   }), [isDark]);
 
   const modalRootClass = "todo-modal";
+
+  const okBtnProps = useMemo(() => ({
+    style: {
+      borderRadius: 8,
+      height: 36,
+      paddingInline: 20,
+      fontWeight: 500,
+      boxShadow: isDark
+        ? "0 2px 8px rgba(59, 130, 246, 0.25)"
+        : "0 1px 4px rgba(59, 130, 246, 0.2)",
+    } as React.CSSProperties,
+  }), [isDark]);
+
+  const cancelBtnProps = useMemo(() => ({
+    style: {
+      borderRadius: 8,
+      height: 36,
+    } as React.CSSProperties,
+  }), []);
 
   const fetchTodos = useCallback(() => {
     if (!user) return;
@@ -199,6 +220,8 @@ export default function TodosPage() {
         mask={{ closable: false }}
         styles={modalStyles}
         rootClassName={modalRootClass}
+        okButtonProps={okBtnProps}
+        cancelButtonProps={cancelBtnProps}
       >
         <Form
           form={form}
@@ -243,6 +266,8 @@ export default function TodosPage() {
         mask={{ closable: false }}
         styles={modalStyles}
         rootClassName={modalRootClass}
+        okButtonProps={okBtnProps}
+        cancelButtonProps={cancelBtnProps}
       >
         <Form
           form={form}

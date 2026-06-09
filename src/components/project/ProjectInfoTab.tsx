@@ -18,10 +18,11 @@ import SkillsPanel from "./SkillsPanel";
 import MemberManager from "./MemberManager";
 import LogPanel from "./LogPanel";
 import ProjectSettingsPanel from "./ProjectSettingsPanel";
+import PublishPanel from "./PublishPanel";
 import Badge from "@/components/ui/Badge";
 import type { ProjectMeta, RecentChat } from "./types";
 
-type SubTab = "activity" | "integration" | "skills" | "mcp" | "members" | "log" | "settings";
+type SubTab = "activity" | "integration" | "skills" | "mcp" | "members" | "log" | "publish" | "settings";
 
 interface ProjectInfoTabProps {
   projectId: string;
@@ -48,6 +49,7 @@ const SUB_TAB_KEYS: SubTab[] = [
   "mcp",
   "members",
   "log",
+  "publish",
   "settings",
 ];
 
@@ -285,6 +287,13 @@ export default function ProjectInfoTab({
         )}
         {activeSubTab === "log" && (
           <LogPanel projectPath={projectPath} />
+        )}
+        {activeSubTab === "publish" && (
+          <PublishPanel
+            projectId={projectId}
+            projectName={projectName}
+            projectMeta={projectMeta}
+          />
         )}
         {activeSubTab === "settings" && (
           <ProjectSettingsPanel

@@ -1067,6 +1067,7 @@
       "mcp": "MCP",
       "members": "成员",
       "log": "日志",
+      "publish": "发布",
       "settings": "设置"
     },
     "documents": "{name} 文档",
@@ -1325,6 +1326,27 @@
       "deleteFailed": "删除项目失败",
       "nameMismatch": "输入的名称不匹配",
       "noTransferableMembers": "暂无可转让的成员"
+    },
+    "publish": {
+      "title": "发布文档站点",
+      "description": "将整个文档库发布为可公开访问的文档站点",
+      "status": "发布状态",
+      "enabled": "已发布",
+      "disabled": "未发布",
+      "url": "发布地址",
+      "publishedAt": "发布时间",
+      "copyUrl": "复制链接",
+      "openInNewTab": "在新标签页打开",
+      "enableSuccess": "文档站点已发布",
+      "disableSuccess": "文档站点已关闭",
+      "enableFailed": "发布失败",
+      "disableFailed": "关闭发布失败",
+      "copied": "链接已复制到剪贴板",
+      "notOwner": "仅项目所有者可管理发布状态",
+      "tips": "使用说明",
+      "tip1": "发布后，所有文档将可以通过上述 URL 公开访问",
+      "tip2": "文档内容基于 docsify 实时渲染，修改文档后立即生效",
+      "tip3": "关闭发布后，文档将立即无法公开访问"
     }
   },
   "templates": {

@@ -15,6 +15,7 @@ export type {
   WorkspaceMeta,
   GitNexusStatus,
   GitNexusPhase,
+  PublishStatus,
 } from "./types";
 
 // ── Tree helpers (from tree.ts) ──

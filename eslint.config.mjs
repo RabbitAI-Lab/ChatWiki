@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "data/**",
     // Agent skills (playwright scripts, build tools - not subject to project lint rules):
     ".agents/**",
+    // Third-party static assets (docsify, etc.):
+    "public/docsify/**",
   ]),
   // Downgrade strict React hooks rules from next/core-web-vitals to warnings.
   // These are new aggressive rules that flag common patterns like setState in

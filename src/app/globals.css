@@ -1130,11 +1130,11 @@ input:-webkit-autofill:active {
 
 /* CherryMarkdown dark mode overrides */
 .dark .cherry-editor-container .cherry {
-  background: #18181b;
+  background: #09090b;
   color: #e4e4e7;
 }
 .dark .cherry-editor-container .cherry-toolbar {
-  background: #27272a;
+  background: #09090b;
   border-color: #3f3f46;
 }
 .dark .cherry-editor-container .cherry-toolbar .cherry-toolbar-button {
@@ -1145,11 +1145,11 @@ input:-webkit-autofill:active {
   color: #e4e4e7;
 }
 .dark .cherry-editor-container .cherry-editor {
-  background: #18181b;
+  background: #09090b;
 }
 .dark .cherry-editor-container .cm-editor,
 .dark .cherry-editor-container .cm-editor .cm-scroller {
-  background: #18181b;
+  background: #09090b;
   color: #e4e4e7;
 }
 .dark .cherry-editor-container .cm-editor .cm-content {
@@ -1160,7 +1160,7 @@ input:-webkit-autofill:active {
   background: rgba(59, 130, 246, 0.3) !important;
 }
 .dark .cherry-editor-container .cm-editor .cm-gutters {
-  background: #18181b;
+  background: #09090b;
   border-color: #3f3f46;
   color: #71717a;
 }
@@ -1172,7 +1172,7 @@ input:-webkit-autofill:active {
   background: rgba(63, 63, 70, 0.5);
 }
 .dark .cherry-editor-container .cherry-previewer {
-  background: #18181b;
+  background: #09090b;
 }
 .dark .cherry-editor-container .cherry-previewer .cherry-previewer-codeBlock--title {
   color: #a1a1aa;

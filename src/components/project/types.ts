@@ -1,5 +1,5 @@
 import type { TreeNode } from "@/lib/tree";
-import type { Repository, SandboxStatus, ProjectMember, GitNexusStatus } from "@/lib/fs";
+import type { Repository, SandboxStatus, ProjectMember, GitNexusStatus, PublishStatus } from "@/lib/fs";
 
 import type { DocumentActivity, RecentChat } from "@/lib/types";
 
@@ -31,6 +31,7 @@ export interface ProjectMeta {
   sandbox?: SandboxStatus;
   members?: ProjectMember[];
   gitnexusStatus?: GitNexusStatus;
+  publishStatus?: PublishStatus;
 }
 
 /** 账户信息 */

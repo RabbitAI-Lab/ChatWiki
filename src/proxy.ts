@@ -48,6 +48,7 @@ export async function proxy(req: NextRequest) {
     "/setup",
     "/verify-email",
     "/cli-consent",
+    "/docify",
   ];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
@@ -94,6 +95,6 @@ export async function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     // 匹配除公开路径外的所有页面路由
-    "/((?!api/auth|api/share|api/share-html|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login|register|setup|verify-email|cli-consent).*)",
+    "/((?!api/auth|api/share|api/share-html|api/published-docs|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login|register|setup|verify-email|cli-consent|docify|docsify|share).*)",
   ],
 };

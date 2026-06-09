@@ -331,6 +331,7 @@ export const entities = pgTable("entities", {
   gitnexusStatus: text("gitnexus_status"),
   sandboxStatus: text("sandbox_status"),
   skillsStatus: text("skills_status"),
+  publishStatus: text("publish_status"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

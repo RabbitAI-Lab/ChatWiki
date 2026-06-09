@@ -90,7 +90,7 @@ export async function initDb(): Promise<void> {
         const sqlFiles = fs.readdirSync(migrationsDir).filter(f => f.endsWith(".sql"));
         if (sqlFiles.length > 0) {
           console.log(`[db] Running ${sqlFiles.length} migrations...`);
-          migrate(globalForDb.__pgliteDrizzle!, { migrationsFolder: migrationsDir });
+          await migrate(globalForDb.__pgliteDrizzle!, { migrationsFolder: migrationsDir });
           console.log("[db] Migrations applied successfully.");
         }
       }

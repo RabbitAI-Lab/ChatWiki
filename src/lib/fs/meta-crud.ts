@@ -80,6 +80,7 @@ export async function readMetaFromDb(entityId: string, entityType: string): Prom
     skills: row.skillsStatus ? JSON.parse(row.skillsStatus) : undefined,
     members: memberRows.length > 0 ? memberRows.map(memberRowToProjectMember) : undefined,
     gitnexusStatus: row.gitnexusStatus ? JSON.parse(row.gitnexusStatus) : undefined,
+    publishStatus: row.publishStatus ? JSON.parse(row.publishStatus) : undefined,
   };
 }
 
@@ -100,6 +101,7 @@ export async function writeMetaToDb(meta: ProjectMeta, entityType: string): Prom
       gitnexusStatus: meta.gitnexusStatus ? JSON.stringify(meta.gitnexusStatus) : null,
       sandboxStatus: meta.sandbox ? JSON.stringify(meta.sandbox) : null,
       skillsStatus: meta.skills ? JSON.stringify(meta.skills) : null,
+      publishStatus: meta.publishStatus ? JSON.stringify(meta.publishStatus) : null,
       createdAt: meta.createdAt,
       updatedAt: now,
     })
@@ -115,6 +117,7 @@ export async function writeMetaToDb(meta: ProjectMeta, entityType: string): Prom
         gitnexusStatus: meta.gitnexusStatus ? JSON.stringify(meta.gitnexusStatus) : null,
         sandboxStatus: meta.sandbox ? JSON.stringify(meta.sandbox) : null,
         skillsStatus: meta.skills ? JSON.stringify(meta.skills) : null,
+        publishStatus: meta.publishStatus ? JSON.stringify(meta.publishStatus) : null,
         updatedAt: now,
       },
     });
@@ -242,6 +245,7 @@ export function createEntityCrud(strategy: EntityStrategy): EntityCrud {
         skills: row.skillsStatus ? JSON.parse(row.skillsStatus) : undefined,
         members: memberRows.length > 0 ? memberRows.map(memberRowToProjectMember) : undefined,
         gitnexusStatus: row.gitnexusStatus ? JSON.parse(row.gitnexusStatus) : undefined,
+        publishStatus: row.publishStatus ? JSON.parse(row.publishStatus) : undefined,
       } as ProjectMeta;
     }));
     return results;

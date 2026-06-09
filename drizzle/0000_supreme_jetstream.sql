@@ -104,6 +104,7 @@ CREATE TABLE "entities" (
 	"gitnexus_status" text,
 	"sandbox_status" text,
 	"skills_status" text,
+	"publish_status" text,
 	"created_at" text NOT NULL,
 	"updated_at" text NOT NULL
 );

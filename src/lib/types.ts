@@ -186,6 +186,7 @@ export interface ProjectMeta {
   skills?: ProjectSkills;   // Skills 状态
   members?: ProjectMember[]; // 项目成员
   gitnexusStatus?: GitNexusStatus; // GitNexus 索引状态（项目/工作空间级单例）
+  publishStatus?: PublishStatus; // 发布状态
 }
 
 /** Workspace metadata — identical to ProjectMeta, uses .workspace.json instead. */
@@ -210,4 +211,15 @@ export interface GitNexusStatus {
   lastSuccessAt?: string;
   lastError?: string;
   indexExists: boolean; // 物理状态：项目根 .gitnexus/ 是否存在
+}
+
+// ========== 发布状态 ==========
+
+/**
+ * 文档库发布状态。
+ * Persisted under ProjectMeta.publishStatus.
+ */
+export interface PublishStatus {
+  enabled: boolean;
+  publishedAt?: string; // ISO timestamp，首次发布的时间
 }

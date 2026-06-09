@@ -1067,6 +1067,7 @@
       "mcp": "MCP",
       "members": "Members",
       "log": "Log",
+      "publish": "Publish",
       "settings": "Settings"
     },
     "documents": "{name} Documents",
@@ -1325,6 +1326,27 @@
       "deleteFailed": "Failed to delete project",
       "nameMismatch": "Name does not match",
       "noTransferableMembers": "No transferable members"
+    },
+    "publish": {
+      "title": "Publish Documentation Site",
+      "description": "Publish the entire document library as a publicly accessible documentation site",
+      "status": "Publish Status",
+      "enabled": "Published",
+      "disabled": "Not Published",
+      "url": "Publish URL",
+      "publishedAt": "Published At",
+      "copyUrl": "Copy Link",
+      "openInNewTab": "Open in New Tab",
+      "enableSuccess": "Documentation site published",
+      "disableSuccess": "Documentation site unpublished",
+      "enableFailed": "Failed to publish",
+      "disableFailed": "Failed to unpublish",
+      "copied": "Link copied to clipboard",
+      "notOwner": "Only the project owner can manage publish status",
+      "tips": "Instructions",
+      "tip1": "Once published, all documents will be publicly accessible via the URL above",
+      "tip2": "Documents are rendered in real-time by docsify; changes take effect immediately",
+      "tip3": "Unpublishing will immediately revoke public access to documents"
     }
   },
   "templates": {
