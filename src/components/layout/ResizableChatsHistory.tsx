@@ -56,6 +56,7 @@ export default function ResizableChatsHistory() {
 
   // Mark as mounted (placeholder guard uses this)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount flag, no cascading render risk
     setMounted(true);
   }, []);
 
