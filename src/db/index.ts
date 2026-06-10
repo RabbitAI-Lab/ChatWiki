@@ -95,6 +95,19 @@ export async function initDb(): Promise<void> {
         }
       }
 
+      // ── Ad-hoc schema patches (idempotent, safe for all environments) ──
+      try {
+        const patches = [
+          "ALTER TABLE entities ADD COLUMN IF NOT EXISTS publish_status TEXT",
+        ];
+        for (const sql of patches) {
+          await client.query(sql);
+        }
+        console.log("[db] Schema patches applied.");
+      } catch (err) {
+        console.error("[db] Schema patch failed:", err);
+      }
+
       // Run seed
       try {
         const { seed } = await import("./seed");
