@@ -1541,7 +1541,8 @@
     "delete": "Delete",
     "markPending": "Mark as pending",
     "markCompleted": "Mark as completed",
-    "edit": "Edit"
+    "edit": "Edit",
+    "saving": "Saving..."
   },
   "profilePage": {
     "title": "Profile",

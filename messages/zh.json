@@ -1541,7 +1541,8 @@
     "delete": "删除",
     "markPending": "标记为待办",
     "markCompleted": "标记为已完成",
-    "edit": "编辑"
+    "edit": "编辑",
+    "saving": "保存中..."
   },
   "profilePage": {
     "title": "个人资料",

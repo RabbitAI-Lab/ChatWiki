@@ -55,25 +55,6 @@ export default function TodosPage() {
 
   const modalRootClass = "todo-modal";
 
-  const okBtnProps = useMemo(() => ({
-    style: {
-      borderRadius: 8,
-      height: 36,
-      paddingInline: 20,
-      fontWeight: 500,
-      boxShadow: isDark
-        ? "0 2px 8px rgba(59, 130, 246, 0.25)"
-        : "0 1px 4px rgba(59, 130, 246, 0.2)",
-    } as React.CSSProperties,
-  }), [isDark]);
-
-  const cancelBtnProps = useMemo(() => ({
-    style: {
-      borderRadius: 8,
-      height: 36,
-    } as React.CSSProperties,
-  }), []);
-
   const fetchTodos = useCallback(() => {
     if (!user) return;
     authFetch("/api/todos")
@@ -209,9 +190,6 @@ export default function TodosPage() {
       <Modal
         title={t('addTodoTitle')}
         open={showForm}
-        onOk={handleSave}
-        okText={t('add')}
-        confirmLoading={saving}
         onCancel={() => {
           setShowForm(false);
           form.resetFields();
@@ -221,8 +199,7 @@ export default function TodosPage() {
         mask={{ closable: false }}
         styles={modalStyles}
         rootClassName={modalRootClass}
-        okButtonProps={okBtnProps}
-        cancelButtonProps={cancelBtnProps}
+        footer={null}
       >
         <Form
           form={form}
@@ -249,15 +226,27 @@ export default function TodosPage() {
             <Input placeholder={t('descriptionPlaceholder')} maxLength={100} style={{ background: 'transparent' }} />
           </Form.Item>
         </Form>
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={() => { setShowForm(false); form.resetFields(); }}
+            className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+          >
+            {t('cancel')}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+          >
+            {saving ? t('saving') : t('add')}
+          </button>
+        </div>
       </Modal>
 
       {/* Edit Todo Modal */}
       <Modal
         title={t('editTodoTitle')}
         open={!!editingTodo}
-        onOk={handleSave}
-        okText={t('save')}
-        confirmLoading={saving}
         onCancel={() => {
           setEditingTodo(null);
           form.resetFields();
@@ -267,8 +256,7 @@ export default function TodosPage() {
         mask={{ closable: false }}
         styles={modalStyles}
         rootClassName={modalRootClass}
-        okButtonProps={okBtnProps}
-        cancelButtonProps={cancelBtnProps}
+        footer={null}
       >
         <Form
           form={form}
@@ -295,6 +283,21 @@ export default function TodosPage() {
             <Input placeholder={t('descriptionPlaceholder')} maxLength={100} style={{ background: 'transparent' }} />
           </Form.Item>
         </Form>
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={() => { setEditingTodo(null); form.resetFields(); }}
+            className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+          >
+            {t('cancel')}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+          >
+            {saving ? t('saving') : t('save')}
+          </button>
+        </div>
       </Modal>
 
       {/* Content */}
