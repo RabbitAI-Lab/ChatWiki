@@ -1,3 +1,5 @@
+import type { TreeNode } from "@/lib/tree";
+
 export interface Message {
   id: number;
   role: "user" | "assistant";
@@ -36,6 +38,7 @@ export interface ChatWorkspaceProps {
   showProjectSelector?: boolean;
   workspaceId?: string;
   onRefStateChange?: (state: { effectiveChatId: number | null; shareOpen: boolean; shareToken: string | null; shareLoading: boolean }) => void;
+  fileTree?: TreeNode[];
 }
 
 export interface ChatWorkspaceRef {

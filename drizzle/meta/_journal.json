@@ -15,6 +15,13 @@
       "when": 1749532800000,
       "tag": "0042_add_publish_status",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1749619200000,
+      "tag": "0043_add_user_mcp_configs",
+      "breakpoints": true
     }
   ]
 }

@@ -560,7 +560,7 @@ export function useChatMessages({
       const userRes = await authFetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "user", content: trimmedContent }),
+        body: JSON.stringify({ role: "user", content: fullContent }),
       });
 
       if (userRes.ok) {

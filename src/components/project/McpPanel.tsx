@@ -1,13 +1,16 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import AddMcpModal from "@/components/mcp/add-mcp-modal";
 import ApiKeyMcpModal from "@/components/mcp/api-key-mcp-modal";
 import EditMcpModal from "@/components/mcp/edit-mcp-modal";
+import ImportFromAccountModal from "@/components/mcp/import-from-account-modal";
 import McpListItem from "@/components/mcp/mcp-list-item";
 import McpToolbar from "@/components/mcp/mcp-toolbar";
 import { useMcpConfig } from "@/components/mcp/use-mcp-config";
 import { useAuth } from "@/components/auth/useAuth";
+import type { McpServerEntry } from "@/components/mcp/types";
 
 interface McpPanelProps {
   projectPath: string;
@@ -51,6 +54,20 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
     authFetch,
   });
 
+  const [importOpen, setImportOpen] = useState(false);
+
+  const existingNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const n of Object.keys(mcpJson.mcpServers)) names.add(n);
+    if (mcpJson.disabled) for (const n of Object.keys(mcpJson.disabled)) names.add(n);
+    return names;
+  }, [mcpJson]);
+
+  const handleImport = async (entries: Record<string, McpServerEntry>) => {
+    await actions.importEntries(entries);
+    setImportOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -74,6 +91,7 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
         enabledCount={enabledCount}
         totalCount={totalCount}
         onAdd={actions.openAdd}
+        onImport={() => setImportOpen(true)}
       />
 
       {allEntries.length === 0 ? (
@@ -122,6 +140,12 @@ export default function McpPanel({ projectPath }: McpPanelProps) {
           setKeyTarget(null);
           setKeyInput("");
         }}
+      />
+      <ImportFromAccountModal
+        open={importOpen}
+        existingNames={existingNames}
+        onImport={handleImport}
+        onCancel={() => setImportOpen(false)}
       />
       <AddMcpModal
         open={addOpen}

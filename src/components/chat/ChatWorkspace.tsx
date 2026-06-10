@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, forwardRef, useImperativeHandle, useEffect } from "react";
+import { useState, forwardRef, useImperativeHandle, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Bubble, Sender, XProvider } from "@ant-design/x";
-import { ClockCircleOutlined, CloseOutlined } from "@ant-design/icons";
+import { Bubble, Sender, XProvider, Suggestion } from "@ant-design/x";
+import { ClockCircleOutlined, CloseOutlined, FileOutlined } from "@ant-design/icons";
 import { Tag } from "antd";
 import type { Message, ChatWorkspaceProps, ChatWorkspaceRef } from "./chat-workspace-ref";
 export type { Message, ChatWorkspaceProps, ChatWorkspaceRef } from "./chat-workspace-ref";
@@ -14,6 +14,7 @@ import { useChatShare } from "./useChatShare";
 import { useChatNavigation } from "./useChatNavigation";
 import { useChatMessages } from "./useChatMessages";
 import { useAuth } from "@/components/auth/useAuth";
+import { flattenFileNodes } from "@/lib/tree";
 import { mapMessagesToBubbleItems } from "./ChatBubbleItem";
 import ChatInputFooter from "./ChatInputFooter";
 import ChatHeader from "./ChatHeader";
@@ -42,7 +43,9 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
   showProjectSelector = false,
   workspaceId,
   onRefStateChange,
+  fileTree,
 }, ref) {
+  console.log('[ChatWorkspace] render, fileTree:', fileTree?.length ?? 'undefined');
   const router = useRouter();
   const t = useTranslations("chat");
   const { user, authFetch } = useAuth();
@@ -155,6 +158,30 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
         : selectors.models.find((m) => m.id === selectors.selectedModelId)?.modelName)
     : undefined;
   const isEmpty = messagesApi.messages.length === 0 && !floating;
+
+  // --- File mention via Suggestion ---
+  const allFileItems = useMemo(() => {
+    if (!fileTree || fileTree.length === 0) return [];
+    const flat = flattenFileNodes(fileTree);
+    console.log('[Suggestion] fileTree items:', flat.length);
+    return flat.map(({ name, path }) => ({
+      label: name,
+      value: path,
+      icon: <FileOutlined style={{ fontSize: 12 }} />,
+      extra: path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : undefined,
+    }));
+  }, [fileTree]);
+
+  const atIndexRef = useRef<number | null>(null);
+
+  const getSuggestionItems = useCallback((_info?: unknown): Array<{ label: string; value: string; icon?: React.ReactNode; extra?: string }> => {
+    if (atIndexRef.current === null || !messagesApi.inputValue) return allFileItems;
+    const query = messagesApi.inputValue.substring(atIndexRef.current + 1).toLowerCase();
+    if (!query) return allFileItems;
+    return allFileItems.filter(
+      (item) => item.label.toLowerCase().includes(query) || item.value.toLowerCase().includes(query),
+    );
+  }, [allFileItems, messagesApi.inputValue]);
 
   // Footer renderer
   const renderFooter = ChatInputFooter({
@@ -288,59 +315,126 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
                 </div>
               </div>
             )}
-            <Sender
-              value={messagesApi.inputValue}
-              onChange={messagesApi.setInputValue}
-              onSubmit={messagesApi.handleSend}
-              loading={messagesApi.loading}
-              onCancel={messagesApi.handleCancel}
-              onKeyDown={(e) => {
-                if (
-                  messagesApi.loading &&
-                  e.key === 'Enter' &&
-                  !e.shiftKey &&
-                  !(e.ctrlKey || e.altKey || e.metaKey) &&
-                  !e.nativeEvent.isComposing &&
-                  messagesApi.inputValue.trim()
-                ) {
-                  e.preventDefault();
-                  messagesApi.handleSend(messagesApi.inputValue);
-                  return false;
+            <Suggestion
+              items={getSuggestionItems}
+              onSelect={(value) => {
+                messagesApi.setMentionedFiles((prev) =>
+                  prev.includes(value) ? prev : [...prev, value],
+                );
+                // Remove the @query text from input
+                if (atIndexRef.current !== null) {
+                  const before = messagesApi.inputValue.substring(0, atIndexRef.current);
+                  const afterCursor = atIndexRef.current + 1;
+                  // Find where the query ends (end of input or next space)
+                  const rest = messagesApi.inputValue.substring(afterCursor);
+                  const match = rest.match(/^[^\s]*/);
+                  const queryLen = match ? match[0].length : 0;
+                  const after = messagesApi.inputValue.substring(afterCursor + queryLen);
+                  messagesApi.setInputValue(before + after);
                 }
+                atIndexRef.current = null;
               }}
-              placeholder={t('input.placeholder')}
-              autoSize={
-                messagesApi.messages.length === 0 && !floating
-                  ? { minRows: 2, maxRows: 6 }
-                  : { minRows: 1, maxRows: 4 }
-              }
-              suffix={false}
-              header={
-                messagesApi.mentionedFiles.length > 0 ? (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 12px" }}>
-                    {messagesApi.mentionedFiles.map((filePath) => {
-                      const fileName = filePath.split("/").pop() || filePath;
-                      return (
-                        <Tag
-                          key={filePath}
-                          closable
-                          onClose={() =>
-                            messagesApi.setMentionedFiles((prev) =>
-                              prev.filter((f) => f !== filePath)
-                            )
-                          }
-                          style={{ margin: 0 }}
-                        >
-                          @{fileName}
-                        </Tag>
-                      );
-                    })}
-                  </div>
-                ) : false
-              }
-              styles={{ root: { backgroundColor: 'var(--sender-bg)' } }}
-              footer={renderFooter}
-            />
+              onOpenChange={(open) => {
+                if (!open) atIndexRef.current = null;
+              }}
+              styles={{ popup: { maxHeight: 280 } }}
+            >
+              {({ onTrigger, onKeyDown: suggestionOnKeyDown, open }) => (
+                <Sender
+                  value={messagesApi.inputValue}
+                  onChange={(val) => {
+                    messagesApi.setInputValue(val);
+                    // Detect @ trigger
+                    if (allFileItems.length === 0) return;
+
+                    const hasAt = val.includes('@');
+
+                    if (open) {
+                      // Panel is open
+                      if (!hasAt || (atIndexRef.current !== null && val[atIndexRef.current] !== '@')) {
+                        // User deleted the @, close
+                        atIndexRef.current = null;
+                        onTrigger(false);
+                        return;
+                      }
+                      // Update filtered items as user types
+                      if (atIndexRef.current !== null) {
+                        onTrigger();
+                      }
+                    } else {
+                      // Panel is closed – check if @ exists
+                      if (hasAt) {
+                        // Find the LAST @ that doesn't have a space after it (still typing query)
+                        const idx = val.lastIndexOf('@');
+                        // Only trigger if the @ is at end or followed by non-space chars
+                        const afterAt = val.substring(idx + 1);
+                        if (!afterAt.includes(' ')) {
+                          console.log('[Suggestion] trigger at index:', idx, 'val:', val);
+                          atIndexRef.current = idx;
+                          onTrigger();
+                        }
+                      }
+                    }
+                  }}
+                  onSubmit={messagesApi.handleSend}
+                  loading={messagesApi.loading}
+                  onCancel={messagesApi.handleCancel}
+                  onKeyDown={(e) => {
+                    // When suggestion panel is open, route keys to Suggestion
+                    if (open) {
+                      suggestionOnKeyDown(e);
+                      // If Suggestion handled the key (Enter/Escape/Arrows → e.defaultPrevented), stop Sender processing
+                      if (e.defaultPrevented) return false;
+                      return;
+                    }
+                    if (
+                      messagesApi.loading &&
+                      e.key === 'Enter' &&
+                      !e.shiftKey &&
+                      !(e.ctrlKey || e.altKey || e.metaKey) &&
+                      !e.nativeEvent.isComposing &&
+                      messagesApi.inputValue.trim()
+                    ) {
+                      e.preventDefault();
+                      messagesApi.handleSend(messagesApi.inputValue);
+                      return false;
+                    }
+                  }}
+                  placeholder={t('input.placeholder')}
+                  autoSize={
+                    messagesApi.messages.length === 0 && !floating
+                      ? { minRows: 2, maxRows: 6 }
+                      : { minRows: 1, maxRows: 4 }
+                  }
+                  suffix={false}
+                  header={
+                    messagesApi.mentionedFiles.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 12px" }}>
+                        {messagesApi.mentionedFiles.map((filePath) => {
+                          const fileName = filePath.split("/").pop() || filePath;
+                          return (
+                            <Tag
+                              key={filePath}
+                              closable
+                              onClose={() =>
+                                messagesApi.setMentionedFiles((prev) =>
+                                  prev.filter((f) => f !== filePath)
+                                )
+                              }
+                              style={{ margin: 0 }}
+                            >
+                              @{fileName}
+                            </Tag>
+                          );
+                        })}
+                      </div>
+                    ) : false
+                  }
+                  styles={{ root: { backgroundColor: 'var(--sender-bg)' } }}
+                  footer={renderFooter}
+                />
+              )}
+            </Suggestion>
           </div>
         </div>
 

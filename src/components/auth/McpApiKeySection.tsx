@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { App, Button, Space, Typography, Popconfirm } from "antd";
 import {
@@ -80,7 +80,7 @@ export default function McpApiKeySection() {
     return key.slice(0, 8) + "****" + key.slice(-4);
   };
 
-  const mcpUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/mcp`;
+  const mcpUrl = useMemo(() => `${window.location.origin}/mcp`, []);
 
   if (loading && !data) {
     return <div className="text-sm text-gray-500">{t("mcpApiKeyLoading")}</div>;

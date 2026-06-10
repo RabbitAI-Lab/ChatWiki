@@ -404,6 +404,7 @@ export default function ChatPageContent({
               onDocumentSaved={refreshTree}
               mentionFile={mentionFile}
               onMentionConsumed={() => setMentionFile(null)}
+              fileTree={displayTree}
               onToolCall={handleToolCall}
               onSwitchToChat={chatSwitching.handleSwitchToChat}
             />

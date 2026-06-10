@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 初始化：尝试用 refresh token 恢复会话
   useEffect(() => {
-    Promise.resolve().then(() => refreshAccessToken());
+    refreshAccessToken();
   }, [refreshAccessToken]);
 
   const loginWithTokens = useCallback(
@@ -248,6 +248,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const authFetch = useCallback(
     async (url: string, options?: RequestInit): Promise<Response> => {
+      // 页面刷新时 token 尚未就绪，先触发 refresh 并等待完成
+      // refreshAccessToken 内部有并发去重，多个 authFetch 同时调用只执行一次
+      if (!accessTokenRef.current) {
+        await refreshAccessToken();
+      }
+
       const token = accessTokenRef.current;
       const headers = new Headers(options?.headers);
       if (token) {

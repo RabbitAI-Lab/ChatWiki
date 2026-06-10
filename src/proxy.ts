@@ -67,6 +67,11 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // MCP 代理路由 — 使用 API Key 鉴权，不需要登录态
+  if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
+    return NextResponse.next();
+  }
+
   // 分享页面
   if (pathname.startsWith("/share")) {
     return NextResponse.next();
@@ -95,6 +100,6 @@ export async function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     // 匹配除公开路径外的所有页面路由
-    "/((?!api/auth|api/share|api/share-html|api/published-docs|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login|register|setup|verify-email|cli-consent|docify|docsify|share).*)",
+    "/((?!api/auth|api/share|api/share-html|api/published-docs|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login|register|setup|verify-email|cli-consent|docify|docsify|share|mcp).*)",
   ],
 };

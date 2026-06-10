@@ -114,6 +114,21 @@ export function insertNode(nodes: TreeNode[], parentPath: string, newNode: TreeN
   });
 }
 
+/** Flatten all file nodes from the tree into a flat array. */
+export function flattenFileNodes(nodes: TreeNode[]): Array<{ name: string; path: string }> {
+  const result: Array<{ name: string; path: string }> = [];
+  function walk(list: TreeNode[]) {
+    for (const node of list) {
+      if (node.type === "file") {
+        result.push({ name: node.name, path: node.path });
+      }
+      if (node.children) walk(node.children);
+    }
+  }
+  walk(nodes);
+  return result;
+}
+
 /**
  * Strip project prefix from tree paths.
  *

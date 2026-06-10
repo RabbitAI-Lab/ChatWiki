@@ -7,6 +7,7 @@ import ProjectInfoTab from "@/components/project/ProjectInfoTab";
 import type { FileTab, ProjectMeta, RecentChat } from "./types";
 import { PROJECT_INFO_TAB, CHAT_TAB } from "./types";
 import type { DocumentActivity } from "@/lib/types";
+import type { TreeNode } from "@/lib/tree";
 
 const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
   ssr: false,
@@ -68,6 +69,8 @@ interface ProjectEditorAreaProps {
   initialSubTab?: string;
   /** 项目信息更新回调（标题/描述变更时通知父组件） */
   onProjectUpdate?: (name: string, description: string) => void;
+  /** 文件树数据（用于 @mention） */
+  fileTree?: TreeNode[];
 }
 
 export default function ProjectEditorArea({
@@ -99,6 +102,7 @@ export default function ProjectEditorArea({
   getCachedContent,
   initialSubTab,
   onProjectUpdate,
+  fileTree,
 }: ProjectEditorAreaProps) {
   const t = useTranslations('project');
 
@@ -151,6 +155,7 @@ export default function ProjectEditorArea({
           onNewChat={onNewChat}
           onSwitchToChat={onSwitchToChat}
           onChatCreated={onChatCreated}
+          fileTree={fileTree}
         />
       </div>
 

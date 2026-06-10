@@ -470,3 +470,14 @@ export const notificationJobs = pgTable("notification_jobs", {
   lastError: text("last_error"),
   createdAt: text("created_at").notNull(),
 });
+
+// user_mcp_configs: 用户级第三方 MCP 服务器配置
+export const userMcpConfigs = pgTable("user_mcp_configs", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  entryJson: text("entry_json").notNull().default("{}"),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

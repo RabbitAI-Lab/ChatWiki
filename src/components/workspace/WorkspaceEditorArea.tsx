@@ -8,6 +8,7 @@ import type { FileTab } from "./types";
 import { WORKSPACE_INFO_TAB, CHAT_TAB } from "./types";
 import type { DocumentActivity } from "@/lib/types";
 import type { WorkspaceMeta, ProjectMeta } from "@/lib/fs";
+import type { TreeNode } from "@/lib/tree";
 
 const CherryEditor = dynamic(() => import("@/components/editor/CherryEditor"), {
   ssr: false,
@@ -72,6 +73,8 @@ interface WorkspaceEditorAreaProps {
   getCachedContent: (filePath: string) => string | undefined;
   /** URL 参数传入的子Tab初始值 */
   initialSubTab?: string;
+  /** 文件树数据（用于 @mention） */
+  fileTree?: TreeNode[];
 }
 
 export default function WorkspaceEditorArea({
@@ -106,6 +109,7 @@ export default function WorkspaceEditorArea({
   onToolCall,
   getCachedContent,
   initialSubTab,
+  fileTree,
 }: WorkspaceEditorAreaProps) {
   const t = useTranslations('workspace');
   return (
@@ -183,6 +187,7 @@ export default function WorkspaceEditorArea({
           onNewChat={onNewChat}
           onSwitchToChat={(chatId) => onSwitchToChat(chatId, null)}
           onChatCreated={onChatCreated}
+          fileTree={fileTree}
         />
       </div>
 

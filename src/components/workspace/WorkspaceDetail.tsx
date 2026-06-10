@@ -664,6 +664,7 @@ export default function WorkspaceDetail({
           }}
           getCachedContent={(filePath) => contentCache.current[filePath]}
           initialSubTab={initialSubTab}
+          fileTree={treeView === "docs" ? tree : rootTree}
         />
       </div>
     </div>

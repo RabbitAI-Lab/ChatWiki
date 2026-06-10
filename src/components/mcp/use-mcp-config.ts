@@ -59,6 +59,7 @@ export interface UseMcpConfigResult {
     handleDelete: (name: string) => Promise<void>;
     openAdd: () => void;
     handleAdd: () => Promise<void>;
+    importEntries: (entries: Record<string, McpServerEntry>) => Promise<void>;
   };
 }
 
@@ -345,6 +346,22 @@ export function useMcpConfig({
     }
   }, [addForm, mcpJson, writeBack, message]);
 
+  // Import multiple entries from user-level account MCP config.
+  const importEntries = useCallback(
+    async (entries: Record<string, McpServerEntry>) => {
+      const nextServers = { ...mcpJson.mcpServers, ...entries };
+      await writeBack(
+        {
+          mcpServers: nextServers,
+          disabled: mcpJson.disabled || {},
+          _apiKeys: mcpJson._apiKeys,
+        },
+        "Imported",
+      );
+    },
+    [mcpJson, writeBack],
+  );
+
   // Merge enabled + disabled servers, preserving a stable display order.
   const allEntries = useMemo<McpRenderEntry[]>(() => {
     const disabled = mcpJson.disabled || {};
@@ -394,6 +411,7 @@ export function useMcpConfig({
       handleDelete,
       openAdd,
       handleAdd,
+      importEntries,
     },
   };
 }

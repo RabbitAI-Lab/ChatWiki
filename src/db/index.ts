@@ -50,6 +50,15 @@ function ensureInstance(): void {
     fs.mkdirSync(home, { recursive: true });
   }
 
+  // Clean up stale postmaster.pid left by ungraceful shutdown
+  const pidFile = path.join(dataDir, "postmaster.pid");
+  if (fs.existsSync(pidFile)) {
+    try {
+      fs.unlinkSync(pidFile);
+      console.log("[db] Cleaned up stale postmaster.pid");
+    } catch { /* ignore */ }
+  }
+
   console.log(`[db] Creating PGlite instance at ${dataDir}...`);
   const client = new PGlite(dataDir);
   const drizzleInstance = drizzle(client, { schema });

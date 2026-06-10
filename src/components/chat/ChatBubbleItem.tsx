@@ -49,6 +49,63 @@ function renderMarkdown(content: string) {
   );
 }
 
+/** Regex to match @file/path patterns in user messages */
+const MENTION_REGEX = /@([\w][\w.-]*(?:\/[\w.-]+)*)/g;
+
+/**
+ * Render user message content with @file mentions as inline chips.
+ * Splits the content by mention patterns and renders each part:
+ * - Mention parts become styled <span> chips
+ * - Non-mention parts go through XMarkdown
+ */
+function renderUserMessageWithMentions(content: string) {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+
+  // Reset regex state for reuse
+  const regex = new RegExp(MENTION_REGEX.source, 'g');
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    // Text before the mention
+    if (match.index > lastIndex) {
+      parts.push(
+        <Typography key={key++}>
+          <XMarkdown content={content.substring(lastIndex, match.index)} />
+        </Typography>
+      );
+    }
+    // Mention chip
+    const filePath = match[1];
+    const fileName = filePath.split('/').pop() || filePath;
+    parts.push(
+      <span
+        key={key++}
+        className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
+        style={{
+          backgroundColor: 'var(--ant-color-primary-bg)',
+          color: 'var(--ant-color-primary)',
+        }}
+      >
+        @{fileName}
+      </span>
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  // Remaining text after the last mention
+  if (lastIndex < content.length) {
+    parts.push(
+      <Typography key={key++}>
+        <XMarkdown content={content.substring(lastIndex)} />
+      </Typography>
+    );
+  }
+
+  return <>{parts}</>;
+}
+
 /**
  * Token 配额超限提示卡片。显示错误信息并提供跳转到计费页面的按钮。
  */
@@ -119,13 +176,13 @@ export function mapMessagesToBubbleItems({
           renderMarkdown(msg.content)
         )}
       </div>
-    ) : msg.content;
+    ) : renderUserMessageWithMentions(msg.content);
 
     return {
       key: msg.id.toString(),
       role: msg.role,
       content: contentNode,
-      contentRender: isAssistant ? undefined : renderMarkdown,
+      contentRender: undefined as ((content: string) => React.ReactNode) | undefined,
       loading: isAiLoading || undefined,
       typing:
         isAssistant && msg.content && !isAiLoading && !msg.isError && !msg.isQuotaExceeded
