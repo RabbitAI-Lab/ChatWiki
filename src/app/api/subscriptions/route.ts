@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/db";
-import { userSubscriptions, plans } from "@/db/schema";
+import { userSubscriptions, plans, orders } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 import { getApiT } from "@/lib/i18n-api";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +72,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // 计算价格（与 checkout route 保持一致）
+  const prices = JSON.parse(plan.prices || "[]");
+  const priceEntry = prices.find((p: { currency: string }) => p.currency === plan.defaultCurrency) || prices[0];
+
+  const originalAmount = priceEntry
+    ? (billingCycle === "monthly"
+        ? (priceEntry.monthlyPrice || 0) * 100
+        : (priceEntry.yearlyPrice || 0) * 100)
+    : 0;
+
+  let discountAmount = 0;
+  let amount = originalAmount;
+  if (plan.discountType === "percentage" && plan.discountValue > 0) {
+    discountAmount = Math.round(originalAmount * (1 - plan.discountValue / 1000));
+    amount = originalAmount - discountAmount;
+  } else if (plan.discountType === "fixed" && plan.discountValue > 0) {
+    discountAmount = plan.discountValue;
+    amount = Math.max(0, originalAmount - discountAmount);
+  }
+
   const now = new Date();
   const expiresAt = new Date(now);
   if (billingCycle === "monthly") {
@@ -119,6 +140,27 @@ export async function POST(req: NextRequest) {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
+
+  // 创建 order 记录，使得免费订阅也出现在 Payment History 中
+  const orderId = uuidv4();
+  const billingMode = (plan.billingMode as "subscription" | "one_time") || "subscription";
+  await db.insert(orders).values({
+    id: orderId,
+    userId: auth.id,
+    planId: plan.id,
+    subscriptionId: id,
+    amount,
+    currency: plan.defaultCurrency || "CNY",
+    originalAmount,
+    discountAmount,
+    billingCycle,
+    paymentMode: billingMode,
+    provider: "system",
+    status: "paid",
+    paidAt: now.toISOString(),
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
 
   return NextResponse.json(
     { subscription: { id, planId, billingCycle, status: "active", startedAt: now.toISOString(), expiresAt: expiresAt.toISOString() } },

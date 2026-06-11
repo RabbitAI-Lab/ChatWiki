@@ -1,4 +1,4 @@
-CREATE TABLE "feedbacks" (
+CREATE TABLE IF NOT EXISTS "feedbacks" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"title" text NOT NULL,

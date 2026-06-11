@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
+import { readMigrationFiles } from "drizzle-orm/migrator";
 import * as schema from "./schema";
 import fs from "fs";
 import os from "os";
@@ -93,14 +93,12 @@ export async function initDb(): Promise<void> {
       await client.waitReady;
       console.log("[db] PGlite backend ready.");
 
-      // Run migrations using Drizzle's built-in migrator
+      // Run migrations with fault-tolerant runner
       const migrationsDir = path.join(process.cwd(), "drizzle");
       if (fs.existsSync(migrationsDir)) {
-        const sqlFiles = fs.readdirSync(migrationsDir).filter(f => f.endsWith(".sql"));
-        if (sqlFiles.length > 0) {
-          console.log(`[db] Running ${sqlFiles.length} migrations...`);
-          await migrate(globalForDb.__pgliteDrizzle!, { migrationsFolder: migrationsDir });
-          console.log("[db] Migrations applied successfully.");
+        const journalPath = path.join(migrationsDir, "meta", "_journal.json");
+        if (fs.existsSync(journalPath)) {
+          await runMigrationsFaultTolerant(client, migrationsDir);
         }
       }
 
@@ -192,3 +190,87 @@ export function getRawClient(): PGlite {
 
 /** Database data directory path (for info purposes). */
 export { getDataDir as dbPath };
+
+/** PostgreSQL error codes that indicate "already exists" — safe to skip. */
+const IGNORABLE_PG_ERROR_CODES = new Set([
+  "42P07", // duplicate_table (relation already exists)
+  "42701", // duplicate_column (column already exists)
+  "42P16", // duplicate_object (e.g. constraint already exists)
+  "42710", // duplicate_function
+]);
+
+/**
+ * Fault-tolerant migration runner.
+ *
+ * Behaves like Drizzle's built-in migrator but catches ignorable
+ * "already exists" errors per-statement instead of aborting
+ * the entire migration batch.
+ */
+async function runMigrationsFaultTolerant(
+  client: PGlite,
+  migrationsFolder: string,
+): Promise<void> {
+  const migrationEntries = readMigrationFiles({ migrationsFolder });
+  if (migrationEntries.length === 0) return;
+
+  console.log(`[db] Running ${migrationEntries.length} migration(s)...`);
+
+  // Ensure the drizzle migrations tracking table exists
+  await client.query(
+    `CREATE SCHEMA IF NOT EXISTS drizzle`,
+  );
+  await client.query(
+    `CREATE TABLE IF NOT EXISTS drizzle."__drizzle_migrations" (
+      id SERIAL PRIMARY KEY,
+      hash text NOT NULL,
+      created_at bigint
+    )`,
+  );
+
+  // Get the latest applied migration timestamp
+  const { rows: lastRows } = await client.query<{ created_at: string }>(
+    `SELECT created_at FROM drizzle."__drizzle_migrations" ORDER BY created_at DESC LIMIT 1`,
+  );
+  const lastAppliedAt = lastRows[0] ? Number(lastRows[0].created_at) : -1;
+
+  let applied = 0;
+  let skipped = 0;
+  let warned = 0;
+
+  for (const entry of migrationEntries) {
+    if (entry.folderMillis <= lastAppliedAt) {
+      skipped++;
+      continue;
+    }
+
+    // Run each statement individually with error tolerance
+    for (const stmt of entry.sql) {
+      const trimmed = stmt.trim();
+      if (!trimmed) continue;
+      try {
+        await client.query(trimmed);
+      } catch (err: unknown) {
+        const pgErr = err as { code?: string; severity?: string; message?: string; [k: string]: unknown };
+        if (pgErr.code && IGNORABLE_PG_ERROR_CODES.has(pgErr.code)) {
+          console.warn(
+            `[db] Migration warning (ignored): [${pgErr.code}] ${pgErr.message?.slice(0, 120)}`,
+          );
+          warned++;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    // Record the migration as applied
+    await client.query(
+      `INSERT INTO drizzle."__drizzle_migrations" (hash, created_at) VALUES ($1, $2)`,
+      [entry.hash, entry.folderMillis],
+    );
+    applied++;
+  }
+
+  console.log(
+    `[db] Migrations done: ${applied} applied, ${skipped} skipped, ${warned} warnings.`,
+  );
+}

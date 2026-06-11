@@ -277,3 +277,46 @@ export async function cancelRenewalReminders(subscriptionId: string) {
       eqOp(notificationJobs.status, "pending"),
     ));
 }
+
+// ── Token 充值通知 ──
+
+const TOKEN_TOP_UP_REASON_LABELS: Record<string, string> = {
+  system_gift: "System Gift",
+  promotion: "Promotional Bonus",
+  compensation: "Compensation",
+  manual: "Manual Top-Up",
+};
+
+export async function createTokenTopUpNotification(
+  userId: string,
+  data: {
+    tokens: number;
+    reason: string;
+    note?: string | null;
+    expiresAt: string;
+  }
+) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) return;
+
+  const tokensFormatted = data.tokens.toLocaleString();
+  const reasonLabel = TOKEN_TOP_UP_REASON_LABELS[data.reason] || data.reason;
+  const noteBlock = data.note
+    ? `<p style="margin:4px 0 0;color:#666">Note: ${data.note}</p>`
+    : "";
+  const expiresAtFormatted = new Date(data.expiresAt).toISOString().split("T")[0];
+
+  await createNotificationJob({
+    type: "token_top_up",
+    userId,
+    email: user.email,
+    data: {
+      tokens: tokensFormatted,
+      reasonLabel,
+      noteBlock,
+      expiresAt: expiresAtFormatted,
+      brandName: await getBrandName(),
+    },
+    scheduledAt: new Date().toISOString(),
+  });
+}

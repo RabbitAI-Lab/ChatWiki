@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { userSubscriptions, plans, tokenUsageLogs } from "@/db/schema";
+import { userSubscriptions, plans, tokenUsageLogs, tokenTopUps } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import type { AuthUser } from "./session";
 
@@ -11,6 +11,8 @@ interface QuotaCheckResult {
   limit: number;
   /** 剩余 token 数 */
   remaining: number;
+  /** 充值增加的额度 */
+  topUpTotal: number;
 }
 
 /**
@@ -28,7 +30,7 @@ interface QuotaCheckResult {
 export async function checkTokenQuota(auth: AuthUser): Promise<QuotaCheckResult> {
   // admin 放行
   if (auth.isAdmin) {
-    return { allowed: true, used: 0, limit: 0, remaining: Infinity };
+    return { allowed: true, used: 0, limit: 0, remaining: Infinity, topUpTotal: 0 };
   }
 
   // 查询活跃订阅 + 套餐限额
@@ -51,15 +53,15 @@ export async function checkTokenQuota(auth: AuthUser): Promise<QuotaCheckResult>
 
   // 无活跃订阅 → 不允许
   if (!subscription) {
-    return { allowed: false, used: 0, limit: 0, remaining: 0 };
+    return { allowed: false, used: 0, limit: 0, remaining: 0, topUpTotal: 0 };
   }
 
   // plan 被禁用或订阅已过期 → 不允许
   if (!subscription.planEnabled) {
-    return { allowed: false, used: 0, limit: 0, remaining: 0 };
+    return { allowed: false, used: 0, limit: 0, remaining: 0, topUpTotal: 0 };
   }
   if (new Date(subscription.expiresAt) < new Date()) {
-    return { allowed: false, used: 0, limit: 0, remaining: 0 };
+    return { allowed: false, used: 0, limit: 0, remaining: 0, topUpTotal: 0 };
   }
 
   // 确定配额
@@ -69,7 +71,7 @@ export async function checkTokenQuota(auth: AuthUser): Promise<QuotaCheckResult>
 
   // limit === 0 表示无限额度
   if (tokenLimit === 0) {
-    return { allowed: true, used: 0, limit: 0, remaining: Infinity };
+    return { allowed: true, used: 0, limit: 0, remaining: Infinity, topUpTotal: 0 };
   }
 
   // 查询本周期已用量
@@ -85,12 +87,26 @@ export async function checkTokenQuota(auth: AuthUser): Promise<QuotaCheckResult>
     ));
 
   const used = usageRow?.totalTokens || 0;
-  const remaining = Math.max(0, tokenLimit - used);
+
+  // 查询未过期充值总额
+  const nowISO = new Date().toISOString();
+  const [topUpRow] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${tokenTopUps.tokens}), 0)` })
+    .from(tokenTopUps)
+    .where(and(
+      eq(tokenTopUps.userId, auth.id),
+      gte(tokenTopUps.expiresAt, nowISO),
+    ));
+
+  const topUpTotal = topUpRow?.total || 0;
+  const effectiveLimit = tokenLimit + topUpTotal;
+  const remaining = Math.max(0, effectiveLimit - used);
 
   return {
-    allowed: used < tokenLimit,
+    allowed: used < effectiveLimit,
     used,
-    limit: tokenLimit,
+    limit: effectiveLimit,
     remaining,
+    topUpTotal,
   };
 }

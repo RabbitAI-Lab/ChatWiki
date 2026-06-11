@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/db";
-import { users, userSubscriptions, plans } from "@/db/schema";
-import { and, eq, like, or, sql, desc, inArray } from "drizzle-orm";
+import { users, userSubscriptions, plans, tokenUsageLogs } from "@/db/schema";
+import { and, eq, like, or, sql, desc, inArray, gte } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     .limit(pageSize)
     .offset(offset);
 
-  // 为每个用户查询活跃订阅
+  // 为每个用户查询活跃订阅 + 配额信息
   const userIds = rows.map((r) => r.id);
   const subscriptionMap = new Map<string, {
     id: string;
@@ -64,6 +64,8 @@ export async function GET(req: NextRequest) {
     billingCycle: string;
     status: string;
     expiresAt: string;
+    startedAt: string;
+    tokenLimit: number;
   }>();
 
   if (userIds.length > 0) {
@@ -75,6 +77,9 @@ export async function GET(req: NextRequest) {
         billingCycle: userSubscriptions.billingCycle,
         status: userSubscriptions.status,
         expiresAt: userSubscriptions.expiresAt,
+        startedAt: userSubscriptions.startedAt,
+        tokenLimitMonthly: plans.tokenLimitMonthly,
+        tokenLimitYearly: plans.tokenLimitYearly,
       })
       .from(userSubscriptions)
       .innerJoin(plans, eq(userSubscriptions.planId, plans.id))
@@ -86,13 +91,58 @@ export async function GET(req: NextRequest) {
       );
 
     for (const sub of subs) {
+      const tokenLimit = sub.billingCycle === "monthly"
+        ? sub.tokenLimitMonthly
+        : sub.tokenLimitYearly;
       subscriptionMap.set(sub.userId, {
         id: sub.subscriptionId,
         planTitle: sub.planTitle,
         billingCycle: sub.billingCycle,
         status: sub.status,
         expiresAt: sub.expiresAt,
+        startedAt: sub.startedAt,
+        tokenLimit,
       });
+    }
+
+    // 查询每个有订阅用户的本周期 token 用量
+    const subscribedUserIds = subs.map((s) => s.userId);
+    const usageMap = new Map<string, number>();
+
+    if (subscribedUserIds.length > 0) {
+      // 为每个订阅用户查询从 startedAt 开始的用量
+      // 使用 UNION ALL 方式批量查询
+      const usageRows = await db
+        .select({
+          userId: tokenUsageLogs.userId,
+          used: sql<number>`COALESCE(SUM(${tokenUsageLogs.totalTokens}), 0)`,
+        })
+        .from(tokenUsageLogs)
+        .where(
+          and(
+            inArray(tokenUsageLogs.userId, subscribedUserIds),
+            gte(tokenUsageLogs.createdAt, sql`(
+              SELECT ${userSubscriptions.startedAt}
+              FROM ${userSubscriptions}
+              WHERE ${userSubscriptions.userId} = ${tokenUsageLogs.userId}
+                AND ${userSubscriptions.status} = 'active'
+              LIMIT 1
+            )`),
+          )
+        )
+        .groupBy(tokenUsageLogs.userId);
+
+      for (const row of usageRows) {
+        usageMap.set(row.userId, row.used);
+      }
+    }
+
+    // 合并 usage 数据到 subscriptionMap
+    for (const uid of subscribedUserIds) {
+      const sub = subscriptionMap.get(uid);
+      if (sub) {
+        (sub as Record<string, unknown>).tokensUsed = usageMap.get(uid) || 0;
+      }
     }
   }
 
@@ -100,7 +150,20 @@ export async function GET(req: NextRequest) {
     users: rows.map((r) => ({
       ...r,
       disabled: r.disabled === true,
-      subscription: subscriptionMap.get(r.id) ?? null,
+      subscription: subscriptionMap.get(r.id)
+        ? (() => {
+          const sub = subscriptionMap.get(r.id)!;
+          return {
+            id: sub.id,
+            planTitle: sub.planTitle,
+            billingCycle: sub.billingCycle,
+            status: sub.status,
+            expiresAt: sub.expiresAt,
+            tokensUsed: (sub as Record<string, unknown>).tokensUsed as number || 0,
+            tokenLimit: sub.tokenLimit,
+          };
+        })()
+        : null,
     })),
     pagination: {
       page,

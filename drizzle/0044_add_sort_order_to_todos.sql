@@ -1,1 +1,1 @@
-ALTER TABLE "todos" ADD COLUMN "sort_order" integer DEFAULT 0 NOT NULL;
+ALTER TABLE "todos" ADD COLUMN IF NOT EXISTS "sort_order" integer DEFAULT 0 NOT NULL;

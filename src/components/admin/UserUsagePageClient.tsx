@@ -28,9 +28,11 @@ import {
   UserOutlined,
   EyeOutlined,
   CrownOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/components/auth/useAuth";
 import { useTranslations } from "next-intl";
+import InputNumber from "antd/es/input-number";
 
 const { Text } = Typography;
 
@@ -42,6 +44,8 @@ interface UserSubscription {
   billingCycle: string;
   status: string;
   expiresAt: string;
+  tokensUsed: number;
+  tokenLimit: number;
 }
 
 interface UserRecord {
@@ -72,6 +76,8 @@ interface UsageData {
   } | null;
   quota: {
     limit: number;
+    topUpTotal: number;
+    effectiveLimit: number;
     used: number;
     remaining: number;
     percentage: number;
@@ -131,6 +137,11 @@ export default function UserUsagePageClient() {
   const [plans, setPlans] = useState<PlanOption[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignForm] = Form.useForm();
+
+  // 充值 Modal
+  const [topUpUser, setTopUpUser] = useState<UserRecord | null>(null);
+  const [topUpLoading, setTopUpLoading] = useState(false);
+  const [topUpForm] = Form.useForm();
 
   // ── 加载用户列表 ──
   const loadUsers = useCallback(
@@ -306,8 +317,38 @@ export default function UserUsagePageClient() {
       },
     },
     {
+      title: t("userUsagePage.columnTokenUsage"),
+      width: 160,
+      render: (_: unknown, record: UserRecord) => {
+        const sub = record.subscription;
+        if (!sub) return <Text type="secondary">—</Text>;
+        const unlimited = sub.tokenLimit === 0;
+        if (unlimited) {
+          return (
+            <Text className="text-sm">
+              {formatTokens(sub.tokensUsed)} / {t("userUsagePage.unlimited")}
+            </Text>
+          );
+        }
+        const pct = sub.tokenLimit > 0 ? Math.round((sub.tokensUsed / sub.tokenLimit) * 100) : 0;
+        return (
+          <div className="flex flex-col gap-1">
+            <Text className="text-sm">
+              {formatTokens(sub.tokensUsed)} / {formatTokens(sub.tokenLimit)}
+            </Text>
+            <Progress
+              percent={pct}
+              size="small"
+              status={pct >= 90 ? "exception" : "active"}
+              showInfo={false}
+            />
+          </div>
+        );
+      },
+    },
+    {
       title: t("userUsagePage.columnActions"),
-      width: 200,
+      width: 280,
       fixed: "right" as const,
       render: (_: unknown, record: UserRecord) => (
         <Space size="small">
@@ -328,6 +369,17 @@ export default function UserUsagePageClient() {
             {record.subscription
               ? t("userUsagePage.btnChangePlan")
               : t("userUsagePage.btnAssignPlan")}
+          </Button>
+          <Button
+            type="text"
+            size="small"
+            icon={<DollarOutlined />}
+            onClick={() => {
+              setTopUpUser(record);
+              topUpForm.resetFields();
+            }}
+          >
+            {t("userUsagePage.btnTopUp")}
           </Button>
         </Space>
       ),
@@ -482,6 +534,16 @@ export default function UserUsagePageClient() {
                       />
                     </>
                   )}
+                  {detailData.quota && detailData.quota.topUpTotal > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <Text type="secondary" className="text-sm">
+                        {t("userUsagePage.topUpTotal")}:
+                      </Text>{" "}
+                      <Text className="text-sm text-blue-600 dark:text-blue-400">
+                        +{formatTokens(detailData.quota.topUpTotal)}
+                      </Text>
+                    </div>
+                  )}
                 </div>
               </Card>
             ) : (
@@ -633,6 +695,98 @@ export default function UserUsagePageClient() {
               </Form.Item>
             </Form>
           </div>
+        )}
+      </Modal>
+
+      {/* ── Top Up Modal ── */}
+      <Modal
+        title={
+          topUpUser
+            ? t("userUsagePage.modalTopUpTitle", {
+                name: topUpUser.name || topUpUser.email,
+              })
+            : ""
+        }
+        open={!!topUpUser}
+        onOk={async () => {
+          if (!topUpUser) return;
+          try {
+            const values = await topUpForm.validateFields();
+            setTopUpLoading(true);
+            const res = await authFetch(
+              `/api/admin/user-usage/${topUpUser.id}/topup`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(values),
+              }
+            );
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.error || t("userUsagePage.msgTopUpFailed"));
+            }
+            message.success(t("userUsagePage.msgTopUpSuccess"));
+            setTopUpUser(null);
+            loadUsers(pagination.page);
+          } catch (error: unknown) {
+            if (error instanceof Error) {
+              message.error(error.message);
+            }
+          } finally {
+            setTopUpLoading(false);
+          }
+        }}
+        onCancel={() => setTopUpUser(null)}
+        okText={t("userUsagePage.modalTopUpOk")}
+        cancelText={t("userUsagePage.modalCancel")}
+        confirmLoading={topUpLoading}
+        centered
+        styles={{
+          container: { border: "1px solid var(--popup-border)" },
+          body: { maxHeight: "calc(90vh - 110px)", overflowY: "auto" },
+        }}
+      >
+        {topUpUser && (
+          <Form form={topUpForm} layout="vertical" className="mt-2">
+            <Form.Item
+              label={t("userUsagePage.formTokens")}
+              name="tokens"
+              rules={[
+                { required: true, message: t("userUsagePage.formTokensRequired") },
+              ]}
+            >
+              <InputNumber
+                min={1000}
+                step={10000}
+                style={{ width: "100%" }}
+                placeholder={t("userUsagePage.formTokensPlaceholder")}
+              />
+            </Form.Item>
+            <Form.Item
+              label={t("userUsagePage.formReason")}
+              name="reason"
+              initialValue="manual"
+            >
+              <Select
+                options={[
+                  { value: "system_gift", label: t("userUsagePage.formReasonSystemGift") },
+                  { value: "promotion", label: t("userUsagePage.formReasonPromotion") },
+                  { value: "compensation", label: t("userUsagePage.formReasonCompensation") },
+                  { value: "manual", label: t("userUsagePage.formReasonManual") },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              label={t("userUsagePage.formNote")}
+              name="note"
+            >
+              <Input.TextArea
+                rows={2}
+                placeholder={t("userUsagePage.formNotePlaceholder")}
+                maxLength={500}
+              />
+            </Form.Item>
+          </Form>
         )}
       </Modal>
     </div>

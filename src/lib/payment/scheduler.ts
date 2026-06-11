@@ -158,6 +158,21 @@ const EMAIL_TEMPLATES: Record<string, { subject: string; html: string }> = {
       <p style="color:#bbb;font-size:11px;text-align:center">{{brandName}}</p>
     </div>`,
   },
+  token_top_up: {
+    subject: "{{brandName}} - Token Top-Up Successful",
+    html: `<div style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+      <h2 style="color:#333">Token Top-Up Successful</h2>
+      <p style="color:#555;line-height:1.6">Your account has been credited with additional tokens.</p>
+      <div style="background:#e8f5e9;padding:16px;border-radius:8px;margin:16px 0">
+        <p style="margin:0;font-size:18px;font-weight:600">Tokens Added: {{tokens}}</p>
+        <p style="margin:4px 0 0;color:#666">Reason: {{reasonLabel}}</p>
+        {{noteBlock}}
+        <p style="margin:4px 0 0;color:#666">Valid Until: {{expiresAt}}</p>
+      </div>
+      <hr style="margin:24px 0;border:none;border-top:1px solid #eee">
+      <p style="color:#bbb;font-size:11px;text-align:center">{{brandName}}</p>
+    </div>`,
+  },
 };
 
 // ── 发送单条通知 ──

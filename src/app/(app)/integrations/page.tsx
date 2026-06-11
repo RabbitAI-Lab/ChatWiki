@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
-import { App, Tabs, Popconfirm } from "antd";
-import { CopyOutlined, EyeOutlined, EyeInvisibleOutlined, ReloadOutlined, RobotOutlined, CodeOutlined, SwapOutlined } from "@ant-design/icons";
+import { App } from "antd";
+import { CopyOutlined, RobotOutlined, CodeOutlined, SwapOutlined } from "@ant-design/icons";
 import UserMcpSection from "@/components/mcp/user-mcp-section";
 import { COMING_SOON_CATALOG } from "@/components/mcp/coming-soon-catalog";
 
@@ -35,9 +35,7 @@ function RabbitDocsMcpCard() {
 
   const [brandName, setBrandName] = useState("RabbitDocs");
   const [keyData, setKeyData] = useState<McpKeyData | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState("claude");
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [showRawConfig, setShowRawConfig] = useState(false);
 
   useEffect(() => {
@@ -62,28 +60,6 @@ function RabbitDocsMcpCard() {
     Promise.resolve().then(() => loadKey());
   }, [loadKey]);
 
-  const handleRegenerate = async () => {
-    setRegenerating(true);
-    try {
-      const res = await authFetch("/api/auth/mcp-key", { method: "POST" });
-      if (res.ok) {
-        const json = await res.json();
-        setKeyData(json);
-        setRevealed(true);
-        message.success(t("keyRegenerated"));
-      }
-    } catch {
-      message.error(t("operationFailed"));
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
-  const maskKey = (key: string) => {
-    if (key.length <= 12) return key;
-    return key.slice(0, 8) + "****" + key.slice(-4);
-  };
-
   const mcpUrl = useSyncExternalStore(
     () => () => {},
     () => `${window.location.origin}/mcp`,
@@ -98,6 +74,25 @@ function RabbitDocsMcpCard() {
   type IdeConfigEntry = IdeConfigJson | IdeConfigSteps;
 
   const configs: Record<string, IdeConfigEntry> = {
+    mcp: {
+      type: "json",
+      label: "MCP",
+      file: t("mcpFile"),
+      filePath: ".mcp.json",
+      json: JSON.stringify(
+        {
+          servers: {
+            rabbitdocs: {
+              type: "http",
+              url: mcpUrl,
+              headers: { Authorization: `Bearer ${apiKey}` },
+            },
+          },
+        },
+        null,
+        2
+      ),
+    },
     claude: {
       type: "json",
       label: t("claudeDesktop"),
@@ -291,6 +286,105 @@ function RabbitDocsMcpCard() {
       : `Please help me configure the ${brandName} MCP server.\n\nSteps:\n1. Read or create the config file:${filePathText}\n2. If the file already exists, merge the following JSON config into it (preserve existing entries, only add or update the "rabbitdocs" entry)\n3. If the file does not exist, create it with the following content\n\nConfig to write:\n${cfg.json}\n\nNotes:\n- If a "rabbitdocs" entry already exists, replace it with the above config\n- Ensure valid JSON format\n- Confirm the configuration has been written when done`;
   };
 
+  // ── Tool Logo Meta ──
+  const TOOL_META: Record<string, { icon: string; color: string; invertDark?: boolean }> = {
+    mcp:       { icon: "/icons/mcp.svg", color: "#10B981" },
+    claude:    { icon: "/icons/claude.svg", color: "#D97757" },
+    cursor:    { icon: "/icons/cursor.svg", color: "#000000", invertDark: true },
+    vscode:    { icon: "/icons/vscode.svg", color: "#007ACC" },
+    trae:      { icon: "/icons/trae.svg", color: "#000000", invertDark: true },
+    qoder:     { icon: "/icons/qoder.svg", color: "#6366F1" },
+    lovable:   { icon: "/icons/lovable.svg", color: "#EC4899" },
+    bolt:      { icon: "/icons/bolt.svg", color: "#F59E0B" },
+    v0:        { icon: "/icons/v0.svg", color: "#000000", invertDark: true },
+    replit:    { icon: "/icons/replit.svg", color: "#F26207" },
+    workbuddy: { icon: "/icons/workbuddy.svg", color: "#2563EB" },
+  };
+
+  const handleToolSelect = (key: string) => {
+    if (selectedTool === key) {
+      setSelectedTool(null);
+    } else {
+      setSelectedTool(key);
+      setShowRawConfig(false);
+    }
+  };
+
+  const renderConfigPanel = (cfg: IdeConfigEntry) => {
+    if (cfg.type === "json") {
+      return (
+        <div>
+          {/* Toggle between AI Prompt and Raw Config */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              {showRawConfig ? <CodeOutlined className="text-xs text-gray-500" /> : <RobotOutlined className="text-xs text-blue-500" />}
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                {showRawConfig ? t("rawConfigTitle") : t("aiInstallTitle")}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowRawConfig((v) => !v)}
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+            >
+              <SwapOutlined className="text-[10px]" />
+              {showRawConfig ? t("switchToAiPrompt") : t("switchToRawConfig")}
+            </button>
+          </div>
+          {!showRawConfig ? (
+            <>
+              <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-1.5">
+                {t("aiInstallDesc")}
+              </div>
+              <div className="relative">
+                <pre className="text-xs bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-lg p-3 overflow-x-auto font-mono text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                  {generateAiPrompt(cfg)}
+                </pre>
+                <button
+                  onClick={() => copyToClipboard(generateAiPrompt(cfg), t("aiPromptCopied"))}
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-white dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-600 transition-colors"
+                >
+                  <CopyOutlined className="text-xs text-gray-500" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs text-gray-400 mb-1">
+                {cfg.platformFilePaths ? (
+                  <>
+                    <div>{t("claudeDesktopFileMac")}</div>
+                    <div>{t("claudeDesktopFileWindows")}</div>
+                  </>
+                ) : (
+                  cfg.file
+                )}
+              </div>
+              <div className="relative">
+                <pre className="text-xs bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-3 overflow-x-auto font-mono text-gray-600 dark:text-gray-300">
+                  {cfg.json}
+                </pre>
+                <button
+                  onClick={() => copyToClipboard(cfg.json, t("configCopied"))}
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-white dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-600 transition-colors"
+                >
+                  <CopyOutlined className="text-xs text-gray-500" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+    // steps type
+    return (
+      <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300 pl-1">
+        {cfg.steps.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
+      </ol>
+    );
+  };
+
   return (
     <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-900/20 dark:to-[var(--background)] p-5">
       {/* Title */}
@@ -308,152 +402,70 @@ function RabbitDocsMcpCard() {
         </div>
       </div>
 
-      {/* Endpoint URL */}
-      <div className="mb-3">
-        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-          {t("mcpEndpoint")}
-        </div>
-        <div className="flex items-center gap-2">
-          <code className="flex-1 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2 font-mono text-gray-700 dark:text-gray-300 select-all">
-            {mcpUrl}
-          </code>
-          <button
-            onClick={() => copyToClipboard(mcpUrl, t("configCopied"))}
-            className="shrink-0 p-2 rounded-lg border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-          >
-            <CopyOutlined className="text-gray-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* API Key */}
-      <div className="mb-4">
-        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-          {t("mcpApiKey")}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <code className="text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2 font-mono text-gray-700 dark:text-gray-300 select-all">
-            {keyData ? (revealed ? keyData.key : maskKey(keyData.key)) : "..."}
-          </code>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setRevealed((v) => !v)}
-              className="px-2 py-1 text-xs rounded-md border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-            >
-              {revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-            </button>
-            <button
-              onClick={() => keyData && copyToClipboard(keyData.key, t("keyCopied"))}
-              className="px-2 py-1 text-xs rounded-md border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-            >
-              <CopyOutlined />
-            </button>
-            <Popconfirm
-              title={t("regenerateConfirm")}
-              description={t("regenerateDesc")}
-              onConfirm={handleRegenerate}
-              okButtonProps={{ danger: true }}
-            >
-              <button
-                className="px-2 py-1 text-xs rounded-md border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-                disabled={regenerating}
-              >
-                <ReloadOutlined spin={regenerating} />
-              </button>
-            </Popconfirm>
-          </div>
-        </div>
-        {keyData?.createdAt && (
-          <div className="text-xs text-gray-400 mt-1">
-            {t("keyCreatedAt")}: {new Date(keyData.createdAt).toLocaleString()}
-          </div>
-        )}
-      </div>
-
-      {/* IDE Config Tabs */}
+      {/* IDE Config Logo Grid */}
       <div className="border-t border-gray-200 dark:border-zinc-700 pt-4">
-        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">
           {t("ideConfig")}
         </div>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          size="small"
-          items={Object.entries(configs).map(([key, cfg]) => ({
-            key,
-            label: cfg.label,
-            children: cfg.type === "json" ? (
-              <div>
-                {/* Toggle between AI Prompt and Raw Config */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    {showRawConfig ? <CodeOutlined className="text-xs text-gray-500" /> : <RobotOutlined className="text-xs text-blue-500" />}
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {showRawConfig ? t("rawConfigTitle") : t("aiInstallTitle")}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setShowRawConfig((v) => !v)}
-                    className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    <SwapOutlined className="text-[10px]" />
-                    {showRawConfig ? t("switchToAiPrompt") : t("switchToRawConfig")}
-                  </button>
+        <div className="grid grid-cols-5 gap-2.5">
+          {Object.entries(configs).map(([key, cfg]) => {
+            const meta = TOOL_META[key];
+            const isSelected = selectedTool === key;
+            return (
+              <button
+                key={key}
+                onClick={() => handleToolSelect(key)}
+                className={[
+                  "group flex flex-col items-center gap-1.5 p-2.5 rounded-xl",
+                  "border transition-all duration-200 ease-out cursor-pointer",
+                  "hover:-translate-y-0.5",
+                  isSelected
+                    ? "shadow-sm"
+                    : "border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 hover:shadow-sm",
+                ].join(" ")}
+                style={isSelected ? { borderColor: meta?.color, boxShadow: `0 0 0 2px ${meta?.color}40` } : undefined}
+              >
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-zinc-800 transition-transform duration-200 group-hover:scale-110">
+                  <img
+                    src={meta?.icon}
+                    alt={cfg.label}
+                    className={["w-6 h-6", meta?.invertDark ? "dark:invert" : ""].join(" ")}
+                    draggable={false}
+                  />
+                </span>
+                <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400 truncate max-w-full">
+                  {cfg.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Expanded Configuration Panel */}
+        <div
+          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+            selectedTool ? "grid-rows-[1fr] mt-3" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            {selectedTool && configs[selectedTool] && (
+              <div className="rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <img
+                    src={TOOL_META[selectedTool]?.icon}
+                    alt={configs[selectedTool].label}
+                    className={["w-5 h-5", TOOL_META[selectedTool]?.invertDark ? "dark:invert" : ""].join(" ")}
+                    draggable={false}
+                  />
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {t("configFor", { tool: configs[selectedTool].label })}
+                  </span>
                 </div>
-                {!showRawConfig ? (
-                  // AI Install Prompt (default)
-                  <>
-                    <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-1.5">
-                      {t("aiInstallDesc")}
-                    </div>
-                    <div className="relative">
-                      <pre className="text-xs bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-lg p-3 overflow-x-auto font-mono text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                        {generateAiPrompt(cfg)}
-                      </pre>
-                      <button
-                        onClick={() => copyToClipboard(generateAiPrompt(cfg), t("aiPromptCopied"))}
-                        className="absolute top-2 right-2 p-1.5 rounded-md bg-white dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-600 transition-colors"
-                      >
-                        <CopyOutlined className="text-xs text-gray-500" />
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  // Raw JSON Config
-                  <>
-                    <div className="text-xs text-gray-400 mb-1">
-                      {cfg.platformFilePaths ? (
-                        <>
-                          <div>{t("claudeDesktopFileMac")}</div>
-                          <div>{t("claudeDesktopFileWindows")}</div>
-                        </>
-                      ) : (
-                        cfg.file
-                      )}
-                    </div>
-                    <div className="relative">
-                      <pre className="text-xs bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-3 overflow-x-auto font-mono text-gray-600 dark:text-gray-300">
-                        {cfg.json}
-                      </pre>
-                      <button
-                        onClick={() => copyToClipboard(cfg.json, t("configCopied"))}
-                        className="absolute top-2 right-2 p-1.5 rounded-md bg-white dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-600 transition-colors"
-                      >
-                        <CopyOutlined className="text-xs text-gray-500" />
-                      </button>
-                    </div>
-                  </>
-                )}
+                {renderConfigPanel(configs[selectedTool])}
               </div>
-            ) : (
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300 pl-1">
-                {cfg.steps.map((step, i) => (
-                  <li key={i}>{step}</li>
-                ))}
-              </ol>
-            ),
-          }))}
-        />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

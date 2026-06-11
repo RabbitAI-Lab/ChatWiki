@@ -485,17 +485,15 @@ export default function BillingPage() {
                     {t('tokensUsed')}
                   </Text>
                   <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    {quota.unlimited
-                      ? t('unlimited')
-                      : t('tokensRemaining', { count: quota.remaining.toLocaleString() })}
+                    {t('tokensRemaining', { count: quota.unlimited ? '∞' : quota.remaining.toLocaleString() })}
                   </Text>
                 </div>
                 <Progress
                   percent={quota.unlimited ? Math.min(quota.used / 100000 * 100, 100) : quota.percentage}
-                  strokeColor={quota.percentage > 90 ? "#ff4d4f" : quota.percentage > 70 ? "#faad14" : "#1677ff"}
+                  strokeColor={quota.unlimited ? '#1677ff' : quota.percentage > 90 ? '#ff4d4f' : quota.percentage > 70 ? '#faad14' : '#1677ff'}
                   format={() =>
                     quota.unlimited
-                      ? `${quota.used.toLocaleString()} tokens`
+                      ? `${quota.used.toLocaleString()} / ∞`
                       : `${quota.used.toLocaleString()} / ${quota.limit.toLocaleString()}`
                   }
                 />
@@ -718,7 +716,7 @@ export default function BillingPage() {
                     width: 100,
                     render: (_: unknown, r: OrderRecord) => (
                       <Space size="small">
-                        {r.status === "paid" && (
+                        {r.status === "paid" && r.amount > 0 && (
                           <Button size="small" onClick={() => handleRefundRequest(r.id)}>Refund</Button>
                         )}
                       </Space>

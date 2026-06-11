@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/db";
-import { users, userSubscriptions, plans, tokenUsageLogs } from "@/db/schema";
+import { users, userSubscriptions, plans, tokenUsageLogs, tokenTopUps } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -104,11 +104,24 @@ export async function GET(
     ));
 
   const used = usageRow?.totalTokens || 0;
+
+  // 查询未过期充值总额
+  const nowISO = new Date().toISOString();
+  const [topUpRow] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${tokenTopUps.tokens}), 0)` })
+    .from(tokenTopUps)
+    .where(and(
+      eq(tokenTopUps.userId, userId),
+      gte(tokenTopUps.expiresAt, nowISO),
+    ));
+  const topUpTotal = topUpRow?.total || 0;
+
+  const effectiveLimit = tokenLimit + topUpTotal;
   const unlimited = tokenLimit === 0;
-  const remaining = unlimited ? Infinity : Math.max(0, tokenLimit - used);
-  const percentage = unlimited || tokenLimit === 0
+  const remaining = unlimited ? Infinity : Math.max(0, effectiveLimit - used);
+  const percentage = unlimited || effectiveLimit === 0
     ? Math.min(used / 100000 * 100, 100)
-    : Math.min(Math.round((used / tokenLimit) * 10000) / 100, 100);
+    : Math.min(Math.round((used / effectiveLimit) * 10000) / 100, 100);
 
   return NextResponse.json({
     user: targetUser,
@@ -122,6 +135,8 @@ export async function GET(
     },
     quota: {
       limit: tokenLimit,
+      topUpTotal,
+      effectiveLimit,
       used,
       remaining,
       percentage,

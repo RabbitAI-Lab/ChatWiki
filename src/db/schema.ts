@@ -455,6 +455,7 @@ export const notificationJobs = pgTable("notification_jobs", {
       "refund_approved",
       "refund_completed",
       "refund_rejected",
+      "token_top_up",
     ],
   }).notNull(),
   orderId: text("order_id"),
@@ -494,4 +495,16 @@ export const feedbacks = pgTable("feedbacks", {
   status: text("status", { enum: ["pending", "reviewed", "resolved"] }).notNull().default("pending"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+// token_top_ups: Token 充值记录（管理员手动充值/系统赠送等）
+export const tokenTopUps = pgTable("token_top_ups", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokens: integer("tokens").notNull(),
+  reason: text("reason", { enum: ["system_gift", "promotion", "compensation", "manual"] }).notNull().default("manual"),
+  note: text("note"),
+  expiresAt: text("expires_at").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
 });

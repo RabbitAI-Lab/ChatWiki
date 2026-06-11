@@ -16,13 +16,14 @@ import {
   Col,
   Form,
   InputNumber,
+  Tooltip,
 } from "antd";
 import {
   SearchOutlined,
   ReloadOutlined,
   DollarOutlined,
   ShoppingCartOutlined,
-    FundOutlined,
+  FundOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/components/auth/useAuth";
@@ -32,14 +33,14 @@ interface OrderRecord {
   userId: string;
   userEmail: string;
   userName: string | null;
-  planId: number;
+  planId: number | null;
   planTitle: string | null;
   amount: number;
-  currency: string;
+  currency: string | null;
   originalAmount: number;
   discountAmount: number;
-  billingCycle: string;
-  paymentMode: string;
+  billingCycle: string | null;
+  paymentMode: string | null;
   provider: string;
   providerPaymentId: string | null;
   providerChargeId: string | null;
@@ -48,6 +49,13 @@ interface OrderRecord {
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // topup 专用字段
+  recordType?: "order" | "topup";
+  tokens?: number;
+  reason?: string;
+  note?: string;
+  expiresAt?: string;
+  createdBy?: string;
 }
 
 interface OrderStats {
@@ -64,12 +72,36 @@ const STATUS_COLORS: Record<string, string> = {
   refunded: "red",
   partially_refunded: "volcano",
   failed: "red",
+  completed: "green",
 };
+
+const STATUS_KEYS: Record<string, string> = {
+  pending: "statusPending",
+  paid: "statusPaid",
+  cancelled: "statusCancelled",
+  refunded: "statusRefunded",
+  partially_refunded: "statusPartiallyRefunded",
+  failed: "statusFailed",
+  completed: "statusCompleted",
+};
+
+const REASON_KEYS: Record<string, string> = {
+  system_gift: "reasonSystemGift",
+  promotion: "reasonPromotion",
+  compensation: "reasonCompensation",
+  manual: "reasonManual",
+};
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 
 export default function OrdersPageClient() {
   const { authFetch } = useAuth();
   const { message, modal } = App.useApp();
-  const _t = useTranslations("admin.ordersPage");
+  const t = useTranslations("admin.ordersPage");
 
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [total, setTotal] = useState(0);
@@ -79,6 +111,7 @@ export default function OrdersPageClient() {
   const [stats, setStats] = useState<OrderStats | null>(null);
 
   // Filters
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [providerFilter, setProviderFilter] = useState<string | undefined>();
   const [searchText, setSearchText] = useState("");
@@ -89,6 +122,7 @@ export default function OrdersPageClient() {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
+        type: typeFilter,
       });
       if (statusFilter) params.set("status", statusFilter);
       if (providerFilter) params.set("provider", providerFilter);
@@ -106,25 +140,25 @@ export default function OrdersPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [authFetch, page, pageSize, statusFilter, providerFilter, searchText]);
+  }, [authFetch, page, pageSize, typeFilter, statusFilter, providerFilter, searchText]);
 
   useEffect(() => { Promise.resolve().then(() => loadOrders()); }, [loadOrders]);
 
   const handleRefund = (order: OrderRecord) => {
     modal.confirm({
-      title: "Refund Order",
+      title: t("refundTitle"),
       content: (
         <Form layout="vertical" id="refund-form">
-          <Form.Item label="Refund Amount (cents)">
+          <Form.Item label={t("refundAmountLabel")}>
             <InputNumber id="refund-amount" min={1} max={order.amount} defaultValue={order.amount} style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item label="Note">
-            <Input.TextArea id="refund-note" rows={3} placeholder="Optional note..." />
+          <Form.Item label={t("refundNoteLabel")}>
+            <Input.TextArea id="refund-note" rows={3} placeholder={t("refundNotePlaceholder")} />
           </Form.Item>
         </Form>
       ),
-      okText: "Approve Refund",
-      cancelText: "Cancel",
+      okText: t("refundApprove"),
+      cancelText: t("refundCancel"),
       onOk: async () => {
         const amountEl = document.getElementById("refund-amount") as HTMLInputElement;
         const noteEl = document.getElementById("refund-note") as HTMLTextAreaElement;
@@ -132,7 +166,6 @@ export default function OrdersPageClient() {
         const note = noteEl?.value || "";
 
         try {
-          // Find pending refund for this order
           const refundsRes = await authFetch(`/api/admin/refunds?status=pending&pageSize=100`);
           if (refundsRes.ok) {
             const refundsData = await refundsRes.json();
@@ -144,74 +177,117 @@ export default function OrdersPageClient() {
                 body: JSON.stringify({ action: "approve", amount, note }),
               });
               if (res.ok) {
-                message.success("Refund approved");
+                message.success(t("refundSuccess"));
                 loadOrders();
               } else {
                 const data = await res.json();
-                message.error(data.error || "Failed to approve refund");
+                message.error(data.error || t("refundApproveFailed"));
               }
             } else {
-              message.warning("No pending refund request found for this order");
+              message.warning(t("refundNoPending"));
             }
           }
         } catch {
-          message.error("Failed to process refund");
+          message.error(t("refundFailed"));
         }
       },
     });
   };
 
+  const isTopUp = (r: OrderRecord) => r.recordType === "topup";
+
   const columns = [
     {
-      title: "Order ID",
+      title: t("columnId"),
       dataIndex: "id",
       key: "id",
       width: 120,
-      render: (id: string) => <span className="font-mono text-xs">{id.slice(0, 8)}...</span>,
+      render: (id: string, r: OrderRecord) => (
+        <span className="font-mono text-xs">
+          {isTopUp(r) ? `#${id.replace("topup-", "")}` : `${id.slice(0, 8)}...`}
+        </span>
+      ),
     },
-    { title: "User", dataIndex: "userEmail", key: "userEmail", width: 180 },
-    { title: "Plan", dataIndex: "planTitle", key: "planTitle", width: 120 },
+    { title: t("columnUser"), dataIndex: "userEmail", key: "userEmail", width: 180 },
     {
-      title: "Amount",
+      title: t("columnDescription"),
+      key: "description",
+      width: 140,
+      render: (_: unknown, r: OrderRecord) => {
+        if (isTopUp(r)) {
+          return (
+            <Space size={4}>
+              <Tag color="purple">{t("tagTopUp")}</Tag>
+              <span>{t(REASON_KEYS[r.reason || "manual"] as `${string}.${string}`) || r.reason}</span>
+            </Space>
+          );
+        }
+        return r.planTitle || "--";
+      },
+    },
+    {
+      title: t("columnAmount"),
       key: "amount",
-      width: 100,
-      render: (_: unknown, r: OrderRecord) => `${(r.amount / 100).toFixed(2)} ${r.currency}`,
+      width: 110,
+      render: (_: unknown, r: OrderRecord) => {
+        if (isTopUp(r)) {
+          return <span className="font-medium text-blue-600">{formatTokens(r.tokens || r.amount)}</span>;
+        }
+        return `${(r.amount / 100).toFixed(2)} ${r.currency || ""}`;
+      },
     },
     {
-      title: "Provider",
+      title: t("columnProvider"),
       dataIndex: "provider",
       key: "provider",
       width: 80,
-      render: (p: string) => <Tag>{p}</Tag>,
+      render: (p: string) => <Tag>{p === "admin" ? t("providerAdmin") : p}</Tag>,
     },
     {
-      title: "Cycle",
+      title: t("columnCycle"),
       dataIndex: "billingCycle",
       key: "billingCycle",
       width: 80,
+      render: (v: string | null, r: OrderRecord) => isTopUp(r) ? "--" : (v || "--"),
     },
     {
-      title: "Status",
+      title: t("columnStatus"),
       dataIndex: "status",
       key: "status",
       width: 120,
-      render: (s: string) => <Tag color={STATUS_COLORS[s]}>{s}</Tag>,
+      render: (s: string, r: OrderRecord) => {
+        if (isTopUp(r)) return <Tag color="green">{t("statusCompleted")}</Tag>;
+        return <Tag color={STATUS_COLORS[s]}>{STATUS_KEYS[s] ? t(STATUS_KEYS[s] as `${string}.${string}`) : s}</Tag>;
+      },
     },
     {
-      title: "Date",
+      title: t("columnNote"),
+      key: "note",
+      width: 120,
+      render: (_: unknown, r: OrderRecord) => {
+        if (!isTopUp(r) || !r.note) return "--";
+        return (
+          <Tooltip title={r.note}>
+            <span className="text-gray-500 text-xs truncate block max-w-[100px]">{r.note}</span>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: t("columnDate"),
       dataIndex: "createdAt",
       key: "createdAt",
       width: 120,
       render: (d: string) => new Date(d).toLocaleDateString(),
     },
     {
-      title: "Actions",
+      title: t("columnActions"),
       key: "actions",
       width: 120,
       render: (_: unknown, r: OrderRecord) => (
         <Space size="small">
-          {(r.status === "paid" || r.status === "partially_refunded") && (
-            <Button size="small" danger onClick={() => handleRefund(r)}>Refund</Button>
+          {!isTopUp(r) && (r.status === "paid" || r.status === "partially_refunded") && (
+            <Button size="small" danger onClick={() => handleRefund(r)}>{t("btnRefund")}</Button>
           )}
         </Space>
       ),
@@ -220,30 +296,40 @@ export default function OrdersPageClient() {
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">Order Management</h1>
+      <h1 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">{t("title")}</h1>
 
       {/* Stats */}
       {stats && (
         <Row gutter={16} className="mb-6">
           <Col span={6}>
-            <Card size="small"><Statistic title="Total Revenue" value={stats.totalRevenue / 100} prefix={<DollarOutlined />} precision={2} /></Card>
+            <Card size="small"><Statistic title={t("statsTotalRevenue")} value={stats.totalRevenue / 100} prefix={<DollarOutlined />} precision={2} /></Card>
           </Col>
           <Col span={6}>
-            <Card size="small"><Statistic title="Monthly Revenue" value={stats.monthlyRevenue / 100} prefix={<ShoppingCartOutlined />} precision={2} /></Card>
+            <Card size="small"><Statistic title={t("statsMonthlyRevenue")} value={stats.monthlyRevenue / 100} prefix={<ShoppingCartOutlined />} precision={2} /></Card>
           </Col>
           <Col span={6}>
-            <Card size="small"><Statistic title="Pending Refunds" value={stats.pendingRefunds} prefix={<FundOutlined />} /></Card>
+            <Card size="small"><Statistic title={t("statsPendingRefunds")} value={stats.pendingRefunds} prefix={<FundOutlined />} /></Card>
           </Col>
           <Col span={6}>
-            <Card size="small"><Statistic title="Active Subscriptions" value={stats.activeSubscriptions} prefix={<TeamOutlined />} /></Card>
+            <Card size="small"><Statistic title={t("statsActiveSubscriptions")} value={stats.activeSubscriptions} prefix={<TeamOutlined />} /></Card>
           </Col>
         </Row>
       )}
 
       {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
+        <Select
+          value={typeFilter}
+          onChange={(v) => { setTypeFilter(v); setPage(1); }}
+          style={{ width: 150 }}
+          options={[
+            { label: t("filterTypeAll"), value: "all" },
+            { label: t("filterTypeOrders"), value: "order" },
+            { label: t("filterTypeTopUps"), value: "topup" },
+          ]}
+        />
         <Input
-          placeholder="Search user..."
+          placeholder={t("placeholderSearch")}
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -251,29 +337,33 @@ export default function OrdersPageClient() {
           allowClear
         />
         <Select
-          placeholder="Status"
+          placeholder={t("placeholderStatus")}
           value={statusFilter}
           onChange={setStatusFilter}
           allowClear
           style={{ width: 150 }}
           options={[
-            { label: "Pending", value: "pending" },
-            { label: "Paid", value: "paid" },
-            { label: "Cancelled", value: "cancelled" },
-            { label: "Refunded", value: "refunded" },
-            { label: "Partially Refunded", value: "partially_refunded" },
-            { label: "Failed", value: "failed" },
+            { label: t("statusPending"), value: "pending" },
+            { label: t("statusPaid"), value: "paid" },
+            { label: t("statusCancelled"), value: "cancelled" },
+            { label: t("statusRefunded"), value: "refunded" },
+            { label: t("statusPartiallyRefunded"), value: "partially_refunded" },
+            { label: t("statusFailed"), value: "failed" },
+            { label: t("statusCompleted"), value: "completed" },
           ]}
         />
         <Select
-          placeholder="Provider"
+          placeholder={t("placeholderProvider")}
           value={providerFilter}
           onChange={setProviderFilter}
           allowClear
           style={{ width: 120 }}
-          options={[{ label: "Stripe", value: "stripe" }]}
+          options={[
+            { label: t("providerStripe"), value: "stripe" },
+            { label: t("providerAdmin"), value: "admin" },
+          ]}
         />
-        <Button icon={<ReloadOutlined />} onClick={loadOrders}>Refresh</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadOrders}>{t("btnRefresh")}</Button>
       </div>
 
       {/* Table */}
@@ -289,7 +379,7 @@ export default function OrdersPageClient() {
           showSizeChanger: true,
           onChange: (p, ps) => { setPage(p); setPageSize(ps); },
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1200 }}
         size="middle"
       />
     </div>
