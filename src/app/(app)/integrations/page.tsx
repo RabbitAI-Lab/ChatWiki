@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/useAuth";
 import { App, Tabs, Popconfirm } from "antd";
@@ -84,10 +84,11 @@ function RabbitDocsMcpCard() {
     return key.slice(0, 8) + "****" + key.slice(-4);
   };
 
-  const [mcpUrl, setMcpUrl] = useState("/mcp");
-  useEffect(() => {
-    setMcpUrl(`${window.location.origin}/mcp`);
-  }, []);
+  const mcpUrl = useSyncExternalStore(
+    () => () => {},
+    () => `${window.location.origin}/mcp`,
+    () => "/mcp",
+  );
   const apiKey = keyData?.key || "atm_xxxx";
 
   // ── IDE Config Types ──

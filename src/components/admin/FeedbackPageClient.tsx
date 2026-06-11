@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Table,
   Select,
@@ -86,8 +86,38 @@ export default function FeedbackPageClient() {
   );
 
   useEffect(() => {
-    loadFeedback();
-  }, [loadFeedback]);
+    let cancelled = false;
+    const fetchFeedback = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(pageSize),
+        });
+        if (statusFilter) params.set("status", statusFilter);
+        const res = await authFetch(`/api/feedback?${params.toString()}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || t("msgFailedToLoad"));
+        }
+        if (!cancelled) {
+          const data = await res.json();
+          setItems(data.items);
+          setTotal(data.total);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          const msg =
+            error instanceof Error ? error.message : t("msgFailedToLoad");
+          message.error(msg);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchFeedback();
+    return () => { cancelled = true; };
+  }, [authFetch, page, pageSize, statusFilter, message, t]);
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     setStatusUpdating(id);
