@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { todos } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc, and, sql } from "drizzle-orm";
 import { withAuth } from "@/lib/auth/with-auth";
 import { getApiT } from "@/lib/i18n-api";
 
@@ -11,7 +11,7 @@ export const GET = withAuth(async (_req, user) => {
     .select()
     .from(todos)
     .where(eq(todos.userId, user.id))
-    .orderBy(desc(todos.createdAt));
+    .orderBy(asc(todos.sortOrder), desc(todos.createdAt));
   return NextResponse.json(all);
 });
 
@@ -31,12 +31,20 @@ export const POST = withAuth(async (req, user) => {
     return NextResponse.json({ error: t('api.todos.titleMaxLength') }, { status: 400 });
   }
 
+  // Calculate next sortOrder for pending todos
+  const maxResult = await db
+    .select({ maxOrder: sql<number>`COALESCE(MAX(${todos.sortOrder}), -1)` })
+    .from(todos)
+    .where(and(eq(todos.userId, user.id), eq(todos.completed, false)));
+  const nextOrder = (maxResult[0]?.maxOrder ?? -1) + 1;
+
   const now = new Date().toISOString();
   const [inserted] = await db.insert(todos).values({
     userId: user.id,
     title: title.trim(),
     description: (description || "").trim(),
     completed: false,
+    sortOrder: nextOrder,
     createdAt: now,
     updatedAt: now,
   }).returning();
@@ -48,7 +56,18 @@ export const POST = withAuth(async (req, user) => {
 export const PUT = withAuth(async (req, user) => {
   const t = await getApiT();
   const body = await req.json();
-  const { id, title, description, completed } = body;
+  const { id, title, description, completed, orders } = body;
+
+  // Batch reorder
+  if (Array.isArray(orders)) {
+    for (const item of orders) {
+      await db
+        .update(todos)
+        .set({ sortOrder: item.sortOrder, updatedAt: new Date().toISOString() })
+        .where(and(eq(todos.id, item.id), eq(todos.userId, user.id)));
+    }
+    return NextResponse.json({ success: true });
+  }
 
   if (!id) {
     return NextResponse.json({ error: t('api.idRequired') }, { status: 400 });
@@ -81,7 +100,17 @@ export const PUT = withAuth(async (req, user) => {
     updates.description = description.trim();
   }
   if (completed !== undefined) {
-    updates.completed = completed ? true : false;
+    const newCompleted = completed ? true : false;
+    // When toggling completed status, recalculate sortOrder for target group
+    if (newCompleted !== existing.completed) {
+      const targetCompleted = newCompleted;
+      const maxResult = await db
+        .select({ maxOrder: sql<number>`COALESCE(MAX(${todos.sortOrder}), -1)` })
+        .from(todos)
+        .where(and(eq(todos.userId, user.id), eq(todos.completed, targetCompleted)));
+      updates.sortOrder = (maxResult[0]?.maxOrder ?? -1) + 1;
+    }
+    updates.completed = newCompleted;
   }
 
   await db.update(todos).set(updates).where(eq(todos.id, id));

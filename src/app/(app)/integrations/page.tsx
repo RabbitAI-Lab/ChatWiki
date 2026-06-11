@@ -91,7 +91,8 @@ function RabbitDocsMcpCard() {
   const apiKey = keyData?.key || "atm_xxxx";
 
   // ── IDE Config Types ──
-  type IdeConfigJson = { type: "json"; label: string; file: string; json: string; filePath: string; isGuiOnly?: boolean };
+  type PlatformPaths = { mac: string; windows: string };
+  type IdeConfigJson = { type: "json"; label: string; file: string; json: string; filePath: string; isGuiOnly?: boolean; platformFilePaths?: PlatformPaths };
   type IdeConfigSteps = { type: "steps"; label: string; steps: string[] };
   type IdeConfigEntry = IdeConfigJson | IdeConfigSteps;
 
@@ -101,6 +102,10 @@ function RabbitDocsMcpCard() {
       label: t("claudeDesktop"),
       file: t("claudeDesktopFile"),
       filePath: "~/Library/Application Support/Claude/claude_desktop_config.json",
+      platformFilePaths: {
+        mac: "~/Library/Application Support/Claude/claude_desktop_config.json",
+        windows: "%APPDATA%\\Claude\\claude_desktop_config.json",
+      },
       json: JSON.stringify(
         {
           mcpServers: {
@@ -273,9 +278,16 @@ function RabbitDocsMcpCard() {
         ? `请帮我在 ${cfg.label} 中配置 ${brandName} 的 MCP 服务器。\n\n操作方式：\n在 ${cfg.file} 中添加以下配置：\n${cfg.json}\n\n请按照上述 JSON 内容，在 MCP 设置界面中添加对应的服务器条目。服务器名称为 "rabbitdocs"。`
         : `Please help me configure the ${brandName} MCP server in ${cfg.label}.\n\nSteps:\nAdd the following configuration in ${cfg.file}:\n${cfg.json}\n\nAdd a new server entry named "rabbitdocs" with the above configuration in the MCP settings panel.`;
     }
+
+    const filePathText = cfg.platformFilePaths
+      ? locale === "zh"
+        ? `\n   macOS: ${cfg.platformFilePaths.mac}\n   Windows: ${cfg.platformFilePaths.windows}`
+        : `\n   macOS: ${cfg.platformFilePaths.mac}\n   Windows: ${cfg.platformFilePaths.windows}`
+      : cfg.filePath;
+
     return locale === "zh"
-      ? `请帮我配置 ${brandName} 的 MCP 服务器。\n\n操作步骤：\n1. 读取或创建配置文件：${cfg.filePath}\n2. 如果文件已存在，将以下 JSON 配置合并到现有配置中（注意保留已有配置，仅添加或更新 "rabbitdocs" 条目）\n3. 如果文件不存在，直接创建并写入以下完整内容\n\n需要写入的配置内容：\n${cfg.json}\n\n注意事项：\n- 如果已有 "rabbitdocs" 条目，请替换为上述配置\n- 请确保 JSON 格式正确\n- 完成后请确认配置已写入`
-      : `Please help me configure the ${brandName} MCP server.\n\nSteps:\n1. Read or create the config file: ${cfg.filePath}\n2. If the file already exists, merge the following JSON config into it (preserve existing entries, only add or update the "rabbitdocs" entry)\n3. If the file does not exist, create it with the following content\n\nConfig to write:\n${cfg.json}\n\nNotes:\n- If a "rabbitdocs" entry already exists, replace it with the above config\n- Ensure valid JSON format\n- Confirm the configuration has been written when done`;
+      ? `请帮我配置 ${brandName} 的 MCP 服务器。\n\n操作步骤：\n1. 读取或创建配置文件：${filePathText}\n2. 如果文件已存在，将以下 JSON 配置合并到现有配置中（注意保留已有配置，仅添加或更新 "rabbitdocs" 条目）\n3. 如果文件不存在，直接创建并写入以下完整内容\n\n需要写入的配置内容：\n${cfg.json}\n\n注意事项：\n- 如果已有 "rabbitdocs" 条目，请替换为上述配置\n- 请确保 JSON 格式正确\n- 完成后请确认配置已写入`
+      : `Please help me configure the ${brandName} MCP server.\n\nSteps:\n1. Read or create the config file:${filePathText}\n2. If the file already exists, merge the following JSON config into it (preserve existing entries, only add or update the "rabbitdocs" entry)\n3. If the file does not exist, create it with the following content\n\nConfig to write:\n${cfg.json}\n\nNotes:\n- If a "rabbitdocs" entry already exists, replace it with the above config\n- Ensure valid JSON format\n- Confirm the configuration has been written when done`;
   };
 
   return (
@@ -408,7 +420,16 @@ function RabbitDocsMcpCard() {
                 ) : (
                   // Raw JSON Config
                   <>
-                    <div className="text-xs text-gray-400 mb-1">{cfg.file}</div>
+                    <div className="text-xs text-gray-400 mb-1">
+                      {cfg.platformFilePaths ? (
+                        <>
+                          <div>{t("claudeDesktopFileMac")}</div>
+                          <div>{t("claudeDesktopFileWindows")}</div>
+                        </>
+                      ) : (
+                        cfg.file
+                      )}
+                    </div>
                     <div className="relative">
                       <pre className="text-xs bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-3 overflow-x-auto font-mono text-gray-600 dark:text-gray-300">
                         {cfg.json}

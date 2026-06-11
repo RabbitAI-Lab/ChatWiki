@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import Editor from "@monaco-editor/react";
 import ShareHtmlButton from "@/components/project/ShareHtmlButton";
@@ -28,6 +28,7 @@ type ViewMode = "edit" | "preview";
 export default function HtmlEditor({
   filePath,
   projectId,
+  docsPath,
   initialValue,
   loaded,
   onSave,
@@ -38,6 +39,7 @@ export default function HtmlEditor({
   const [saving, setSaving] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Snapshot of the last persisted content, used to compute the dirty flag.
   const persistedRef = useRef<string>(initialValue);
   const lastLoadedRef = useRef<string | null>(null);
@@ -62,6 +64,25 @@ export default function HtmlEditor({
     setMode("preview");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, initialValue, filePath]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const res = await fetch(`/api/fs/document?path=${docsPath}/${filePath}`);
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      const fresh = data.content ?? "";
+      setContent(fresh);
+      persistedRef.current = fresh;
+      setIsDirty(false);
+      onContentChange(fresh);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [docsPath, filePath, refreshing, onContentChange]);
 
   const handleChange = (next: string | undefined) => {
     if (typeof next !== "string") return;
@@ -94,7 +115,7 @@ export default function HtmlEditor({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900">
       {/* Toolbar */}
-      <div className="flex items-center h-[41px] px-3 border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 gap-3 shrink-0">
+      <div className="flex items-center h-[41px] px-3 border-b border-gray-200 dark:border-zinc-700 gap-3 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <svg
             className="w-3.5 h-3.5 shrink-0 text-orange-500"
@@ -147,6 +168,30 @@ export default function HtmlEditor({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="刷新"
+            className={`p-1.5 rounded-md transition-colors ${
+              refreshing
+                ? "text-gray-300 dark:text-zinc-600 cursor-not-allowed"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
+            }`}
+          >
+            <svg
+              className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+          </button>
           {/* Share button temporarily hidden */}
           {/* <button
             type="button"

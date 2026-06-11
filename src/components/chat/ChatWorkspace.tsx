@@ -316,6 +316,8 @@ const ChatWorkspace = forwardRef<ChatWorkspaceRef, ChatWorkspaceProps>(function 
               </div>
             )}
             <Suggestion
+              // @ts-expect-error Suggestion Omit 了 showSearch 但运行时会透传给 Cascader，防止 BaseSelect 拦截空格键
+              showSearch
               items={getSuggestionItems}
               onSelect={(value) => {
                 messagesApi.setMentionedFiles((prev) =>

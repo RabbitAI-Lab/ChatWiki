@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Modal, Input, Form, App } from "antd";
 import { useTheme } from "next-themes";
@@ -11,6 +11,7 @@ interface Todo {
   title: string;
   description: string;
   completed: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +28,12 @@ export default function TodosPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+
+  // Drag state
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  const [dropPosition, setDropPosition] = useState<"before" | "after">("before");
+  const [dragSection, setDragSection] = useState<"pending" | "completed" | null>(null);
 
   const isDark = resolvedTheme === "dark";
 
@@ -158,8 +165,83 @@ export default function TodosPage() {
     form.setFieldsValue({ title: todo.title, description: todo.description });
   };
 
-  const pendingTodos = todos.filter((t) => t.completed === false);
-  const completedTodos = todos.filter((t) => t.completed === true);
+  const pendingTodos = todos
+    .filter((t) => !t.completed)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const completedTodos = todos
+    .filter((t) => t.completed)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  // ── Drag handlers ──
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, id: number, section: "pending" | "completed") => {
+    setDragId(id);
+    setDragSection(section);
+    e.currentTarget.style.opacity = "0.4";
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    e.currentTarget.style.opacity = "1";
+    setDragId(null);
+    setDropTargetId(null);
+    setDragSection(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, targetId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (targetId === dragId) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? "before" : "after";
+    setDropTargetId(targetId);
+    setDropPosition(position);
+  };
+
+  const handleDragLeave = () => {
+    setDropTargetId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetId: number, section: "pending" | "completed") => {
+    e.preventDefault();
+    if (!dragId || dragId === targetId || dragSection !== section) {
+      setDragId(null);
+      setDropTargetId(null);
+      setDragSection(null);
+      return;
+    }
+
+    const sectionTodos = section === "pending" ? pendingTodos : completedTodos;
+    const withoutDrag = sectionTodos.filter((t) => t.id !== dragId);
+    const dragItem = sectionTodos.find((t) => t.id === dragId)!;
+    const targetIndex = withoutDrag.findIndex((t) => t.id === targetId);
+    const insertIndex = dropPosition === "before" ? targetIndex : targetIndex + 1;
+    withoutDrag.splice(insertIndex, 0, dragItem);
+
+    // Assign new sortOrder values
+    const orders = withoutDrag.map((t, i) => ({ id: t.id, sortOrder: i }));
+
+    // Optimistic UI update
+    setTodos((prev) => {
+      const orderMap = new Map(orders.map((o) => [o.id, o.sortOrder]));
+      return prev.map((t) =>
+        orderMap.has(t.id) ? { ...t, sortOrder: orderMap.get(t.id)! } : t
+      );
+    });
+
+    // Persist
+    authFetch("/api/todos", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orders }),
+    });
+
+    setDragId(null);
+    setDropTargetId(null);
+    setDragSection(null);
+  };
 
   if (loading) {
     return (
@@ -334,6 +416,14 @@ export default function TodosPage() {
                       onEdit={handleStartEdit}
                       confirmDeleteId={confirmDeleteId}
                       setConfirmDeleteId={setConfirmDeleteId}
+                      isDragging={dragId === todo.id}
+                      isDragTarget={dropTargetId === todo.id}
+                      dropPosition={dropPosition}
+                      onDragStart={(e) => handleDragStart(e, todo.id, "pending")}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => handleDragOver(e, todo.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, todo.id, "pending")}
                     />
                   ))}
                 </div>
@@ -356,6 +446,14 @@ export default function TodosPage() {
                       onEdit={handleStartEdit}
                       confirmDeleteId={confirmDeleteId}
                       setConfirmDeleteId={setConfirmDeleteId}
+                      isDragging={dragId === todo.id}
+                      isDragTarget={dropTargetId === todo.id}
+                      dropPosition={dropPosition}
+                      onDragStart={(e) => handleDragStart(e, todo.id, "completed")}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => handleDragOver(e, todo.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, todo.id, "completed")}
                     />
                   ))}
                 </div>
@@ -377,6 +475,14 @@ function TodoItem({
   onEdit,
   confirmDeleteId,
   setConfirmDeleteId,
+  isDragging,
+  isDragTarget,
+  dropPosition,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
   todo: Todo;
   onToggle: (todo: Todo) => void;
@@ -384,18 +490,51 @@ function TodoItem({
   onEdit: (todo: Todo) => void;
   confirmDeleteId: number | null;
   setConfirmDeleteId: (id: number | null) => void;
+  isDragging: boolean;
+  isDragTarget: boolean;
+  dropPosition: "before" | "after";
+  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
 }) {
   const t = useTranslations('todosPage');
   const isCompleted = todo.completed === true;
 
   return (
     <div
-      className={`group flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`group relative flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-grab active:cursor-grabbing ${
+        isDragging ? "opacity-40" : ""
+      } ${
         isCompleted
           ? "bg-transparent border-gray-100 dark:border-zinc-700"
           : "bg-transparent border-gray-200 dark:border-zinc-700 hover:border-blue-200 dark:hover:border-blue-800"
       }`}
     >
+      {/* Drop indicator line - before */}
+      {isDragTarget && dropPosition === "before" && (
+        <div className="absolute top-0 left-2 right-2 h-[2px] bg-blue-500 rounded-full" />
+      )}
+
+      {/* Drag handle */}
+      <div className="mt-0.5 flex-shrink-0 cursor-grab opacity-0 group-hover:opacity-30 transition-opacity">
+        <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" />
+          <circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" />
+          <circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </div>
+
       {/* Checkbox */}
       <button
         onClick={() => onToggle(todo)}
@@ -469,6 +608,11 @@ function TodoItem({
           </span>
         )}
       </span>
+
+      {/* Drop indicator line - after */}
+      {isDragTarget && dropPosition === "after" && (
+        <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-blue-500 rounded-full" />
+      )}
     </div>
   );
 }

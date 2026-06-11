@@ -8,9 +8,11 @@ import { useSidebar } from "./SidebarContext";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "./ThemeToggle";
 import { useLocaleSwitch } from "@/hooks/useLocaleSwitch";
+import FeedbackModal from "./FeedbackModal";
 
 export default function MyAccountMenu() {
   const [open, setOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { user, logout } = useAuth();
   const { collapsed } = useSidebar();
   const router = useRouter();
@@ -51,6 +53,7 @@ export default function MyAccountMenu() {
     { label: t('billing'), href: "/billing" },
     { label: t('integrations'), href: "/integrations" },
     { label: t('guide'), href: "/guide", external: true },
+    { label: t('feedback'), href: "__feedback__" },
     { label: t('account'), href: "/settings" },
   ];
 
@@ -124,7 +127,9 @@ export default function MyAccountMenu() {
                 key={item.href}
                 onClick={() => {
                   setOpen(false);
-                  if (item.external) {
+                  if (item.href === "__feedback__") {
+                    setFeedbackOpen(true);
+                  } else if (item.external) {
                     window.open(item.href, '_blank');
                   } else {
                     router.push(item.href);
@@ -158,6 +163,7 @@ export default function MyAccountMenu() {
           </div>
         </div>
       )}
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 }

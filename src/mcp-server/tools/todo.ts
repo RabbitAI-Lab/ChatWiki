@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { todos } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc, and, sql } from "drizzle-orm";
 import { getMcpUserId } from "../context";
 
 const TITLE_MAX = 100;
@@ -25,7 +25,7 @@ export function registerTodoTools(server: McpServer) {
     "list_todos",
     {
       description:
-        "List all todo items for the current user, ordered by creation time descending (newest first).",
+        "List all todo items for the current user, ordered by user-specified order, then by creation time descending.",
       inputSchema: z.object({}),
     },
     async () => {
@@ -36,7 +36,7 @@ export function registerTodoTools(server: McpServer) {
         .select()
         .from(todos)
         .where(eq(todos.userId, auth))
-        .orderBy(desc(todos.createdAt));
+        .orderBy(asc(todos.sortOrder), desc(todos.createdAt));
       return {
         content: [{ type: "text", text: JSON.stringify(rows, null, 2) }],
       };
@@ -75,6 +75,14 @@ export function registerTodoTools(server: McpServer) {
 
       const desc = (description || "").trim();
       const now = new Date().toISOString();
+
+      // Calculate next sortOrder for pending todos
+      const maxResult = await db
+        .select({ maxOrder: sql<number>`COALESCE(MAX(${todos.sortOrder}), -1)` })
+        .from(todos)
+        .where(and(eq(todos.userId, auth), eq(todos.completed, false)));
+      const nextOrder = (maxResult[0]?.maxOrder ?? -1) + 1;
+
       const result = await db
         .insert(todos)
         .values({
@@ -82,6 +90,7 @@ export function registerTodoTools(server: McpServer) {
           title: trimmedTitle,
           description: desc,
           completed: false,
+          sortOrder: nextOrder,
           createdAt: now,
           updatedAt: now,
         })
@@ -166,6 +175,15 @@ export function registerTodoTools(server: McpServer) {
         updates.description = description.trim();
       }
       if (completed !== undefined) {
+        const newCompleted = completed;
+        if (newCompleted !== existing.completed) {
+          const targetCompleted = newCompleted;
+          const maxResult = await db
+            .select({ maxOrder: sql<number>`COALESCE(MAX(${todos.sortOrder}), -1)` })
+            .from(todos)
+            .where(and(eq(todos.userId, auth), eq(todos.completed, targetCompleted)));
+          updates.sortOrder = (maxResult[0]?.maxOrder ?? -1) + 1;
+        }
         updates.completed = completed;
       }
 

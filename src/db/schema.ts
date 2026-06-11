@@ -166,6 +166,7 @@ export const todos = pgTable("todos", {
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   completed: boolean("completed").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -478,6 +479,19 @@ export const userMcpConfigs = pgTable("user_mcp_configs", {
   name: text("name").notNull(),
   entryJson: text("entry_json").notNull().default("{}"),
   enabled: boolean("enabled").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// feedbacks: 意见反馈
+export const feedbacks = pgTable("feedbacks", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  contact: text("contact"),
+  type: text("type", { enum: ["bug", "improvement", "other"] }).notNull().default("bug"),
+  status: text("status", { enum: ["pending", "reviewed", "resolved"] }).notNull().default("pending"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
